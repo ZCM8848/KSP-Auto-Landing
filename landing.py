@@ -96,15 +96,14 @@ def draw_trajectory(x,reference_frame):
         if i >=1:
             draw_line(start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i],x[1,i],x[2,i]),reference_frame=reference_frame)
 
-def find_nearest_waypoint(position, acc, trajectory):
+def find_nearest_waypoint(position, trajectory):
     results_position = []
     position = array(position)
     trajectory = array(trajectory)
     for point in trajectory:
         results_position.append(norm(point - position))
     result = trajectory[results_position.index(min(results_position))]
-    thrust = (acc[results_position.index(min(results_position))] - array([-g,0,0])) * vessel.mass
-    return result, thrust
+    return result
 
 def descent_throttle_controller(target_height=0,vt=-2):
         acc = (round(vt**2,5)+round(vessel.velocity(target_reference_frame)[2]**2,5))/round((2*(vessel.position(target_reference_frame)[2]-target_height)),5) + round(body.surface_gravity,5) + round(vessel.flight(vessel_reference_frame).aerodynamic_force[2],5)/round(vessel.mass*body.surface_gravity,5)
@@ -139,17 +138,19 @@ result = generate_solution(estimated_landing_time=tf,
 
 trajectory = [(result['x'][0,i],result['x'][1,i],result['x'][2,i]) for i in range(len(result['x'][0]))]
 thrust_acc = [(abs(result['u'][0,i]),result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
+print(len(trajectory))
 
 draw_trajectory(result['x'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
-
 pid = PID(0.5,0.2,0.)
 vessel.auto_pilot.engage()
 
 ut = space_center.ut
+dt = 0.001
 while True:
     timespan = space_center.ut - ut
-    vessel.control.throttle = norm(array(thrust_acc[int(timespan*len(trajectory)/tf)]) + array([-g,0,0]))*vessel.mass / vessel.available_thrust
-    vessel.auto_pilot.target_direction = tuple(vec_clamp_yz( thrust_acc[int(timespan*len(trajectory)/tf)] ,60))
+    index = clamp( int(timespan*len(trajectory)/tf) , 0 , len(trajectory)-1)
+    vessel.control.throttle = norm(array(thrust_acc[index]) + array([-g,0,0]))*vessel.mass / vessel.available_thrust#SHOULD G EXIST??? NO? YES??
+    vessel.auto_pilot.target_direction = tuple(thrust_acc[index])
