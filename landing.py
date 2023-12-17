@@ -91,7 +91,7 @@ def draw_line(start, end, reference_frame):
     position.thickness = 0.5
     return position
 
-def draw_solution(x,reference_frame):
+def draw_trajectory(x,reference_frame):
     for i in range(len(x[0])):
         if i >=1:
             draw_line(start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i],x[1,i],x[2,i]),reference_frame=reference_frame)
@@ -111,15 +111,16 @@ def descent_throttle_controller(target_height=0,vt=-2):
         return vessel.mass*acc/vessel.max_thrust
 
 
-target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
+target_reference_frame = create_target_reference_frame(target=targets.launchpad)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
-
+tf = 30
+conn.ui.message('INITIALIZED',duration=0.5)
 conn.krpc.paused = True
-conn.ui.message('GENERATING SOLUTION')
-result = generate_solution(estimated_landing_time=50,
+conn.ui.message('GENERATING SOLUTION',duration=1)
+result = generate_solution(estimated_landing_time=tf,
                            gravity=g,
                            dry_mass=vessel.dry_mass,
                            fuel_mass=vessel.mass-vessel.dry_mass,
@@ -137,9 +138,10 @@ result = generate_solution(estimated_landing_time=50,
                            plot=False)
 
 trajectory = [(result['x'][0,i],result['x'][1,i],result['x'][2,i]) for i in range(len(result['x'][0]))]
-thrust_acc = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
-draw_solution(result['x'],target_reference_frame)
-conn.ui.message('SOLUTION GENERATED')
+thrust_acc = [(abs(result['u'][0,i]),result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
+
+draw_trajectory(result['x'],target_reference_frame)
+conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
 
@@ -147,9 +149,7 @@ pid = PID(0.5,0.2,0.)
 vessel.auto_pilot.engage()
 
 ut = space_center.ut
-while True:#TIMESPAN ERROR
+while True:
     timespan = space_center.ut - ut
-    print((str(tuple(array(thrust_acc[int(timespan/30)]) + array([-g,0,0])))))
-    vessel.control.throttle = norm(array(thrust_acc[int(timespan/30)]) + array([-g,0,0]))*vessel.mass / vessel.available_thrust
-    vessel.auto_pilot.target_direction = tuple(vec_clamp_yz( thrust_acc[int(timespan/30)] ,60))
-    print(int(timespan/30))
+    vessel.control.throttle = norm(array(thrust_acc[int(timespan*len(trajectory)/tf)]) + array([-g,0,0]))*vessel.mass / vessel.available_thrust
+    vessel.auto_pilot.target_direction = tuple(vec_clamp_yz( thrust_acc[int(timespan*len(trajectory)/tf)] ,60))
