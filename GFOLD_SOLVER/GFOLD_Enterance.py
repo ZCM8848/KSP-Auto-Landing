@@ -36,47 +36,47 @@ def generate_solution(estimated_landing_time:float,
           min_throttle,max_throttle,max_structural_Gs,specific_impulse,max_velocity,glide_slope_cone,
           thrust_pointing_constraint,planetary_angular_velocity,initial_position,initial_velocity)
     s = [ # scalars
-        #'N'     : 100,             # Deprecated, replaced by N_tf, static
+        #'N'     : 100,                                                 # Deprecated, replaced by N_tf, static
         ['tf'    , estimated_landing_time],
-        ['g0'    , 9.80665],         # standard gravity [m/s**2]
-        ['m_dry' , dry_mass],         # dry mass kg
-        ['m_fuel', fuel_mass],       # fuel in tons
-        ['T_max' , max_thrust],           # thrust max
-        ['tmin' ,  min_throttle],             # throttle ability
+        ['g0'    , 9.80665],                                            # standard gravity [m/s**2]
+        ['m_dry' , dry_mass],                                           # dry mass kg
+        ['m_fuel', fuel_mass],                                          # fuel in tons
+        ['T_max' , max_thrust],                                         # thrust max
+        ['tmin' ,  min_throttle],                                       # throttle ability
         ['tmax' ,  max_throttle],
-        ['G_max' , max_structural_Gs],              # maximum allowable structural Gs
-        ['Isp'   , specific_impulse],        # fuel efficiency (specific impulse)
-        ['V_max' , max_velocity] ,           # velocity max
-        ['y_gs'  , np.radians(glide_slope_cone)],  # glide slope cone, must be 0 < Degrees < 90
-        ['p_cs'  , np.cos(np.radians(thrust_pointing_constraint))],  # thrust pointing constraint
+        ['G_max' , max_structural_Gs],                                  # maximum allowable structural Gs
+        ['Isp'   , specific_impulse],                                   # fuel efficiency (specific impulse)
+        ['V_max' , max_velocity] ,                                      # velocity max
+        ['y_gs'  , np.radians(glide_slope_cone)],                       # glide slope cone, must be 0 < Degrees < 90
+        ['p_cs'  , np.cos(np.radians(thrust_pointing_constraint))],     # thrust pointing constraint
     ]
     v = [ # vectors
 
-        ['g' , np.array([-gravity,0,0])],                 # gravity
-        ['w' , np.array(planetary_angular_velocity)] ,  # planetary angular velocity
-        ['nh', np.array([1,0,0])   ],                  # thrust vector reference direction
+        ['g' , np.array([-gravity,0,0])],                               # gravity
+        ['w' , np.array(planetary_angular_velocity)] ,                  # planetary angular velocity
+        ['nh', np.array([1,0,0])   ],                                   # thrust vector reference direction
 
-        ['r0' , np.array(initial_position) ],             # initial position
-        ['v0' , np.array(initial_velocity) ],             # initial velocity
-        #['v0' , np.array([0,  0,   0]) ],             # initial velocity
-        #['r0' , np.array([2400, 0, 0]) ],             # initial position
-        #['v0' , np.array([-40,  0,   0]) ],             # initial velocity
+        ['r0' , np.array(initial_position) ],                           # initial position
+        ['v0' , np.array(initial_velocity) ],                           # initial velocity
+        #['v0' , np.array([0,  0,   0]) ],                              # initial velocity
+        #['r0' , np.array([2400, 0, 0]) ],                              # initial position
+        #['v0' , np.array([-40,  0,   0]) ],                            # initial velocity
 
-        ['rf3', np.array([0,0,0])   ]    ,               # final position target for p4
-        ['rf' , np.array([0,0,0])   ]    ,               # final position target
-        ['vf' , np.array([0,0,0])   ]                    # final velocity target
+        ['rf3', np.array([0,0,0])   ]    ,                              # final position target for p4
+        ['rf' , np.array([0,0,0])   ]    ,                              # final position target
+        ['vf' , np.array([0,0,0])   ]                                   # final velocity target
     ]
 
     sk = [k[0] for k in s]
     sv = [n[1] for n in s]
     # derived values:
     s += [
-            ['alpha' , 1/(sv[sk.index('Isp')]*sv[sk.index('g0')])    ],     # fuel consumption parameter
-            ['m_wet' , (sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])],  # wet mass kg
-            ['r1'    , sv[sk.index('tmin')]*sv[sk.index('T_max')] ], # lower thrust bound
-            ['r2'    , sv[sk.index('tmax')]*sv[sk.index('T_max')] ],   # upper thrust bound
-            #['z0' , np.log(sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])] # initial log(mass) constraint
-            ['z0' , np.log(sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])] # initial log(mass) constraint
+            ['alpha' , 1/(sv[sk.index('Isp')]*sv[sk.index('g0')])    ],                 # fuel consumption parameter
+            ['m_wet' , (sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])],                 # wet mass kg
+            ['r1'    , sv[sk.index('tmin')]*sv[sk.index('T_max')] ],                    # lower thrust bound
+            ['r2'    , sv[sk.index('tmax')]*sv[sk.index('T_max')] ],                    # upper thrust bound
+            #['z0' , np.log(sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])]              # initial log(mass) constraint
+            ['z0' , np.log(sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])]               # initial log(mass) constraint
     ]
     v += [
             ['c' , np.divide(e(0),np.tan(sv[sk.index('y_gs')]))],
@@ -100,8 +100,8 @@ def generate_solution(estimated_landing_time:float,
 
     V = np.matrix(V_).transpose() # form into shape (width,height) not (height,width)
 
-    print('MAKE S HAVE SHAPE',S.shape)
-    print('MAKE V HAVE SHAPE',V.shape)
+    #print('MAKE S HAVE SHAPE',S.shape)
+    #print('MAKE V HAVE SHAPE',V.shape)
 
     return GFOLD(S,V,Sk,Vk,S_,prog_flag='p4',plot=plot)
 

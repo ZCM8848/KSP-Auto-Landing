@@ -1,7 +1,7 @@
 import time
 
 import krpc
-from numpy import array, cos, sin, deg2rad
+from numpy import array, cos, sin, deg2rad, inf
 from numpy.linalg import norm
 
 from PID import PID, clamp
@@ -96,17 +96,28 @@ def draw_trajectory(x,reference_frame):
         if i >=1:
             draw_line(start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i],x[1,i],x[2,i]),reference_frame=reference_frame)
 
-def find_nearest_waypoint(position, trajectory):
+def find_nearest_waypoints(current_position, trajectory):
     results_position = []
-    position = array(position)
+    current_position = array(current_position)
     trajectory = array(trajectory)
-    for point in trajectory:
-        results_position.append(norm(point - position))
-    result = trajectory[results_position.index(min(results_position))]
-    return result
+    trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
+    trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
+
+    for point in trajectory_position:
+        results_position.append(norm(point - current_position))
+    min_index = results_position.index(min(results_position))
+    if min_index != len(trajectory)-1:              #不是最后一个点，那么
+        upper_waypoint = trajectory_position[min_index]      #最近的点
+        lower_waypoint = trajectory_position[min_index+1]    #下一个点
+        upper_velocity_waypoint = trajectory_velocity[min_index]
+        lower_velocity_waypoint = trajectory_velocity[min_index+1]
+    else:
+        upper_waypoint = lower_waypoint = trajectory_position[min_index]
+        upper_velocity_waypoint = lower_velocity_waypoint = trajectory_velocity[min_index]
+    return upper_waypoint, lower_waypoint, upper_velocity_waypoint, lower_velocity_waypoint
 
 def descent_throttle_controller(target_height=0,vt=-2):
-        acc = (round(vt**2,5)+round(vessel.velocity(target_reference_frame)[2]**2,5))/round((2*(vessel.position(target_reference_frame)[2]-target_height)),5) + round(body.surface_gravity,5) + round(vessel.flight(vessel_reference_frame).aerodynamic_force[2],5)/round(vessel.mass*body.surface_gravity,5)
+        acc = (vt**2 + vessel.velocity(target_reference_frame)[0]**2)/(2*(vessel.position(target_reference_frame)[0]-target_height)) + g + vessel.flight(vessel_reference_frame).aerodynamic_force[0]/vessel.mass*g
         return vessel.mass*acc/vessel.max_thrust
 
 
@@ -136,7 +147,7 @@ result = generate_solution(estimated_landing_time=tf,
                            initial_velocity=vessel.velocity(target_reference_frame),
                            plot=False)
 
-trajectory = [(result['x'][0,i],result['x'][1,i],result['x'][2,i]) for i in range(len(result['x'][0]))]
+trajectory = result['x']
 thrust_acc = [(abs(result['u'][0,i]),result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 print(len(trajectory))
 
@@ -144,13 +155,42 @@ draw_trajectory(result['x'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
-pid = PID(0.5,0.2,0.)
+pid = PID(0.2,0.05,0.)
 vessel.auto_pilot.engage()
 
 ut = space_center.ut
 dt = 0.001
+'''
 while True:
     timespan = space_center.ut - ut
     index = clamp( int(timespan*len(trajectory)/tf) , 0 , len(trajectory)-1)
     vessel.control.throttle = norm(array(thrust_acc[index]) + array([-g,0,0]))*vessel.mass / vessel.available_thrust#SHOULD G EXIST??? NO? YES??
     vessel.auto_pilot.target_direction = tuple(thrust_acc[index])
+'''
+while True:
+    time_start = space_center.ut - ut
+
+    position = vessel.position(target_reference_frame)
+    velocity = vessel.velocity(target_reference_frame)
+
+    waypoints = find_nearest_waypoints(position, trajectory)
+    waypoint_position_upper = array(waypoints[0])#上面
+    waypoint_position_lower = array(waypoints[1])#下面
+    waypoint_velocity_upper = array(waypoints[2])
+    waypoint_velocity_lower = array(waypoints[3])
+    
+    delta_position_hor = (waypoint_position_upper-waypoint_position_lower)[1:3]
+    delta_position_ver = (waypoint_position_upper-waypoint_position_lower)[0]
+    delta_velocity_ver = (waypoint_velocity_upper-waypoint_velocity_lower)[0]
+
+    percentage = (waypoint_position_upper[0]-position[0]) / delta_position_ver
+
+    acc_hor = array([0, percentage*delta_position_hor[0]-position[1], percentage*delta_position_hor[1]-position[2]])
+    acc_ver = array([clamp(vessel.thrust/vessel.mass,1,inf), 0, 0])
+    acc = acc_hor + acc_ver
+
+    vessel.auto_pilot.target_direction = vec_clamp_yz(acc, 75)
+    vessel.control.throttle = pid.update(waypoint_velocity_lower[0]-velocity[0],dt)
+
+    time_end = space_center.ut
+    dt = time_end - time_start
