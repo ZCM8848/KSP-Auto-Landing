@@ -42,6 +42,7 @@ def rotate(k, v, ang):
     return np.cos(ang) * v + (1 - np.cos(ang)) * np.dot(v, k) * k + np.sin(ang) * cross(k, v)
 
 def normalize(v):
+    v = array(v)
     n = norm(v)
     if n == 0.: return v
     return v / n
