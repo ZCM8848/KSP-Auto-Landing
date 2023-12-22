@@ -13,7 +13,7 @@ def vec_ang(a, b):
     nb = norm(b)
     if na == 0. or nb == 0.: return 0.
     cos_ang = np.dot(a, b) / na / nb
-    return np.arccos(clamp(cos_ang, -1., 1.)) # 可能存在计算误差使得cos值不在正确范围内
+    return rad2deg(np.arccos(clamp(cos_ang, -1., 1.))) # 可能存在计算误差使得cos值不在正确范围内，角度制
 
 def vec_clamp_yz(vector, ang: float):
     '''

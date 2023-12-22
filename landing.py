@@ -136,12 +136,12 @@ def find_index_by_time(trajectory, current_gametime):
         former_velocity_waypoint = latter_velocity_waypoint = trajectory_velocity[-1]
     return former_position_waypoint, latter_position_waypoint, former_velocity_waypoint, latter_velocity_waypoint
 
-def descent_throttle_controller(target_height=0,vt=2):
+def descent_throttle_controller(target_height=0,vt=0):
         acc = (vt**2 + vessel.velocity(target_reference_frame)[0]**2)/(2*(vessel.position(target_reference_frame)[0]-target_height)) + g + vessel.flight(vessel_reference_frame).aerodynamic_force[0]/vessel.mass*g
         return vessel.mass*acc/vessel.max_thrust
 
 
-target_reference_frame = create_target_reference_frame(target=targets.launchpad)
+target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
@@ -168,8 +168,7 @@ result = generate_solution(estimated_landing_time=tf,
                            plot=False)
 
 trajectory = result['x']
-print(result['tf'])
-#thrust_acc = [(abs(result['u'][0,i]),result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
+thrust_acc = [(abs(result['u'][0,i]),result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
 draw_trajectory(result['x'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
@@ -186,8 +185,13 @@ while True:
     current_gametime = space_center.ut
     timespan = current_gametime - ut
 
-    velocity = vessel.velocity(target_reference_frame)
-    position = vessel.position(target_reference_frame)
+    velocity = array(vessel.velocity(target_reference_frame))
+    position = array(vessel.position(target_reference_frame))
+    thrust = vessel.thrust
+    mass = vessel.mass
+    available_thrust = vessel.available_thrust
+    e_tf = norm(position)/norm(velocity)
+
 
     waypoints = find_nearest_waypoints(position, trajectory)
     waypoint_position_upper = array(waypoints[0])#上面
@@ -205,24 +209,25 @@ while True:
     delta_position_ver = (waypoint_position_upper-waypoint_position_lower)[0]
     delta_velocity_ver = (waypoint_velocity_upper-waypoint_velocity_lower)[0]
 
-    velocity_error = (waypoint_velocity_lower) - velocity
-    position_error = (waypoint_position_lower) - position
+    velocity_error = (waypoint_velocity_upper + waypoint_velocity_lower)/2 - velocity
+    position_error = (waypoint_position_upper + waypoint_position_lower)/2 - position
+
+
+    min_throttle = mass*g/available_thrust
+    throttle = pid.update( velocity_error[0], dt)
+    throttle = clamp( throttle, min_throttle, 1. )
+
+    acc = 0.5*velocity_error + 0.1*position_error
+    acc = (abs(acc[0]), acc[1], acc[2])
+    acc = vec_clamp_yz(acc, 75)
 
     if position[0] <= 200:
         vessel.control.legs = True
-    throttle = pid.update(0.5*velocity_error[0]+0.1*position_error[0], dt)#？？？
-    acc = 0.5*velocity_error + 0.1*position_error
-    acc = (abs(acc[0]), acc[1], acc[2])
+
     vessel.control.throttle = throttle
     vessel.auto_pilot.target_direction = acc
     print(throttle)
     dir1.remove()
     dir2.remove()
-
-    #print(vessel.auto_pilot.target_direction)
-    #print(velocity_error)
-    #if vessel.flight(target_reference_frame).vertical_speed >= 0:
-    #    vessel.control.throttle = 0
-    #    break
 
     dt = space_center.ut - current_gametime
