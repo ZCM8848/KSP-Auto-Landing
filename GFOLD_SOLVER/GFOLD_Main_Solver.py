@@ -176,7 +176,7 @@ def GFOLD(_s_,_v_,Sk,Vk,S_,prog_flag:str='p4',plot:bool=False): # PRIMARY GFOLD 
             #    expression += norm(x[4:6,i])*(i**1.1/N_tf) # - rf[0:3,0]
             #expression += -z[0,N_tf-1]
             #objective=Minimize(expression)
-            objective=Minimize(z[0,N_tf-1])
+            objective=Maximize(z[0,N_tf-1])
             problem=Problem(objective,con)
             obj_opt=problem.solve(solver=solver,verbose=True)
 
@@ -205,8 +205,8 @@ def GFOLD(_s_,_v_,Sk,Vk,S_,prog_flag:str='p4',plot:bool=False): # PRIMARY GFOLD 
     u=u.value
     s=s.value
     z=z.value
-    tf=(N_tf/norm(dt.value)).value
+    tf=(N_tf/norm(dt.value)).value#/
     m=list(map(np.exp,z[0].tolist()))
     if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
 
-    return {'x':x,'u':u}
+    return {'x':x, 'u':u, 'tf':tf}
