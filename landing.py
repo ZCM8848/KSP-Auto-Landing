@@ -6,7 +6,7 @@ from numpy.linalg import norm
 
 from PID import PID, clamp
 from GFOLD_SOLVER import generate_solution
-from vector import vec_ang, vec_around, vec_clamp, vec_clamp_yz, normalize
+from vector import vec_ang, vec_around, vec_clamp, vec_clamp_yz, normalize, cone
 
 #define some basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -97,20 +97,25 @@ def draw_trajectory(x,reference_frame):
             draw_line(start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i],x[1,i],x[2,i]),reference_frame=reference_frame)
 
 def find_nearest_waypoints(current_position, trajectory):
+    #global trajectory_position, trajectory_velocity, trajectory_acceleration
     results_position = []
     current_position = array(current_position)
     trajectory = array(trajectory)
     trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
     trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
+    trajectory_acceleration = [(abs(result['u'][0,i]),result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
     min_index = results_position.index(min(results_position))
+
     try:              #不是最后一个点，那么
         upper_position_waypoint = trajectory_position[min_index]      #最近的点
         lower_position_waypoint = trajectory_position[min_index+1]    #下一个点
         upper_velocity_waypoint = trajectory_velocity[min_index]
         lower_velocity_waypoint = trajectory_velocity[min_index+1]
+        upper_acceleration_waypoint = trajectory_acceleration[min_index]
+        lower_acceleration_waypoint = trajectory_acceleration[min_index+1]
         #if upper_position_waypoint[0] < lower_position_waypoint[0]:
         #    upper_position_waypoint, lower_position_waypoint = lower_position_waypoint, upper_position_waypoint
         #if upper_velocity_waypoint[0] > lower_velocity_waypoint[0]:
@@ -118,7 +123,9 @@ def find_nearest_waypoints(current_position, trajectory):
     except:
         upper_position_waypoint = lower_position_waypoint = trajectory_position[min_index]
         upper_velocity_waypoint = lower_velocity_waypoint = trajectory_velocity[min_index]
-    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint
+        upper_acceleration_waypoint = lower_acceleration_waypoint = trajectory_acceleration[min_index]
+
+    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint
 
 def find_index_by_time(trajectory, current_gametime):
     trajectory = array(trajectory)
@@ -168,7 +175,7 @@ result = generate_solution(estimated_landing_time=tf,
                            plot=False)
 
 trajectory = result['x']
-thrust_acc = [(abs(result['u'][0,i]),result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
+
 
 draw_trajectory(result['x'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
@@ -198,36 +205,19 @@ while True:
     waypoint_position_lower = array(waypoints[1])#下面
     waypoint_velocity_upper = array(waypoints[2])
     waypoint_velocity_lower = array(waypoints[3])
+    waypoint_acceleration_upper = array(waypoints[4])
+    waypoint_acceleration_lower = array(waypoints[5])
 
-    dir1 = conn.drawing.add_line(start=position, end=waypoint_position_upper, reference_frame=target_reference_frame)
-    dir1.color = (255,0,0)
-    dir2 = conn.drawing.add_line(start=position, end=waypoint_position_lower, reference_frame=target_reference_frame)
-    dir2.color = (0,255,0)
+    position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
+    velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
+    accelration_waypoint = (waypoint_acceleration_upper+waypoint_acceleration_lower)/2
 
-    delta_position_hor = (waypoint_position_upper-waypoint_position_lower)[1:3]
-    delta_velocity_hor = (waypoint_velocity_upper-waypoint_velocity_lower)[1:3]
-    delta_position_ver = (waypoint_position_upper-waypoint_position_lower)[0]
-    delta_velocity_ver = (waypoint_velocity_upper-waypoint_velocity_lower)[0]
+    velocity_error = velocity_waypoint - velocity
+    position_error = position_waypoint - position
 
-    velocity_error = (waypoint_velocity_upper + waypoint_velocity_lower)/2 - velocity
-    position_error = (waypoint_position_upper + waypoint_position_lower)/2 - position
-
-
-    min_throttle = mass*g/available_thrust
-    throttle = pid.update( velocity_error[0], dt)
-    throttle = clamp( throttle, min_throttle, 1. )
-
-    acc = 0.5*velocity_error + 0.1*position_error
-    acc = (abs(acc[0]), acc[1], acc[2])
-    acc = vec_clamp_yz(acc, 75)
-
-    if position[0] <= 200:
-        vessel.control.legs = True
-
-    vessel.control.throttle = throttle
-    vessel.auto_pilot.target_direction = acc
-    print(throttle)
-    dir1.remove()
-    dir2.remove()
+    target_direction = accelration_waypoint + velocity_error*0.5 + position_error*0.1
+    print(target_direction)
+    vessel.control.throttle = norm(target_direction) / (available_thrust/mass)
+    vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,75)
 
     dt = space_center.ut - current_gametime

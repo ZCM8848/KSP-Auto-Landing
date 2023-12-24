@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import array, cross, dot, ndarray, rad2deg, radians
+from numpy import array, cross, dot, ndarray, rad2deg, radians, cos, tan, sin
 from numpy.linalg.linalg import norm
 from PID import clamp
 
@@ -46,3 +46,26 @@ def normalize(v):
     n = norm(v)
     if n == 0.: return v
     return v / n
+
+def cone(vector1, vector2, angle):#quite odd
+    vector1 = normalize(vector1) # normalize vector1
+    vector2 = normalize(vector2) # normalize vector2
+    angle = clamp(angle, 90, 0) # clamp angle between 0 and 90 degrees
+    if vec_ang(vector1, vector2) <= angle:
+        pass
+    else:
+        angle = radians(angle)
+        projection_y = cos(angle) * vector2 * vector1 # use normalized vector2
+        projection_x = norm(projection_y)*tan(angle) * normalize(vector2-projection_y)
+        vector2 = projection_x + projection_y
+        if dot(vector1, vector2) < 0: # check the direction
+            vector2 = -vector2 # reverse the direction
+    return vector2
+
+
+a = array([35,25,-80])
+b = array([2.4,46,99])
+print(vec_ang(a,b))
+c = cone(a,b,45)
+print(c)
+print(vec_ang(a,c))
