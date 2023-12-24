@@ -31,6 +31,7 @@ class targets:
 
 class targets_JNSQ:
     launchpad = (-91.7839786112259,5.1753303155099E-06)
+    VAB_A = (-91.8063860071064,-4.23555000546582E-06)
 
 
 #define target reference frame *(Search for "Quaternion vs. Three-Dimensional Rotation" on your own)*
@@ -150,7 +151,7 @@ result = generate_solution(estimated_landing_time=tf,
                            specific_impulse=vessel.specific_impulse,
                            max_velocity=250,
                            glide_slope_cone=15,
-                           thrust_pointing_constraint=120,
+                           thrust_pointing_constraint=30,
                            planetary_angular_velocity=body.angular_velocity(target_reference_frame),
                            initial_position=vessel.position(target_reference_frame),
                            initial_velocity=vessel.velocity(target_reference_frame),
@@ -172,6 +173,7 @@ ut = space_center.ut
 dt = 0.02
 nav_mode = 'GFOLD'
 end = False
+legs = False
 
 while not end:
         while nav_mode == 'GFOLD':
@@ -203,13 +205,18 @@ while not end:
             target_direction_x = target_direction[0]
             while target_direction_x <= 0:
                 target_direction_x = target_direction_x + g
-            target_direction = (target_direction_x, target_direction[1], target_direction[2])
+            target_direction_yz = target_direction[1:3] * (1+norm(target_direction[1:3]))
+            #target_direction_yz = target_direction[1:3]
+            target_direction = (target_direction_x, target_direction_yz[0], target_direction_yz[1])
             throttle = norm(target_direction) / (available_thrust/mass)
             vessel.control.throttle = throttle
-            vessel.auto_pilot.target_direction = target_direction
+            vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,60)
 
             if norm(position) <= 50:
                 nav_mode = 'PID'
+            elif norm(position) <= 250 and not legs:
+                vessel.control.legs = True
+                legs = True
 
             dt = space_center.ut - current_gametime
         
@@ -226,9 +233,8 @@ while not end:
             position_error = -position
 
             target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
-            print(target_direction)
             if dt==0:dt=0.02
-            vessel.control.throttle = pid.update(-5-velocity[0],dt)
+            vessel.control.throttle = pid.update(-4-velocity[0],dt)
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
             
             if velocity[0] >= 0:
