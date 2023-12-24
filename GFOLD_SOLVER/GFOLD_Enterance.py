@@ -31,6 +31,8 @@ def generate_solution(estimated_landing_time:float,
                       planetary_angular_velocity:tuple,
                       initial_position:tuple,
                       initial_velocity:tuple,
+                      target_position:tuple,
+                      target_velocity:tuple,
                       plot=False):
     print(estimated_landing_time,gravity,dry_mass,fuel_mass,max_thrust,
           min_throttle,max_throttle,max_structural_Gs,specific_impulse,max_velocity,glide_slope_cone,
@@ -62,9 +64,9 @@ def generate_solution(estimated_landing_time:float,
         #['r0' , np.array([2400, 0, 0]) ],                              # initial position
         #['v0' , np.array([-40,  0,   0]) ],                            # initial velocity
 
-        ['rf3', np.array([0,0,0])   ]    ,                              # final position target for p4
-        ['rf' , np.array([0,0,0])   ]    ,                              # final position target
-        ['vf' , np.array([0,0,0])   ]                                   # final velocity target
+        ['rf3', np.array(target_position)   ]    ,                              # final position target for p4
+        ['rf' , np.array(target_position)   ]    ,                              # final position target
+        ['vf' , np.array(target_velocity)   ]                                   # final velocity target
     ]
 
     sk = [k[0] for k in s]

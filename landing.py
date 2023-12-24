@@ -8,7 +8,7 @@ from PID import PID, clamp
 from GFOLD_SOLVER import generate_solution
 from vector import vec_ang, vec_around, vec_clamp, vec_clamp_yz, normalize, cone
 
-#define some basic KRPC things
+#define basic KRPC things
 conn = krpc.connect(name='KAL')
 space_center = conn.space_center
 vessel = space_center.active_vessel
@@ -84,18 +84,20 @@ def draw_reference_frame(reference_frame):
 
 def draw_direction(direction, reference_frame):
     direction = conn.drawing.add_direction(direction, reference_frame)
-    direction.thickness = 0.5
+    direction.thickness = 0.1
 
-def draw_line(start, end, reference_frame):
+def draw_line(start, end, colour,reference_frame):
     position = conn.drawing.add_line(reference_frame=reference_frame,start=start,end=end)
-    position.thickness = 0.5
-    return position
+    position.thickness = 0.1
+    position.color = colour
 
-def draw_trajectory(x,reference_frame):
+def draw_trajectory(x,u,reference_frame):
     for i in range(len(x[0])):
         if i >=1:
-            draw_line(start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i],x[1,i],x[2,i]),reference_frame=reference_frame)
+            draw_line(colour=(255,255,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i],x[1,i],x[2,i]),reference_frame=reference_frame)
+            draw_line(colour=(0,0,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i-1]+u[0,i],x[1,i-1]+u[1,i],x[2,i-1]+u[2,i]),reference_frame=reference_frame)
 
+#control utilities
 def find_nearest_waypoints(current_position, trajectory):
     #global trajectory_position, trajectory_velocity, trajectory_acceleration
     results_position = []
@@ -103,7 +105,7 @@ def find_nearest_waypoints(current_position, trajectory):
     trajectory = array(trajectory)
     trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
     trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
-    trajectory_acceleration = [(abs(result['u'][0,i]),result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
+    trajectory_acceleration = [(result['u'][0,i]+g if result['u'][0,i] <0 else result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
@@ -116,10 +118,6 @@ def find_nearest_waypoints(current_position, trajectory):
         lower_velocity_waypoint = trajectory_velocity[min_index+1]
         upper_acceleration_waypoint = trajectory_acceleration[min_index]
         lower_acceleration_waypoint = trajectory_acceleration[min_index+1]
-        #if upper_position_waypoint[0] < lower_position_waypoint[0]:
-        #    upper_position_waypoint, lower_position_waypoint = lower_position_waypoint, upper_position_waypoint
-        #if upper_velocity_waypoint[0] > lower_velocity_waypoint[0]:
-        #    upper_velocity_waypoint, lower_velocity_waypoint = lower_velocity_waypoint, upper_velocity_waypoint
     except:
         upper_position_waypoint = lower_position_waypoint = trajectory_position[min_index]
         upper_velocity_waypoint = lower_velocity_waypoint = trajectory_velocity[min_index]
@@ -127,25 +125,9 @@ def find_nearest_waypoints(current_position, trajectory):
 
     return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint
 
-def find_index_by_time(trajectory, current_gametime):
-    trajectory = array(trajectory)
-    trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
-    trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
-    index = int(current_gametime)
-    print(index)
-    try:
-        former_position_waypoint = trajectory_position[index]
-        latter_position_waypoint = trajectory_position[index+1]
-        former_velocity_waypoint = trajectory_velocity[index]
-        latter_velocity_waypoint = trajectory_velocity[index+1]
-    except:
-        former_position_waypoint = latter_position_waypoint = trajectory_position[-1]
-        former_velocity_waypoint = latter_velocity_waypoint = trajectory_velocity[-1]
-    return former_position_waypoint, latter_position_waypoint, former_velocity_waypoint, latter_velocity_waypoint
-
 def descent_throttle_controller(target_height=0,vt=0):
-        acc = (vt**2 + vessel.velocity(target_reference_frame)[0]**2)/(2*(vessel.position(target_reference_frame)[0]-target_height)) + g + vessel.flight(vessel_reference_frame).aerodynamic_force[0]/vessel.mass*g
-        return vessel.mass*acc/vessel.max_thrust
+    acc = (vt**2 + vessel.velocity(target_reference_frame)[0]**2)/(2*(vessel.position(target_reference_frame)[0]-target_height)) + g + vessel.flight(vessel_reference_frame).aerodynamic_force[0]/vessel.mass*g
+    return vessel.mass*acc/vessel.max_thrust
 
 
 target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
@@ -172,52 +154,87 @@ result = generate_solution(estimated_landing_time=tf,
                            planetary_angular_velocity=body.angular_velocity(target_reference_frame),
                            initial_position=vessel.position(target_reference_frame),
                            initial_velocity=vessel.velocity(target_reference_frame),
+                           target_position=(0,0,0),
+                           target_velocity=(0,0,0),
                            plot=False)
 
 trajectory = result['x']
 
 
-draw_trajectory(result['x'],target_reference_frame)
+draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
-pid = PID(0.5,0.3,0.)
+pid = PID(0.5,0.1,0.)
 vessel.auto_pilot.engage()
 
 ut = space_center.ut
-dt = 0.001
-dir = conn.drawing.add_direction((1,0,0), target_reference_frame)
+dt = 0.02
+nav_mode = 'GFOLD'
+end = False
 
-while True:
-    current_gametime = space_center.ut
-    timespan = current_gametime - ut
+while not end:
+        while nav_mode == 'GFOLD':
+            current_gametime = space_center.ut
 
-    velocity = array(vessel.velocity(target_reference_frame))
-    position = array(vessel.position(target_reference_frame))
-    thrust = vessel.thrust
-    mass = vessel.mass
-    available_thrust = vessel.available_thrust
-    e_tf = norm(position)/norm(velocity)
+            velocity = array(vessel.velocity(target_reference_frame))
+            position = array(vessel.position(target_reference_frame))
+            thrust = vessel.thrust
+            mass = vessel.mass
+            available_thrust = vessel.available_thrust
 
 
-    waypoints = find_nearest_waypoints(position, trajectory)
-    waypoint_position_upper = array(waypoints[0])#上面
-    waypoint_position_lower = array(waypoints[1])#下面
-    waypoint_velocity_upper = array(waypoints[2])
-    waypoint_velocity_lower = array(waypoints[3])
-    waypoint_acceleration_upper = array(waypoints[4])
-    waypoint_acceleration_lower = array(waypoints[5])
+            waypoints = find_nearest_waypoints(position, trajectory)
+            waypoint_position_upper = array(waypoints[0])
+            waypoint_position_lower = array(waypoints[1])
+            waypoint_velocity_upper = array(waypoints[2])
+            waypoint_velocity_lower = array(waypoints[3])
+            waypoint_acceleration_upper = array(waypoints[4])
+            waypoint_acceleration_lower = array(waypoints[5])
 
-    position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
-    velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
-    accelration_waypoint = (waypoint_acceleration_upper+waypoint_acceleration_lower)/2
+            position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
+            velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
+            accelration_waypoint = (waypoint_acceleration_upper+waypoint_acceleration_lower)/2
 
-    velocity_error = velocity_waypoint - velocity
-    position_error = position_waypoint - position
+            velocity_error = velocity_waypoint - velocity
+            position_error = position_waypoint - position
 
-    target_direction = accelration_waypoint + velocity_error*0.5 + position_error*0.1
-    print(target_direction)
-    vessel.control.throttle = norm(target_direction) / (available_thrust/mass)
-    vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,75)
+            target_direction = accelration_waypoint + velocity_error*0.5 + position_error*0.1
+            target_direction_x = target_direction[0]
+            while target_direction_x <= 0:
+                target_direction_x = target_direction_x + g
+            target_direction = (target_direction_x, target_direction[1], target_direction[2])
+            throttle = norm(target_direction) / (available_thrust/mass)
+            vessel.control.throttle = throttle
+            vessel.auto_pilot.target_direction = target_direction
 
-    dt = space_center.ut - current_gametime
+            if norm(position) <= 50:
+                nav_mode = 'PID'
+
+            dt = space_center.ut - current_gametime
+        
+        while nav_mode == 'PID':
+            current_gametime = space_center.ut
+
+            velocity = array(vessel.velocity(target_reference_frame))
+            position = array(vessel.position(target_reference_frame))
+            thrust = vessel.thrust
+            mass = vessel.mass
+            available_thrust = vessel.available_thrust
+
+            velocity_error = -velocity
+            position_error = -position
+
+            target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
+            print(target_direction)
+            if dt==0:dt=0.02
+            vessel.control.throttle = pid.update(-5-velocity[0],dt)
+            vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
+            
+            if velocity[0] >= 0:
+                vessel.control.throttle = 0.
+                print('END')
+                end = True
+                break
+
+            dt = space_center.ut - current_gametime
