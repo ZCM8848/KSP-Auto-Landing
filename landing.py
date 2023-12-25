@@ -106,7 +106,7 @@ def find_nearest_waypoints(current_position, trajectory):
     trajectory = array(trajectory)
     trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
     trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
-    trajectory_acceleration = [(result['u'][0,i]+g if result['u'][0,i] <0 else result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
+    trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
@@ -136,7 +136,7 @@ draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
-tf = 30
+tf = 35
 conn.ui.message('INITIALIZED',duration=0.5)
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
@@ -147,7 +147,7 @@ result = generate_solution(estimated_landing_time=tf,
                            max_thrust=vessel.available_thrust,
                            min_throttle=0.2,
                            max_throttle=1.,
-                           max_structural_Gs=15,
+                           max_structural_Gs=5,
                            specific_impulse=vessel.specific_impulse,
                            max_velocity=250,
                            glide_slope_cone=15,
@@ -214,6 +214,9 @@ while not end:
 
             if norm(position) <= 50:
                 nav_mode = 'PID'
+                terminal_vertical_velocity = velocity[0]
+                if terminal_vertical_velocity <= -7:
+                    terminal_vertical_velocity = -3.5
             elif norm(position) <= 250 and not legs:
                 vessel.control.legs = True
                 legs = True
@@ -234,7 +237,7 @@ while not end:
 
             target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
             if dt==0:dt=0.02
-            vessel.control.throttle = pid.update(-4-velocity[0],dt)
+            vessel.control.throttle = pid.update(terminal_vertical_velocity-velocity[0],dt)
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
             
             if velocity[0] >= 0:
