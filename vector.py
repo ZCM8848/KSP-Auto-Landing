@@ -61,11 +61,3 @@ def cone(vector1, vector2, angle):#quite odd
         if dot(vector1, vector2) < 0: # check the direction
             vector2 = -vector2 # reverse the direction
     return vector2
-
-
-a = array([35,25,-80])
-b = array([2.4,46,99])
-print(vec_ang(a,b))
-c = cone(a,b,45)
-print(c)
-print(vec_ang(a,c))

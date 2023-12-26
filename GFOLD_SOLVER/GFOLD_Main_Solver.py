@@ -1,5 +1,3 @@
-# GFOLD_static_p3p4_gen_precalcz
-
 import numpy as np
 from .EvilPlotting import *
 
@@ -32,9 +30,17 @@ test = 1  # are we doing a static run or a generation run?
 
 from cvxpy import *
 from cvxpygen.cpg import generate_code
+import warnings
+warnings.filterwarnings("ignore")
 
 
-def GFOLD(_s_,_v_,Sk,Vk,S_,prog_flag:str='p4',plot:bool=False): # PRIMARY GFOLD SOLVER
+def GFOLD(_s_, _v_, Sk, Vk, S_, 
+          prog_flag:str='p4', solver:int=0, plot:bool=False): # PRIMARY GFOLD SOLVER
+
+    if solver == 0:
+        solver = ECOS
+    else:
+        solver = SCS
 
     N_tf=250  # MUST BE FIXED FOR CODE GEN TO WORK
 
@@ -166,6 +172,8 @@ def GFOLD(_s_,_v_,Sk,Vk,S_,prog_flag:str='p4',plot:bool=False): # PRIMARY GFOLD 
 
         print('-----------------------------')
 
+        return obj_opt
+
 
     def run_p4(solver):
         print('-----------------------------')
@@ -186,27 +194,31 @@ def GFOLD(_s_,_v_,Sk,Vk,S_,prog_flag:str='p4',plot:bool=False): # PRIMARY GFOLD 
             problem=Problem(objective,con)
             #obj_opt=problem.codegen('GFOLD_'+prog_flag)
             obj_opt = generate_code(problem,'GFOLD_'+prog_flag)
-            print('-----------------------------')
+            
+        print('-----------------------------')
+        
+        return obj_opt
     
-    def run(program):
-        if program == 'p3':
-            try:
-                run_p3(solver=ECOS)
-            except:
-                run_p3(solver=SCS)
-        elif program == 'p4':
-            try:
-                run_p4(solver=ECOS)
-            except:
-                run_p4(solver=SCS)
+    def run(flag):
+        if flag == 'p3':
+            opt = run_p3(solver=solver)
+            return opt
+        elif flag == 'p4':
+            opt = run_p4(solver=solver)
+            return opt
+
     
-    run(prog_flag)
+    opt = run(prog_flag)
     x=x.value
     u=u.value
     s=s.value
     z=z.value
     tf=(N_tf/norm(dt.value)).value#/
-    m=list(map(np.exp,z[0].tolist()))
-    if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
+    try:
+        m=list(map(np.exp,z[0].tolist()))
+        if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
+    except Exception as e:
+        print(f'ERROR: {e}')
+        print('THE PROBLEM IS INFEASIBLE')
 
-    return {'x':x, 'u':u, 'tf':tf}
+    return {'x':x, 'u':u, 'tf':tf, 'opt':opt}

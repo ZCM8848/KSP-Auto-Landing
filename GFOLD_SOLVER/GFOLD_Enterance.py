@@ -33,10 +33,13 @@ def generate_solution(estimated_landing_time:float,
                       initial_velocity:tuple,
                       target_position:tuple,
                       target_velocity:tuple,
+                      prog_flag='p4',
+                      solver=0,
                       plot=False):
-    print(estimated_landing_time,gravity,dry_mass,fuel_mass,max_thrust,
-          min_throttle,max_throttle,max_structural_Gs,specific_impulse,max_velocity,glide_slope_cone,
-          thrust_pointing_constraint,planetary_angular_velocity,initial_position,initial_velocity)
+    kwargs = locals()
+    for k,v in kwargs.items():
+        print(f"{k.replace('_' ,' ')}: {v}")
+    
     s = [ # scalars
         #'N'     : 100,                                                 # Deprecated, replaced by N_tf, static
         ['tf'    , estimated_landing_time],
@@ -105,7 +108,7 @@ def generate_solution(estimated_landing_time:float,
     #print('MAKE S HAVE SHAPE',S.shape)
     #print('MAKE V HAVE SHAPE',V.shape)
 
-    return GFOLD(S,V,Sk,Vk,S_,prog_flag='p4',plot=plot)
+    return GFOLD(S,V,Sk,Vk,S_,prog_flag=prog_flag,solver=solver,plot=plot)
 
 '''
 if __name__ == '__main__':

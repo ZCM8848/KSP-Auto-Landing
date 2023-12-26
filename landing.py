@@ -157,6 +157,8 @@ result = generate_solution(estimated_landing_time=tf,
                            initial_velocity=vessel.velocity(target_reference_frame),
                            target_position=(0,0,0),
                            target_velocity=(0,0,0),
+                           prog_flag='p4',
+                           solver=0,
                            plot=False)
 
 trajectory = result['x']
