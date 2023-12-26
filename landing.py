@@ -136,7 +136,7 @@ draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
-tf = 35
+tf = 30
 conn.ui.message('INITIALIZED',duration=0.5)
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
