@@ -126,7 +126,7 @@ def find_nearest_waypoints(current_position, trajectory, last_index):
 
     return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, min_index
 
-def descent_throttle_controller(target_height=0,vt=0):
+def descent_throttle_controller(target_height=0,vt=-2):
     acc = (vt**2 + vessel.velocity(target_reference_frame)[0]**2)/(2*(vessel.position(target_reference_frame)[0]-target_height)) + g + vessel.flight(vessel_reference_frame).aerodynamic_force[0]/vessel.mass*g
     return vessel.mass*acc/vessel.max_thrust
 
@@ -136,7 +136,7 @@ draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
-tf = 30
+tf = 34
 conn.ui.message('INITIALIZED',duration=0.5)
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
@@ -177,6 +177,7 @@ nav_mode = 'GFOLD'
 end = False
 legs = False
 index = 0
+n = 0
 
 while not end:
         while nav_mode == 'GFOLD':
@@ -221,9 +222,8 @@ while not end:
 
             if norm(position) <= 50:
                 nav_mode = 'PID'
-                terminal_vertical_velocity = velocity[0]
-                if terminal_vertical_velocity <= -7:
-                    terminal_vertical_velocity = -3.5
+                terminal_velocity = velocity
+                terminal_position = position
             elif norm(position) <= 250 and not legs:
                 vessel.control.legs = True
                 legs = True
@@ -244,7 +244,8 @@ while not end:
 
             target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
             dt = max( dt, 0.02 )
-            vessel.control.throttle = pid.update(terminal_vertical_velocity-velocity[0],dt)
+            percentage = position[0]/50
+            vessel.control.throttle = pid.update(percentage*terminal_velocity[0]+4-velocity[0],dt)
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
             
             if velocity[0] >= 0:
