@@ -99,7 +99,7 @@ def draw_trajectory(x,u,reference_frame):
             draw_line(colour=(0,0,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i-1]+u[0,i],x[1,i-1]+u[1,i],x[2,i-1]+u[2,i]),reference_frame=reference_frame)
 
 #control utilities
-def find_nearest_waypoints(current_position, trajectory):
+def find_nearest_waypoints(current_position, trajectory, last_index):
     #global trajectory_position, trajectory_velocity, trajectory_acceleration
     results_position = []
     current_position = array(current_position)
@@ -110,7 +110,7 @@ def find_nearest_waypoints(current_position, trajectory):
 
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
-    min_index = results_position.index(min(results_position))
+    min_index = max( results_position.index(min(results_position)), last_index )
 
     try:              #不是最后一个点，那么
         upper_position_waypoint = trajectory_position[min_index]      #最近的点
@@ -124,7 +124,7 @@ def find_nearest_waypoints(current_position, trajectory):
         upper_velocity_waypoint = lower_velocity_waypoint = trajectory_velocity[min_index]
         upper_acceleration_waypoint = lower_acceleration_waypoint = trajectory_acceleration[min_index]
 
-    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint
+    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, min_index
 
 def descent_throttle_controller(target_height=0,vt=0):
     acc = (vt**2 + vessel.velocity(target_reference_frame)[0]**2)/(2*(vessel.position(target_reference_frame)[0]-target_height)) + g + vessel.flight(vessel_reference_frame).aerodynamic_force[0]/vessel.mass*g
@@ -176,6 +176,7 @@ dt = 0.02
 nav_mode = 'GFOLD'
 end = False
 legs = False
+index = 0
 
 while not end:
         while nav_mode == 'GFOLD':
@@ -188,13 +189,15 @@ while not end:
             available_thrust = vessel.available_thrust
 
 
-            waypoints = find_nearest_waypoints(position, trajectory)
+            waypoints = find_nearest_waypoints(position, trajectory, index)
             waypoint_position_upper = array(waypoints[0])
             waypoint_position_lower = array(waypoints[1])
             waypoint_velocity_upper = array(waypoints[2])
             waypoint_velocity_lower = array(waypoints[3])
             waypoint_acceleration_upper = array(waypoints[4])
             waypoint_acceleration_lower = array(waypoints[5])
+            index = waypoints[6]
+            print(f'index: {index}',end='\r')
 
             position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
             velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
@@ -210,7 +213,9 @@ while not end:
             target_direction_yz = target_direction[1:3] * (1+norm(target_direction[1:3]))
             #target_direction_yz = target_direction[1:3]
             target_direction = (target_direction_x, target_direction_yz[0], target_direction_yz[1])
+
             throttle = norm(target_direction) / (available_thrust/mass)
+
             vessel.control.throttle = throttle
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,60)
 
@@ -238,7 +243,7 @@ while not end:
             position_error = -position
 
             target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
-            if dt==0:dt=0.02
+            dt = max( dt, 0.02 )
             vessel.control.throttle = pid.update(terminal_vertical_velocity-velocity[0],dt)
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
             
