@@ -177,7 +177,6 @@ nav_mode = 'GFOLD'
 end = False
 legs = False
 index = 0
-n = 0
 
 while not end:
         while nav_mode == 'GFOLD':
