@@ -201,14 +201,12 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
     
     def run(flag):
         if flag == 'p3':
-            opt = run_p3(solver=solver)
-            return opt
+            run_p3(solver=solver)
         elif flag == 'p4':
-            opt = run_p4(solver=solver)
-            return opt
+            run_p4(solver=solver)
 
     
-    opt = run(prog_flag)
+    run(prog_flag)
     x=x.value
     u=u.value
     s=s.value
@@ -221,4 +219,4 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
         print(f'ERROR: {e}')
         print('THE PROBLEM IS INFEASIBLE')
 
-    return {'x':x, 'u':u, 'tf':tf, 'opt':opt}
+    return {'x':x, 'u':u, 'tf':tf}

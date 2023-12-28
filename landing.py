@@ -1,7 +1,7 @@
 import time
 
 import krpc
-from numpy import array, cos, sin, deg2rad, inf
+from numpy import array, cos, sin, deg2rad, rad2deg, arccos
 from numpy.linalg import norm
 
 from PID import PID, clamp
@@ -188,6 +188,7 @@ while not end:
             thrust = vessel.thrust
             mass = vessel.mass
             available_thrust = vessel.available_thrust
+            aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
 
 
             waypoints = find_nearest_waypoints(position, trajectory, index)
@@ -207,18 +208,16 @@ while not end:
             velocity_error = velocity_waypoint - velocity
             position_error = position_waypoint - position
 
-            target_direction = accelration_waypoint + velocity_error*0.5 + position_error*0.1
+            target_direction = accelration_waypoint + velocity_error*0.3 + position_error*0.1#0.25,0.15
             target_direction_x = target_direction[0]
             while target_direction_x <= 0:
                 target_direction_x = target_direction_x + g
-            target_direction_yz = target_direction[1:3] * (1+norm(target_direction[1:3]))
-            #target_direction_yz = target_direction[1:3]
-            target_direction = (target_direction_x, target_direction_yz[0], target_direction_yz[1])
+            target_direction = (target_direction_x, target_direction[1], target_direction[2])
 
             throttle = norm(target_direction) / (available_thrust/mass)
 
             vessel.control.throttle = throttle
-            vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,60)
+            vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
 
             if norm(position) <= 50:
                 nav_mode = 'PID'
