@@ -136,7 +136,7 @@ draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
-tf = 34
+tf = 27
 conn.ui.message('INITIALIZED',duration=0.5)
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
@@ -147,9 +147,9 @@ result = generate_solution(estimated_landing_time=tf,
                            max_thrust=vessel.available_thrust,
                            min_throttle=0.2,
                            max_throttle=1.,
-                           max_structural_Gs=5,
+                           max_structural_Gs=9,
                            specific_impulse=vessel.specific_impulse,
-                           max_velocity=250,
+                           max_velocity=400,
                            glide_slope_cone=15,
                            thrust_pointing_constraint=30,
                            planetary_angular_velocity=body.angular_velocity(target_reference_frame),
@@ -222,6 +222,7 @@ while not end:
                 nav_mode = 'PID'
                 terminal_velocity = velocity
                 terminal_position = position
+                terminal_vertical_velocity = min(terminal_velocity[0],-10)
             elif norm(position) <= 250 and not legs:
                 vessel.control.legs = True
                 legs = True
@@ -244,7 +245,7 @@ while not end:
             target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
             dt = max( dt, 0.02 )
             percentage = position[0]/50
-            vessel.control.throttle = pid.update(percentage*terminal_velocity[0]+4-velocity[0],dt)
+            vessel.control.throttle = pid.update(percentage*terminal_vertical_velocity+4-velocity[0],dt)
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
             
             if velocity[0] >= 0:
