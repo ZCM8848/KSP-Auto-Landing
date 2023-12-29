@@ -189,7 +189,6 @@ while not end:
             available_thrust = vessel.available_thrust
             aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
 
-
             waypoints = find_nearest_waypoints(position, trajectory, index)
             waypoint_position_upper = array(waypoints[0])
             waypoint_position_lower = array(waypoints[1])
@@ -198,7 +197,6 @@ while not end:
             waypoint_acceleration_upper = array(waypoints[4])
             waypoint_acceleration_lower = array(waypoints[5])
             index = waypoints[6]
-            print(f'index: {index}',end='\r')
 
             position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
             velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
@@ -213,7 +211,9 @@ while not end:
                 target_direction_x = target_direction_x + g
             target_direction = (target_direction_x, target_direction[1], target_direction[2])
 
-            throttle = norm(target_direction) / (available_thrust/mass)
+
+            compensate = norm(aerodynamic_force[1:3])/(available_thrust)
+            throttle = norm(target_direction) / (available_thrust/mass) + compensate
 
             vessel.control.throttle = throttle
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
@@ -227,6 +227,7 @@ while not end:
                 legs = True
 
             dt = space_center.ut - current_gametime
+            print('throttle:%3f | compensate:%3f | index%i' % (throttle,compensate,index),end='\r')
         
         while nav_mode == 'PID':
             current_gametime = space_center.ut
@@ -248,6 +249,7 @@ while not end:
             
             if velocity[0] >= 0:
                 vessel.control.throttle = 0.
+                print('')
                 print('END')
                 end = True
                 break
