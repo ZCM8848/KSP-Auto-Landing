@@ -244,7 +244,6 @@ while not end:
         target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
         dt = max( dt, 0.02 )
         percentage = clamp(position[0]/terminal_position[0],0,1)
-        print(percentage)
         vessel.control.throttle = pid.update(percentage*terminal_vertical_velocity+4-velocity[0],dt)
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
         
