@@ -136,7 +136,7 @@ draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
-tf = 27
+tf = norm(vessel.position(target_reference_frame))/norm(vessel.velocity(target_reference_frame)) + 17
 conn.ui.message('INITIALIZED',duration=0.5)
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
@@ -218,12 +218,15 @@ while not end:
             vessel.control.throttle = throttle
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
 
-            if norm(position) <= 50:
+            if norm(position) <= 50 or velocity[0] > 0:
                 nav_mode = 'PID'
                 terminal_velocity = velocity
                 terminal_position = position
-                terminal_vertical_velocity = min(terminal_velocity[0],-10)
-            elif norm(position) <= 250 and not legs:
+                terminal_vertical_velocity = min(terminal_velocity[0],-4)
+                vessel.control.legs = True
+                print('\nterminal velocity:%s | terminal position:%s' % (terminal_velocity,terminal_position))
+                break
+            elif norm(position) <= 200 and not legs:
                 vessel.control.legs = True
                 legs = True
 
@@ -244,13 +247,12 @@ while not end:
 
             target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
             dt = max( dt, 0.02 )
-            percentage = position[0]/50
+            percentage = position[0]/terminal_position[0]
             vessel.control.throttle = pid.update(percentage*terminal_vertical_velocity+4-velocity[0],dt)
             vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
             
-            if velocity[0] >= 0:
+            if velocity[0] >= 0 and norm(position) <= 50:
                 vessel.control.throttle = 0.
-                print('')
                 print('END')
                 end = True
                 break
