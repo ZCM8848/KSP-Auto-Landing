@@ -168,7 +168,7 @@ draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
-pid = PID(0.5,0.1,0.)
+pid = PID(0.3,0.1,0.)
 vessel.auto_pilot.engage()
 
 ut = space_center.ut
@@ -214,7 +214,8 @@ while not end:
         throttle = norm(target_direction) / (available_thrust/mass) + compensate
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
-        if norm(position) <= 50 or velocity[0] > 0:
+
+        if norm(position) <= 60 or velocity[0] > 0:
             nav_mode = 'PID'
             terminal_velocity = velocity
             terminal_position = position
@@ -244,7 +245,10 @@ while not end:
         target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
         dt = max( dt, 0.02 )
         percentage = clamp(position[0]/terminal_position[0],0,1)
-        vessel.control.throttle = pid.update(percentage*terminal_vertical_velocity+4-velocity[0],dt)
+        tf = norm(position)/norm(velocity)
+        tf = 5 - tf
+        throttle = pid.update(percentage*terminal_vertical_velocity-velocity[0]+tf,dt)
+        vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
         
         if velocity[0] >= 0 and norm(position) <= 50:
