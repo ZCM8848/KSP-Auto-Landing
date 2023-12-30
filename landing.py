@@ -179,82 +179,79 @@ legs = False
 index = 0
 
 while not end:
-        while nav_mode == 'GFOLD':
-            current_gametime = space_center.ut
+    while nav_mode == 'GFOLD':
+        current_gametime = space_center.ut
 
-            velocity = array(vessel.velocity(target_reference_frame))
-            position = array(vessel.position(target_reference_frame))
-            thrust = vessel.thrust
-            mass = vessel.mass
-            available_thrust = vessel.available_thrust
-            aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
+        velocity = array(vessel.velocity(target_reference_frame))
+        position = array(vessel.position(target_reference_frame))
+        thrust = vessel.thrust
+        mass = vessel.mass
+        available_thrust = vessel.available_thrust
+        aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
 
-            waypoints = find_nearest_waypoints(position, trajectory, index)
-            waypoint_position_upper = array(waypoints[0])
-            waypoint_position_lower = array(waypoints[1])
-            waypoint_velocity_upper = array(waypoints[2])
-            waypoint_velocity_lower = array(waypoints[3])
-            waypoint_acceleration_upper = array(waypoints[4])
-            waypoint_acceleration_lower = array(waypoints[5])
-            index = waypoints[6]
+        waypoints = find_nearest_waypoints(position, trajectory, index)
+        waypoint_position_upper = array(waypoints[0])
+        waypoint_position_lower = array(waypoints[1])
+        waypoint_velocity_upper = array(waypoints[2])
+        waypoint_velocity_lower = array(waypoints[3])
+        waypoint_acceleration_upper = array(waypoints[4])
+        waypoint_acceleration_lower = array(waypoints[5])
+        index = waypoints[6]
 
-            position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
-            velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
-            accelration_waypoint = (waypoint_acceleration_upper+waypoint_acceleration_lower)/2
+        position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
+        velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
+        accelration_waypoint = (waypoint_acceleration_upper+waypoint_acceleration_lower)/2
 
-            velocity_error = velocity_waypoint - velocity
-            position_error = position_waypoint - position
+        velocity_error = velocity_waypoint - velocity
+        position_error = position_waypoint - position
 
-            target_direction = accelration_waypoint + velocity_error*0.3 + position_error*0.1#0.25,0.15
-            target_direction_x = target_direction[0]
-            while target_direction_x <= 0:
-                target_direction_x = target_direction_x + g
-            target_direction = (target_direction_x, target_direction[1], target_direction[2])
+        target_direction = accelration_waypoint + velocity_error*0.3 + position_error*0.1#0.25,0.15
+        target_direction_x = target_direction[0]
+        while target_direction_x <= 0:
+            target_direction_x = target_direction_x + g
+        target_direction = (target_direction_x, target_direction[1], target_direction[2])
+        compensate = norm(aerodynamic_force[1:3])/(available_thrust)
+        throttle = norm(target_direction) / (available_thrust/mass) + compensate
+        vessel.control.throttle = throttle
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
+        if norm(position) <= 50 or velocity[0] > 0:
+            nav_mode = 'PID'
+            terminal_velocity = velocity
+            terminal_position = position
+            terminal_vertical_velocity = min(terminal_velocity[0],-4)
+            vessel.control.legs = True
+            print('\nterminal velocity:%s | terminal position:%s' % (terminal_velocity,terminal_position))
+            break
+        elif norm(position) <= 200 and not legs:
+            vessel.control.legs = True
+            legs = True
 
+        dt = space_center.ut - current_gametime
+        print('throttle:%3f | compensate:%3f | index%i' % (throttle,compensate,index),end='\r')
+    
+    while nav_mode == 'PID':
+        current_gametime = space_center.ut
 
-            compensate = norm(aerodynamic_force[1:3])/(available_thrust)
-            throttle = norm(target_direction) / (available_thrust/mass) + compensate
+        velocity = array(vessel.velocity(target_reference_frame))
+        position = array(vessel.position(target_reference_frame))
+        thrust = vessel.thrust
+        mass = vessel.mass
+        available_thrust = vessel.available_thrust
 
-            vessel.control.throttle = throttle
-            vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
+        velocity_error = -velocity
+        position_error = -position
 
-            if norm(position) <= 50 or velocity[0] > 0:
-                nav_mode = 'PID'
-                terminal_velocity = velocity
-                terminal_position = position
-                terminal_vertical_velocity = min(terminal_velocity[0],-4)
-                vessel.control.legs = True
-                print('\nterminal velocity:%s | terminal position:%s' % (terminal_velocity,terminal_position))
-                break
-            elif norm(position) <= 200 and not legs:
-                vessel.control.legs = True
-                legs = True
-
-            dt = space_center.ut - current_gametime
-            print('throttle:%3f | compensate:%3f | index%i' % (throttle,compensate,index),end='\r')
+        target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
+        dt = max( dt, 0.02 )
+        percentage = clamp(position[0]/terminal_position[0],0,1)
+        print(percentage)
+        vessel.control.throttle = pid.update(percentage*terminal_vertical_velocity+4-velocity[0],dt)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
         
-        while nav_mode == 'PID':
-            current_gametime = space_center.ut
+        if velocity[0] >= 0 and norm(position) <= 50:
+            vessel.control.throttle = 0.
+            print('END')
+            end = True
+            break
 
-            velocity = array(vessel.velocity(target_reference_frame))
-            position = array(vessel.position(target_reference_frame))
-            thrust = vessel.thrust
-            mass = vessel.mass
-            available_thrust = vessel.available_thrust
-
-            velocity_error = -velocity
-            position_error = -position
-
-            target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
-            dt = max( dt, 0.02 )
-            percentage = position[0]/terminal_position[0]
-            vessel.control.throttle = pid.update(percentage*terminal_vertical_velocity+4-velocity[0],dt)
-            vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
-            
-            if velocity[0] >= 0 and norm(position) <= 50:
-                vessel.control.throttle = 0.
-                print('END')
-                end = True
-                break
-
-            dt = space_center.ut - current_gametime
+        dt = space_center.ut - current_gametime
