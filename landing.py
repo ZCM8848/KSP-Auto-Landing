@@ -1,7 +1,7 @@
 import time
 
 import krpc
-from numpy import array, cos, sin, deg2rad, rad2deg, arccos
+from numpy import array, cos, sin, deg2rad, rad2deg, arccos, sqrt, inf, mean, average
 from numpy.linalg import norm
 
 from PID import PID, clamp
@@ -126,9 +126,40 @@ def find_nearest_waypoints(current_position, trajectory, last_index):
 
     return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, min_index
 
-def descent_throttle_controller(target_height=0,vt=-2):
-    acc = (vt**2 + vessel.velocity(target_reference_frame)[0]**2)/(2*(vessel.position(target_reference_frame)[0]-target_height)) + g + vessel.flight(vessel_reference_frame).aerodynamic_force[0]/vessel.mass*g
-    return vessel.mass*acc/vessel.max_thrust
+def get_half_rocket_length(vessel):
+    result = []
+    for part in vessel.parts.all:
+        if part.position(vessel_reference_frame)[1] < 0:
+            result.append(norm(part.position(vessel_reference_frame)))
+    value_weight_dict = {}
+    total_weight = 0
+    for value in result:
+        if value not in value_weight_dict:
+            value_weight_dict[value] = 1
+        else:
+            value_weight_dict[value] += 1
+        total_weight += 1
+    weighted_sum = 0
+    for value, weight in value_weight_dict.items():
+        weighted_sum += value * weight
+
+    return weighted_sum / total_weight
+
+
+def landed(vessel):
+    legs = vessel.parts.legs
+    number = len(legs)
+    grounded = 0
+    for leg in legs:
+        if leg.is_grounded == True:
+            grounded += 1
+    if grounded  == number:
+        return True
+    else:
+        return False
+
+def ignition_height(target_reference_frame):
+    return abs(vessel.flight(target_reference_frame).vertical_speed**2 / (2*(0.6*vessel.available_thrust / vessel.mass - body.surface_gravity)))
 
 
 target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
@@ -136,7 +167,12 @@ draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
-tf = norm(vessel.position(target_reference_frame))/norm(vessel.velocity(target_reference_frame)) + 17
+half_rocket_length = get_half_rocket_length(vessel)
+while vessel.position(target_reference_frame)[0] >= ignition_height(target_reference_frame):
+    if vessel.position(target_reference_frame)[0] < ignition_height(target_reference_frame):
+        break
+
+tf = norm(vessel.position(target_reference_frame)) / 100
 conn.ui.message('INITIALIZED',duration=0.5)
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
@@ -155,7 +191,7 @@ result = generate_solution(estimated_landing_time=tf,
                            planetary_angular_velocity=body.angular_velocity(target_reference_frame),
                            initial_position=vessel.position(target_reference_frame),
                            initial_velocity=vessel.velocity(target_reference_frame),
-                           target_position=(0,0,0),
+                           target_position=(half_rocket_length,0,0),
                            target_velocity=(0,0,0),
                            prog_flag='p4',
                            solver=0,
@@ -168,10 +204,9 @@ draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
-pid = PID(0.3,0.1,0.)
+pid = PID(0.2,0.,0.)
 vessel.auto_pilot.engage()
 
-ut = space_center.ut
 dt = 0.02
 nav_mode = 'GFOLD'
 end = False
@@ -188,6 +223,7 @@ while not end:
         mass = vessel.mass
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
+        torque = vessel.available_torque
 
         waypoints = find_nearest_waypoints(position, trajectory, index)
         waypoint_position_upper = array(waypoints[0])
@@ -214,44 +250,36 @@ while not end:
         throttle = norm(target_direction) / (available_thrust/mass) + compensate
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
+        print('throttle:%3f | compensate:%3f | index%i' % (throttle,compensate,index),end='\r')
 
-        if norm(position) <= 60 or velocity[0] > 0:
+        if velocity[0] >= -2 or landed(vessel):
             nav_mode = 'PID'
             terminal_velocity = velocity
-            terminal_position = position
-            terminal_vertical_velocity = min(terminal_velocity[0],-4)
+            terminal_position = position - array([half_rocket_length,0,0])
             vessel.control.legs = True
             print('\nterminal velocity:%s | terminal position:%s' % (terminal_velocity,terminal_position))
             break
-        elif norm(position) <= 200 and not legs:
+        elif norm(position) <= 130 and not legs:
             vessel.control.legs = True
             legs = True
 
         dt = space_center.ut - current_gametime
-        print('throttle:%3f | compensate:%3f | index%i' % (throttle,compensate,index),end='\r')
     
     while nav_mode == 'PID':
         current_gametime = space_center.ut
 
         velocity = array(vessel.velocity(target_reference_frame))
-        position = array(vessel.position(target_reference_frame))
-        thrust = vessel.thrust
-        mass = vessel.mass
-        available_thrust = vessel.available_thrust
 
         velocity_error = -velocity
         position_error = -position
 
         target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
         dt = max( dt, 0.02 )
-        percentage = clamp(position[0]/terminal_position[0],0,1)
-        tf = norm(position)/norm(velocity)
-        tf = 5 - tf
-        throttle = pid.update(percentage*terminal_vertical_velocity-velocity[0]+tf,dt)
+        throttle = pid.update(-2-velocity[0],dt)
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
-        
-        if velocity[0] >= 0 and norm(position) <= 50:
+
+        if landed(vessel):
             vessel.control.throttle = 0.
             print('END')
             end = True
