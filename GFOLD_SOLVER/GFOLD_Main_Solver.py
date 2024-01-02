@@ -157,12 +157,12 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
     con += [x[0,0:N_tf-1] >= 0] # no, this is not the Boring Company!
 
     def run_p3(solver):
-        print('-----------------------------')
+        #print('-----------------------------')
         if test:
 
             objective=Minimize(norm(x[0:3,N_tf-1].reshape((3,1))-V[:,rf]))
             problem=Problem(objective,con)
-            obj_opt=problem.solve(solver=solver,verbose=True)
+            obj_opt=problem.solve(solver=solver,verbose=False)
 
         else:
 
@@ -170,13 +170,13 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
             problem=Problem(objective,con)
             obj_opt=generate_code(problem,'GFOLD_'+prog_flag+'_')
 
-        print('-----------------------------')
+        #print('-----------------------------')
 
         return obj_opt
 
 
     def run_p4(solver):
-        print('-----------------------------')
+        #print('-----------------------------')
         if test:
             
             #expression = 0
@@ -186,7 +186,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
             #objective=Minimize(expression)
             objective=Maximize(z[0,N_tf-1])
             problem=Problem(objective,con)
-            obj_opt=problem.solve(solver=solver,verbose=True)
+            obj_opt=problem.solve(solver=solver,verbose=False)
 
         else:
 
@@ -195,28 +195,25 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
             #obj_opt=problem.codegen('GFOLD_'+prog_flag)
             obj_opt = generate_code(problem,'GFOLD_'+prog_flag)
             
-        print('-----------------------------')
+        #print('-----------------------------')
         
         return obj_opt
     
     def run(flag):
         if flag == 'p3':
-            run_p3(solver=solver)
+            obj_opt = run_p3(solver=solver)
         elif flag == 'p4':
-            run_p4(solver=solver)
+            obj_opt = run_p4(solver=solver)
+        return obj_opt
 
     
-    run(prog_flag)
+    obj_opt = run(prog_flag)
     x=x.value
     u=u.value
     s=s.value
     z=z.value
-    tf=(N_tf/norm(dt.value)).value#/
-    try:
-        m=list(map(np.exp,z[0].tolist()))
-        if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
-    except Exception as e:
-        print(f'ERROR: {e}')
-        print('THE PROBLEM IS INFEASIBLE')
+    tf=(N_tf*norm(dt.value)).value#/
+    m=list(map(np.exp,z[0].tolist()))
+    if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
 
-    return {'x':x, 'u':u, 'tf':tf}
+    return {'x':x, 'u':u, 'tf':tf, 'opt':obj_opt}
