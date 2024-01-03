@@ -17,7 +17,6 @@ initial_velocity=(-80,  3,   1)
 target_velocity = (0,0,0)
 target_position = (0,0,0)
 
-# 创建一个GFOLD类的实例，并提供参数的值
 G = GFOLD(gravity=9.80665,
           dry_mass=(22.2)*1e3,
           fuel_mass=(13.4)*1e3,
