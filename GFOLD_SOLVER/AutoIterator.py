@@ -1,24 +1,25 @@
 from concurrent.futures import ThreadPoolExecutor
+
 from .GFOLD_Enterance import generate_solution
 
 class GFOLD:
     def __init__(self,
-                 gravity,
-                 dry_mass,
-                 fuel_mass,
-                 max_thrust,
-                 min_throttle,
-                 max_throttle,
-                 max_structural_Gs,
-                 specific_impulse,
-                 max_velocity,
-                 glide_slope_cone,
-                 thrust_pointing_constraint,
-                 planetary_angular_velocity,
-                 initial_position,
-                 initial_velocity,
-                 target_position,
-                 target_velocity) -> None:
+                 gravity:float,
+                 dry_mass:float,
+                 fuel_mass:float,
+                 max_thrust:float,
+                 min_throttle:float,
+                 max_throttle:float,
+                 max_structural_Gs:float,
+                 specific_impulse:float,
+                 max_velocity:float,
+                 glide_slope_cone:float,
+                 thrust_pointing_constraint:float,
+                 planetary_angular_velocity:tuple,
+                 initial_position:tuple,
+                 initial_velocity:tuple,
+                 target_position:tuple,
+                 target_velocity:tuple) -> None:
         self.gravity = gravity
         self.dry_mass = dry_mass
         self.fuel_mass = fuel_mass
@@ -56,7 +57,7 @@ class GFOLD:
                                      self.target_position, 
                                      self.target_velocity)
         except:
-            print(f'{tf}:E')
+            print(f'{tf}:E',flush=True)
             return None
 
     def find_best_result(self):

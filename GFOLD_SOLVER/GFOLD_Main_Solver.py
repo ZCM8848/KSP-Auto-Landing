@@ -186,7 +186,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
             #objective=Minimize(expression)
             objective=Maximize(z[0,N_tf-1])
             problem=Problem(objective,con)
-            obj_opt=problem.solve(solver=solver,verbose=False)
+            obj_opt=problem.solve(solver=solver,verbose=True)
 
         else:
 

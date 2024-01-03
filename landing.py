@@ -1,8 +1,10 @@
 import time
 
 import krpc
-from numpy import array, cos, sin, deg2rad, rad2deg, arccos, sqrt, inf, mean, average
+from numpy import array, cos, sin, deg2rad, rad2deg, arccos, sqrt, inf, mean, average, exp
 from numpy.linalg import norm
+from collections import Counter
+from tqdm import trange
 
 from PID import PID, clamp
 from GFOLD_SOLVER import GFOLD, generate_solution
@@ -93,14 +95,13 @@ def draw_line(start, end, colour,reference_frame):
     position.color = colour
 
 def draw_trajectory(x,u,reference_frame):
-    for i in range(len(x[0])):
+    for i in trange(len(x[0]), desc='drawing trajectory'):
         if i >=1:
             draw_line(colour=(255,255,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i],x[1,i],x[2,i]),reference_frame=reference_frame)
             draw_line(colour=(0,0,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i-1]+u[0,i],x[1,i-1]+u[1,i],x[2,i-1]+u[2,i]),reference_frame=reference_frame)
 
 #control utilities
 def find_nearest_waypoints(current_position, trajectory, last_index):
-    #global trajectory_position, trajectory_velocity, trajectory_acceleration
     results_position = []
     current_position = array(current_position)
     trajectory = array(trajectory)
@@ -112,9 +113,9 @@ def find_nearest_waypoints(current_position, trajectory, last_index):
         results_position.append(norm(point - current_position))
     min_index = max( results_position.index(min(results_position)), last_index )
 
-    try:              #不是最后一个点，那么
-        upper_position_waypoint = trajectory_position[min_index]      #最近的点
-        lower_position_waypoint = trajectory_position[min_index+1]    #下一个点
+    try:
+        upper_position_waypoint = trajectory_position[min_index]
+        lower_position_waypoint = trajectory_position[min_index+1]
         upper_velocity_waypoint = trajectory_velocity[min_index]
         lower_velocity_waypoint = trajectory_velocity[min_index+1]
         upper_acceleration_waypoint = trajectory_acceleration[min_index]
@@ -127,39 +128,25 @@ def find_nearest_waypoints(current_position, trajectory, last_index):
     return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, min_index
 
 def get_half_rocket_length(vessel):
-    result = []
-    for part in vessel.parts.all:
-        if part.position(vessel_reference_frame)[1] < 0:
-            result.append(norm(part.position(vessel_reference_frame)))
-    value_weight_dict = {}
-    total_weight = 0
-    for value in result:
-        if value not in value_weight_dict:
-            value_weight_dict[value] = 1
-        else:
-            value_weight_dict[value] += 1
-        total_weight += 1
-    weighted_sum = 0
-    for value, weight in value_weight_dict.items():
-        weighted_sum += value * weight
-
+    result = [norm(part.position(vessel_reference_frame)) for part in vessel.parts.all if part.position(vessel_reference_frame)[1] < 0]
+    value_weight_dict = dict(Counter(result))
+    total_weight = len(result)
+    weighted_sum = sum(value * weight for value, weight in value_weight_dict.items())
+    
     return weighted_sum / total_weight
 
 def landed(vessel):
     legs = vessel.parts.legs
-    number = len(legs)
-    grounded = 0
-    for leg in legs:
-        if leg.is_grounded == True:
-            grounded += 1
-    if grounded  == number:
-        return True
-    else:
-        return False
+    return all(leg.is_grounded for leg in legs)
 
 def ignition_height(target_reference_frame):
     return abs(vessel.flight(target_reference_frame).vertical_speed**2 / (2*(0.6*vessel.available_thrust / vessel.mass - body.surface_gravity)))
 
+def calculate_control_ratio(torque, half_rocket_length, aerodynamic_force):
+    max_control_force = torque * half_rocket_length
+    max_control_force = sqrt(max_control_force[0,0]**2 + max_control_force[0,2]**2)
+    control_ratio = norm(aerodynamic_force[1:3]) / max_control_force
+    return control_ratio
 
 target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
 draw_reference_frame(target_reference_frame)
@@ -168,51 +155,30 @@ vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
 half_rocket_length = get_half_rocket_length(vessel)
 
+
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
-#result = GFOLD(gravity=g,
-#               dry_mass=vessel.dry_mass,
-#               fuel_mass=vessel.mass-vessel.dry_mass,
-#               max_thrust=vessel.available_thrust,
-#               min_throttle=0.2,
-#               max_throttle=1.,
-#               max_structural_Gs=9,
-#               specific_impulse=vessel.specific_impulse,
-#               max_velocity=400,
-#               glide_slope_cone=9,
-#               thrust_pointing_constraint=30,
-#               planetary_angular_velocity=body.angular_velocity(target_reference_frame),
-#               initial_position=vessel.position(target_reference_frame),
-#               initial_velocity=vessel.velocity(target_reference_frame),
-#               target_position=(half_rocket_length,0,0),
-#               target_velocity=(0,0,0)).find_best_result()
-for tf in range(int(norm(vessel.position(target_reference_frame))/norm(vessel.velocity(target_reference_frame))),61):
-    try:
-        result = generate_solution(estimated_landing_time=tf,
-                                   gravity=g,
-                                   dry_mass=vessel.dry_mass,
-                                   fuel_mass=vessel.mass-vessel.dry_mass,
-                                   max_thrust=vessel.available_thrust,
-                                   min_throttle=0.2,
-                                   max_throttle=1.,
-                                   max_structural_Gs=9,
-                                   specific_impulse=vessel.specific_impulse,
-                                   max_velocity=400,
-                                   glide_slope_cone=9,
-                                   thrust_pointing_constraint=30,
-                                   planetary_angular_velocity=body.angular_velocity(target_reference_frame),
-                                   initial_position=vessel.position(target_reference_frame),
-                                   initial_velocity=vessel.velocity(target_reference_frame),
-                                   target_position=(half_rocket_length,0,0),
-                                   target_velocity=(0,0,0))
-
-        break
-    except Exception as e:
-        print(f'{tf} failed beacuse {e}')
+tf = norm(vessel.velocity(target_reference_frame)) / ((0.1*vessel.available_thrust + norm(vessel.flight(target_reference_frame).aerodynamic_force))/vessel.mass)
+result = generate_solution(estimated_landing_time=tf,
+                           gravity=g,
+                           dry_mass=vessel.dry_mass,
+                           fuel_mass=vessel.mass-vessel.dry_mass,
+                           max_thrust=vessel.available_thrust,
+                           min_throttle=0.2,
+                           max_throttle=1.,
+                           max_structural_Gs=9,
+                           specific_impulse=vessel.specific_impulse,
+                           max_velocity=400,
+                           glide_slope_cone=9,
+                           thrust_pointing_constraint=30,
+                           planetary_angular_velocity=body.angular_velocity(target_reference_frame),
+                           initial_position=vessel.position(target_reference_frame),
+                           initial_velocity=vessel.velocity(target_reference_frame),
+                           target_position=(half_rocket_length,0,0),
+                           target_velocity=(0,0,0))
 
 trajectory = result['x']
 draw_trajectory(result['x'],result['u'],target_reference_frame)
-print(result['opt'])
 conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
@@ -224,6 +190,7 @@ nav_mode = 'GFOLD'
 end = False
 legs = False
 index = 0
+start_time = space_center.ut
 
 while not end:
     while nav_mode == 'GFOLD':
@@ -235,7 +202,7 @@ while not end:
         mass = vessel.mass
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
-        torque = vessel.available_torque
+        torque = array(vessel.available_torque)
 
         waypoints = find_nearest_waypoints(position, trajectory, index)
         waypoint_position_upper = array(waypoints[0])
@@ -253,7 +220,7 @@ while not end:
         velocity_error = velocity_waypoint - velocity
         position_error = position_waypoint - position
 
-        target_direction = accelration_waypoint + velocity_error*0.3 + position_error*0.1#0.25,0.15
+        target_direction = accelration_waypoint + velocity_error*0.3 + position_error*0.1
         target_direction_x = target_direction[0]
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
