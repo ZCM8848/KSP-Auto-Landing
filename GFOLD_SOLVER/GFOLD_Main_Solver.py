@@ -42,7 +42,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
     else:
         solver = SCS
 
-    N_tf=250  # MUST BE FIXED FOR CODE GEN TO WORK
+    N_tf=80  # MUST BE FIXED FOR CODE GEN TO WORK, 250
 
     sk,vk=Sk,Vk
     if not test:

@@ -182,9 +182,12 @@ draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
+while True:
+    if vessel.position(target_reference_frame)[0] <= ignition_height(target_reference_frame):
+        break
+
 pid = PID(0.2,0.,0.)
 vessel.auto_pilot.engage()
-
 dt = 0.02
 nav_mode = 'GFOLD'
 end = False
@@ -250,16 +253,14 @@ while not end:
         current_gametime = space_center.ut
 
         velocity = array(vessel.velocity(target_reference_frame))
-        position = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
+        position_error = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
 
         velocity_error = -velocity
         position_error = -position
 
-        target_direction = velocity_error*0.5 + position_error*0.1 + array([thrust/mass,0,0])
+        target_direction = velocity_error*0.3 + position_error*0.1 + array([thrust/mass,0,0])
         dt = max( dt, 0.02 )
-        timespan = current_gametime - terminal_time
-        tf = (terminal_landing_time-timespan) - norm(position)/norm(velocity)
-        throttle = pid.update(-2-velocity[0]-position[0]+tf,dt)
+        throttle = pid.update(-2-velocity[0],dt)
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
 
