@@ -180,14 +180,10 @@ result = generate_solution(estimated_landing_time=tf,
 trajectory = result['x']
 draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
+vessel.auto_pilot.engage()
 conn.krpc.paused = False
 
-while True:
-    if vessel.position(target_reference_frame)[0] <= ignition_height(target_reference_frame):
-        break
-
 pid = PID(0.2,0.,0.)
-vessel.auto_pilot.engage()
 dt = 0.02
 nav_mode = 'GFOLD'
 end = False
