@@ -101,7 +101,7 @@ def draw_trajectory(x,u,reference_frame):
             draw_line(colour=(0,0,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i-1]+u[0,i],x[1,i-1]+u[1,i],x[2,i-1]+u[2,i]),reference_frame=reference_frame)
 
 #control utilities
-def find_nearest_waypoints(current_position, result, last_index):
+def find_best_waypoints(current_position, tf, timespan, result):
     results_position = []
     trajectory = array(result['x'])
     trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
@@ -110,7 +110,10 @@ def find_nearest_waypoints(current_position, result, last_index):
 
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
-    min_index = max( results_position.index(min(results_position)), last_index )
+    best_time_index = int((timespan/tf) * 160)
+    best_time_index = min( index,158 )
+    best_distance_index = results_position.index(min(results_position))
+    min_index = max(best_time_index,best_distance_index)
 
     try:
         upper_position_waypoint = trajectory_position[min_index]
@@ -125,21 +128,6 @@ def find_nearest_waypoints(current_position, result, last_index):
         upper_acceleration_waypoint = lower_acceleration_waypoint = trajectory_acceleration[min_index]
 
     return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, min_index
-
-def find_waypoints_by_time(result, tf, timespan):
-    trajectory = array(result['x'])
-    trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
-    trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
-    trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
-    index = int((timespan/tf) * 160)
-    index = min( index,158 )
-    upper_position_waypoint = trajectory_position[index]
-    lower_position_waypoint = trajectory_position[index+1]
-    upper_velocity_waypoint = trajectory_velocity[index]
-    lower_velocity_waypoint = trajectory_velocity[index+1]
-    upper_acceleration_waypoint = trajectory_acceleration[index]
-    lower_acceleration_waypoint = trajectory_acceleration[index+1]
-    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, index
 
 def get_half_rocket_length(vessel):
     result = [norm(part.position(vessel_reference_frame)) for part in vessel.parts.all if part.position(vessel_reference_frame)[1] < 0]
@@ -217,8 +205,7 @@ while not end:
         torque = array(vessel.available_torque)
         timespan = space_center.ut - start_time
 
-        #waypoints = find_nearest_waypoints(position, result, index)
-        waypoints = find_waypoints_by_time(result,tf,timespan)
+        waypoints = find_best_waypoints(position,tf,timespan,result)
         waypoint_position_upper = array(waypoints[0])
         waypoint_position_lower = array(waypoints[1])
         waypoint_velocity_upper = array(waypoints[2])
