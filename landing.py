@@ -134,7 +134,6 @@ def get_half_rocket_length(vessel):
     value_weight_dict = dict(Counter(result))
     total_weight = len(result)
     weighted_sum = sum(value * weight for value, weight in value_weight_dict.items())
-    
     return weighted_sum / total_weight
 
 def landed(vessel):
@@ -150,7 +149,7 @@ def calculate_control_ratio(torque, half_rocket_length, aerodynamic_force):
     control_ratio = norm(aerodynamic_force[1:3]) / max_control_force
     return control_ratio
 
-target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
+target_reference_frame = create_target_reference_frame(target=targets.launchpad)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
@@ -184,7 +183,6 @@ conn.ui.message('SOLUTION GENERATED',duration=1)
 vessel.auto_pilot.engage()
 conn.krpc.paused = False
 
-pid = PID(0.2,0.,0.)
 dt = 0.02
 nav_mode = 'GFOLD'
 end = False
@@ -226,18 +224,16 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        compensate = norm(aerodynamic_force[1:3])/(available_thrust)
-        throttle = norm(target_direction) / (available_thrust/mass) + compensate
+        compensation = norm(aerodynamic_force[1:3])/(available_thrust)
+        throttle = norm(target_direction)/(available_thrust/mass) + compensation
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
-        print('throttle:%3f | compensate:%3f | index%i' % (throttle,compensate,index),end='\r')
+        print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
 
-        if velocity[0] >= -2 or landed(vessel):
+        if velocity[0] >= -2 or norm(position) <= 4*half_rocket_length:
             nav_mode = 'PID'
             terminal_velocity = velocity
             terminal_position = position - array([half_rocket_length,0,0])
-            terminal_time = space_center.ut
-            terminal_landing_time = norm(terminal_position)/norm(terminal_velocity)
             vessel.control.legs = True
             print('\nterminal velocity:%s | terminal position:%s' % (terminal_velocity,terminal_position))
             break
@@ -248,8 +244,6 @@ while not end:
         dt = space_center.ut - current_gametime
     
     while nav_mode == 'PID':
-        current_gametime = space_center.ut
-
         velocity = array(vessel.velocity(target_reference_frame))
         position_error = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
 
@@ -257,8 +251,7 @@ while not end:
         position_error = -position
 
         target_direction = velocity_error*0.3 + position_error*0.1 + array([thrust/mass,0,0])
-        dt = max( dt, 0.02 )
-        throttle = pid.update(-2-velocity[0],dt)
+        throttle = 0.2*(-2-velocity[0])
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
 
@@ -267,5 +260,3 @@ while not end:
             print('END')
             end = True
             break
-
-        dt = space_center.ut - current_gametime

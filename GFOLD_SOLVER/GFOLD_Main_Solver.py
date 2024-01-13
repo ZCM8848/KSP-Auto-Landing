@@ -212,7 +212,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
     u=u.value
     s=s.value
     z=z.value
-    tf=(N_tf*norm(dt.value)).value#/
+    tf=(N_tf/norm(dt.value)).value#/
     m=list(map(np.exp,z[0].tolist()))
     if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
 
