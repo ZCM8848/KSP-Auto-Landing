@@ -104,30 +104,30 @@ def draw_trajectory(x,u,reference_frame):
 def find_best_waypoints(current_position, tf, timespan, result):
     results_position = []
     trajectory = array(result['x'])
-    trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
-    trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
-    trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
+    trajectory_position = [array((trajectory[0,i],trajectory[1,i],trajectory[2,i])) for i in range(len(trajectory[0]))]
+    trajectory_velocity = [array((trajectory[3,i],trajectory[4,i],trajectory[5,i])) for i in range(len(trajectory[0]))]
+    trajectory_acceleration = [array((result['u'][0,i],result['u'][1,i],result['u'][2,i])) for i in range(len(result['u'][0]))]
 
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
     best_time_index = int((timespan/tf) * 160)
     best_time_index = min( index,158 )
     best_distance_index = results_position.index(min(results_position))
-    min_index = max(best_time_index,best_distance_index)
+    #min_index = max(best_time_index,best_distance_index)
 
     try:
-        upper_position_waypoint = trajectory_position[min_index]
-        lower_position_waypoint = trajectory_position[min_index+1]
-        upper_velocity_waypoint = trajectory_velocity[min_index]
-        lower_velocity_waypoint = trajectory_velocity[min_index+1]
-        upper_acceleration_waypoint = trajectory_acceleration[min_index]
-        lower_acceleration_waypoint = trajectory_acceleration[min_index+1]
+        upper_position_waypoint = (trajectory_position[best_time_index] + trajectory_position[best_distance_index])/2
+        lower_position_waypoint = (trajectory_position[best_time_index+1] + trajectory_position[best_distance_index+1])/2
+        upper_velocity_waypoint = (trajectory_velocity[best_time_index] + trajectory_velocity[best_distance_index])/2
+        lower_velocity_waypoint = (trajectory_velocity[best_time_index+1] + trajectory_velocity[best_distance_index+1])/2
+        upper_acceleration_waypoint =  (trajectory_acceleration[best_time_index] + trajectory_acceleration[best_distance_index])/2
+        lower_acceleration_waypoint = (trajectory_acceleration[best_time_index+1] + trajectory_acceleration[best_distance_index+1])/2
     except:
-        upper_position_waypoint = lower_position_waypoint = trajectory_position[min_index]
-        upper_velocity_waypoint = lower_velocity_waypoint = trajectory_velocity[min_index]
-        upper_acceleration_waypoint = lower_acceleration_waypoint = trajectory_acceleration[min_index]
+        upper_position_waypoint = lower_position_waypoint = (trajectory_position[best_time_index] + trajectory_position[best_distance_index])/2
+        upper_velocity_waypoint = lower_velocity_waypoint = (trajectory_velocity[best_time_index] + trajectory_velocity[best_distance_index])/2
+        upper_acceleration_waypoint = lower_acceleration_waypoint = (trajectory_acceleration[best_time_index] + trajectory_acceleration[best_distance_index])/2
 
-    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, min_index
+    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, int((best_distance_index+best_time_index)/2)
 
 def get_half_rocket_length(vessel):
     result = [norm(part.position(vessel_reference_frame)) for part in vessel.parts.all if part.position(vessel_reference_frame)[1] < 0]
@@ -250,10 +250,14 @@ while not end:
         velocity_error = -velocity
         position_error = -position
 
-        target_direction = velocity_error*0.3 + position_error*0.1 + array([thrust/mass,0,0])
+        target_direction = velocity_error*0.3 + position_error*0.1
+        target_direction_x = target_direction[0]
+        while target_direction_x <= 0:
+            target_direction_x += g
+        target_direction = (target_direction_x,target_direction[1],target_direction[2])
         throttle = 0.2*(-2-velocity[0])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 75)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 85)
 
         if landed(vessel):
             vessel.control.throttle = 0.
