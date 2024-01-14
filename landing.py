@@ -113,7 +113,7 @@ def find_best_waypoints(current_position, tf, timespan, result):
     best_time_index = int((timespan/tf) * 160)
     best_time_index = min( index,158 )
     best_distance_index = results_position.index(min(results_position))
-    min_index = max(best_time_index,best_distance_index)
+    min_index = best_time_index if abs(best_distance_index-best_time_index) >= 2 else best_distance_index
 
     try:
         upper_position_waypoint = trajectory_position[min_index]
