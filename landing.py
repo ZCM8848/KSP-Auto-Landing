@@ -198,6 +198,8 @@ while not end:
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
         torque = array(vessel.available_torque)
 
+        min_throttle = g*calculate_control_ratio(torque,half_rocket_length,aerodynamic_force)#!!!
+
         waypoints = find_best_waypoints(position,result)
         waypoint_position_upper = array(waypoints[0])
         waypoint_position_lower = array(waypoints[1])
@@ -221,9 +223,10 @@ while not end:
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
         compensation = norm(aerodynamic_force[1:3])/(available_thrust)
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
+        throttle = max(throttle, min_throttle)
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
-        print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
+        print('throttle:%3f | compensation:%3f | min throttle:%.3f | index%i' % (throttle,compensation,min_throttle,index),end='\r')
 
         if velocity[0] >= -2 or norm(position) <= 4*half_rocket_length:
             nav_mode = 'PID'
@@ -240,8 +243,9 @@ while not end:
     
     while nav_mode == 'PID':
         velocity = array(vessel.velocity(target_reference_frame))
+        position = array(vessel.position(target_reference_frame))
 
-        position_error = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
+        position_error = -(position - array([half_rocket_length,0,0]))
         velocity_error = -velocity
 
         target_direction = velocity_error*0.3 + position_error*0.1
@@ -251,7 +255,7 @@ while not end:
         target_direction = (target_direction_x,target_direction[1],target_direction[2])
         throttle = 0.2*(-2-velocity[0])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 80)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 85)
 
         if landed(vessel):
             vessel.control.throttle = 0.
