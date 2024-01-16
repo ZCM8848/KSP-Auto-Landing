@@ -101,7 +101,7 @@ def draw_trajectory(x,u,reference_frame):
             draw_line(colour=(0,0,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i-1]+u[0,i],x[1,i-1]+u[1,i],x[2,i-1]+u[2,i]),reference_frame=reference_frame)
 
 #control utilities
-def find_best_waypoints(current_position, tf, timespan, result):
+def find_best_waypoints(current_position, result):
     results_position = []
     trajectory = array(result['x'])
     trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
@@ -110,10 +110,7 @@ def find_best_waypoints(current_position, tf, timespan, result):
 
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
-    best_time_index = int((timespan/tf) * 160)
-    best_time_index = min( index,158 )
-    best_distance_index = results_position.index(min(results_position))
-    min_index = best_time_index if abs(best_distance_index-best_time_index) >= 2 else best_distance_index
+    min_index = results_position.index(min(results_position))
 
     try:
         upper_position_waypoint = trajectory_position[min_index]
@@ -156,7 +153,6 @@ vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 
 half_rocket_length = get_half_rocket_length(vessel)
 
-
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
 tf = norm(vessel.velocity(target_reference_frame)) / ((0.1*vessel.available_thrust + norm(vessel.flight(target_reference_frame).aerodynamic_force))/vessel.mass)
@@ -171,7 +167,7 @@ result = generate_solution(estimated_landing_time=tf,
                            specific_impulse=vessel.specific_impulse,
                            max_velocity=400,
                            glide_slope_cone=9,
-                           thrust_pointing_constraint=30,
+                           thrust_pointing_constraint=20,
                            planetary_angular_velocity=body.angular_velocity(target_reference_frame),
                            initial_position=vessel.position(target_reference_frame),
                            initial_velocity=vessel.velocity(target_reference_frame),
@@ -201,9 +197,8 @@ while not end:
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
         torque = array(vessel.available_torque)
-        timespan = space_center.ut - start_time
 
-        waypoints = find_best_waypoints(position,tf,timespan,result)
+        waypoints = find_best_waypoints(position,result)
         waypoint_position_upper = array(waypoints[0])
         waypoint_position_lower = array(waypoints[1])
         waypoint_velocity_upper = array(waypoints[2])
@@ -245,10 +240,9 @@ while not end:
     
     while nav_mode == 'PID':
         velocity = array(vessel.velocity(target_reference_frame))
-        position_error = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
 
+        position_error = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
         velocity_error = -velocity
-        position_error = -position
 
         target_direction = velocity_error*0.3 + position_error*0.1
         target_direction_x = target_direction[0]
@@ -257,7 +251,7 @@ while not end:
         target_direction = (target_direction_x,target_direction[1],target_direction[2])
         throttle = 0.2*(-2-velocity[0])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 85)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 80)
 
         if landed(vessel):
             vessel.control.throttle = 0.
