@@ -1,14 +1,14 @@
 import time
 
 import krpc
-from numpy import array, cos, sin, deg2rad, rad2deg, arccos, sqrt, inf, mean, average, exp
+from numpy import array, cos, sin, deg2rad, sqrt
 from numpy.linalg import norm
 from collections import Counter
 from tqdm import trange
 
 from PID import PID, clamp
-from GFOLD_SOLVER import GFOLD, generate_solution
-from vector import vec_ang, vec_around, vec_clamp, vec_clamp_yz, normalize, cone
+from GFOLD_SOLVER import generate_solution
+from vector import vec_clamp_yz, normalize
 
 #define basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -101,7 +101,7 @@ def draw_trajectory(x,u,reference_frame):
             draw_line(colour=(0,0,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i-1]+u[0,i],x[1,i-1]+u[1,i],x[2,i-1]+u[2,i]),reference_frame=reference_frame)
 
 #control utilities
-def find_best_waypoints(current_position, tf, timespan, result):
+def find_best_waypoints(current_position, result):
     results_position = []
     trajectory = array(result['x'])
     trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
@@ -110,10 +110,7 @@ def find_best_waypoints(current_position, tf, timespan, result):
 
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
-    best_time_index = int((timespan/tf) * 160)
-    best_time_index = min( index,158 )
-    best_distance_index = results_position.index(min(results_position))
-    min_index = max(best_time_index,best_distance_index)
+    min_index = results_position.index(min(results_position))
 
     try:
         upper_position_waypoint = trajectory_position[min_index]
@@ -150,11 +147,27 @@ def calculate_control_ratio(torque, half_rocket_length, aerodynamic_force):
     return control_ratio
 
 target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
+half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
+vessel.auto_pilot.engage()
 
-half_rocket_length = get_half_rocket_length(vessel)
+while vessel.flight(target_reference_frame).surface_altitude >= ignition_height(target_reference_frame):
+    igh = ignition_height(target_reference_frame)
+    print('ignition_height:%s' % (igh),end='\r')
+    velocity = array(vessel.velocity(target_reference_frame))
+    position = array(vessel.position(target_reference_frame))
+
+    target_direction = array([g,0,0]) + velocity*0.3 + position*0.1
+    target_direction_x = -target_direction[0]
+    while target_direction_x <= 0:
+        target_direction_x = target_direction_x + g
+    target_direction = (target_direction_x, target_direction[1], target_direction[2])
+    target_direction = vec_clamp_yz(target_direction,75)
+
+    vessel.auto_pilot.target_direction = target_direction
+print('\n')
 
 
 conn.krpc.paused = True
@@ -169,7 +182,7 @@ result = generate_solution(estimated_landing_time=tf,
                            max_throttle=1.,
                            max_structural_Gs=9,
                            specific_impulse=vessel.specific_impulse,
-                           max_velocity=400,
+                           max_velocity=1000,
                            glide_slope_cone=9,
                            thrust_pointing_constraint=30,
                            planetary_angular_velocity=body.angular_velocity(target_reference_frame),
@@ -180,7 +193,6 @@ result = generate_solution(estimated_landing_time=tf,
 
 draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
-vessel.auto_pilot.engage()
 conn.krpc.paused = False
 
 dt = 0.02
@@ -188,7 +200,6 @@ nav_mode = 'GFOLD'
 end = False
 legs = False
 index = 0
-start_time = space_center.ut
 
 while not end:
     while nav_mode == 'GFOLD':
@@ -201,9 +212,8 @@ while not end:
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
         torque = array(vessel.available_torque)
-        timespan = space_center.ut - start_time
 
-        waypoints = find_best_waypoints(position,tf,timespan,result)
+        waypoints = find_best_waypoints(position,result)
         waypoint_position_upper = array(waypoints[0])
         waypoint_position_lower = array(waypoints[1])
         waypoint_velocity_upper = array(waypoints[2])
@@ -226,6 +236,7 @@ while not end:
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
         compensation = norm(aerodynamic_force[1:3])/(available_thrust)
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
+        throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
@@ -244,8 +255,9 @@ while not end:
         dt = space_center.ut - current_gametime
     
     while nav_mode == 'PID':
+        direction = vessel.direction(target_reference_frame)
         velocity = array(vessel.velocity(target_reference_frame))
-        position_error = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
+        position = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
 
         velocity_error = -velocity
         position_error = -position
@@ -258,10 +270,11 @@ while not end:
         throttle = 0.2*(-2-velocity[0])
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 85)
+        print('velocity error:%s | position error:%s' % (velocity_error,position_error),end='\r')
 
         if landed(vessel):
             vessel.control.throttle = 0.
-            print('touchdown velocity:%s' % (velocity))
+            print('\ntouchdown velocity:%s' % (velocity))
             print('END')
             end = True
             break

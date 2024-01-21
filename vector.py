@@ -1,7 +1,15 @@
 import numpy as np
-from numpy import array, cross, dot, ndarray, rad2deg, radians, cos, tan, sin
+from numpy import array, cross, dot, ndarray, rad2deg, radians, cos, tan, sin, arccos
+from scipy.spatial.transform import Rotation as R
 from numpy.linalg.linalg import norm
 from PID import clamp
+
+def sgn(f):
+    if f > 0:
+        return 1
+    elif f < 0:
+        return -1
+    return 0
 
 def vec_clamp(v, max_norm):
     n = norm(v)
@@ -33,6 +41,17 @@ def vec_clamp_yz(vector, ang: float):
     return vector
 
 def vec_around(a, b, ang) -> ndarray:
+    """
+    计算围绕向量b旋转向量a一定角度ang的向量。
+
+    参数：
+        a (ndarray): 需要旋转的向量。
+        b (ndarray): 作为旋转轴的向量。
+        ang (float): 旋转的角度，单位为弧度。
+
+    返回：
+        ndarray: 旋转后的向量。
+    """
     target_ang = vec_ang(a, b)
     rot_ang = clamp(target_ang, -ang, ang)
     rot_axis = normalize(cross(a, b))
@@ -61,3 +80,15 @@ def cone(vector1, vector2, angle):#quite odd
         if dot(vector1, vector2) < 0: # check the direction
             vector2 = -vector2 # reverse the direction
     return vector2
+
+def quaternion2euler(quaternion):
+    r = R.from_quat(quaternion)
+    euler = r.as_euler('xyz', degrees=True)
+    return euler
+
+def angle_around_axis(v1, v2, axis):
+    axis = normalize(axis)
+    v1 = normalize(cross(v1, axis))
+    v2 = normalize(cross(v2, axis))
+    direction = sgn(dot(cross(v1, v2), axis))
+    return direction * arccos(dot(v1, v2))
