@@ -1,7 +1,7 @@
 import time
 
 import krpc
-from numpy import array, cos, sin, deg2rad, sqrt, mean
+from numpy import array, cos, sin, deg2rad, sqrt
 from numpy.linalg import norm
 from collections import Counter
 from tqdm import trange
@@ -101,7 +101,7 @@ def draw_trajectory(x,u,reference_frame):
             draw_line(colour=(0,0,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i-1]+u[0,i],x[1,i-1]+u[1,i],x[2,i-1]+u[2,i]),reference_frame=reference_frame)
 
 #control utilities
-def find_best_waypoints_by_position(current_position, result):
+def find_best_waypoints(current_position, result):
     results_position = []
     trajectory = array(result['x'])
     trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
@@ -111,28 +111,6 @@ def find_best_waypoints_by_position(current_position, result):
     for point in trajectory_position:
         results_position.append(norm(point - current_position))
     min_index = results_position.index(min(results_position))
-
-    try:
-        upper_position_waypoint = trajectory_position[min_index]
-        lower_position_waypoint = trajectory_position[min_index+1]
-        upper_velocity_waypoint = trajectory_velocity[min_index]
-        lower_velocity_waypoint = trajectory_velocity[min_index+1]
-        upper_acceleration_waypoint = trajectory_acceleration[min_index]
-        lower_acceleration_waypoint = trajectory_acceleration[min_index+1]
-    except:
-        upper_position_waypoint = lower_position_waypoint = trajectory_position[min_index]
-        upper_velocity_waypoint = lower_velocity_waypoint = trajectory_velocity[min_index]
-        upper_acceleration_waypoint = lower_acceleration_waypoint = trajectory_acceleration[min_index]
-
-    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, min_index
-
-def find_best_waypoints_by_time(tf, timespan, result):
-    trajectory = array(result['x'])
-    trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
-    trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
-    trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
-
-    min_index = min( int(160*(timespan/tf)),158 )
 
     try:
         upper_position_waypoint = trajectory_position[min_index]
@@ -175,9 +153,26 @@ draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.auto_pilot.engage()
 
+while vessel.flight(target_reference_frame).surface_altitude >= ignition_height(target_reference_frame):
+    igh = ignition_height(target_reference_frame)
+    print('ignition_height:%s' % (igh),end='\r')
+    velocity = array(vessel.velocity(target_reference_frame))
+    position = array(vessel.position(target_reference_frame))
+
+    target_direction = array([g,0,0]) + velocity*0.3 + position*0.1
+    target_direction_x = -target_direction[0]
+    while target_direction_x <= 0:
+        target_direction_x = target_direction_x + g
+    target_direction = (target_direction_x, target_direction[1], target_direction[2])
+    target_direction = vec_clamp_yz(target_direction,75)
+
+    vessel.auto_pilot.target_direction = target_direction
+print('\n')
+
+
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
-tf = 27
+tf = norm(vessel.velocity(target_reference_frame)) / ((0.1*vessel.available_thrust + norm(vessel.flight(target_reference_frame).aerodynamic_force))/vessel.mass)
 result = generate_solution(estimated_landing_time=tf,
                            gravity=g,
                            dry_mass=vessel.dry_mass,
@@ -205,7 +200,6 @@ nav_mode = 'GFOLD'
 end = False
 legs = False
 index = 0
-start_time = space_center.ut
 
 while not end:
     while nav_mode == 'GFOLD':
@@ -217,58 +211,35 @@ while not end:
         mass = vessel.mass
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
-        timespan = space_center.ut - start_time
-        overlap = 0.09*vessel.auto_pilot.heading_error
-        print(overlap)
+        torque = array(vessel.available_torque)
 
-        waypoints_for_throttle = find_best_waypoints_by_position(position,result)
-        waypoint_position_upper_for_throttle = array(waypoints_for_throttle[0])
-        waypoint_position_lower_for_throttle = array(waypoints_for_throttle[1])
-        waypoint_velocity_upper_for_throttle = array(waypoints_for_throttle[2])
-        waypoint_velocity_lower_for_throttle = array(waypoints_for_throttle[3])
-        waypoint_acceleration_upper_for_throttle = array(waypoints_for_throttle[4])
-        waypoint_acceleration_lower_for_throttle = array(waypoints_for_throttle[5])
-        index_for_throttle = waypoints_for_throttle[6]
+        waypoints = find_best_waypoints(position,result)
+        waypoint_position_upper = array(waypoints[0])
+        waypoint_position_lower = array(waypoints[1])
+        waypoint_velocity_upper = array(waypoints[2])
+        waypoint_velocity_lower = array(waypoints[3])
+        waypoint_acceleration_upper = array(waypoints[4])
+        waypoint_acceleration_lower = array(waypoints[5])
+        index = waypoints[6]
 
-        waypoints_for_direction = find_best_waypoints_by_time(tf,timespan+overlap,result)
-        waypoint_position_upper_for_direction = array(waypoints_for_direction[0])
-        waypoint_position_lower_for_direction = array(waypoints_for_direction[1])
-        waypoint_velocity_upper_for_direction = array(waypoints_for_direction[2])
-        waypoint_velocity_lower_for_direction = array(waypoints_for_direction[3])
-        waypoint_acceleration_upper_for_direction = array(waypoints_for_direction[4])
-        waypoint_acceleration_lower_for_direction = array(waypoints_for_direction[5])
-        index_for_direction = waypoints_for_direction[6]
+        position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
+        velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
+        accelration_waypoint = (waypoint_acceleration_upper+waypoint_acceleration_lower)/2
 
-        position_waypoint_for_throttle = (waypoint_position_upper_for_throttle+waypoint_position_lower_for_throttle)/2
-        velocity_waypoint_for_throttle = (waypoint_position_upper_for_throttle+waypoint_position_lower_for_throttle)/2
-        accelration_waypoint_for_throttle = (waypoint_acceleration_upper_for_throttle+waypoint_acceleration_lower_for_throttle)/2
+        velocity_error = velocity_waypoint - velocity
+        position_error = position_waypoint - position
 
-        position_waypoint_for_direction = (waypoint_position_upper_for_direction+waypoint_position_lower_for_direction)/2
-        velocity_waypoint_for_direction = (waypoint_position_upper_for_direction+waypoint_velocity_lower_for_direction)/2
-        accelration_waypoint_for_direction = (waypoint_acceleration_upper_for_direction+waypoint_acceleration_lower_for_direction)/2
-
-        velocity_error_for_throttle = velocity_waypoint_for_throttle - velocity
-        position_error_for_throttle = velocity_waypoint_for_throttle - position
-
-        velocity_error_for_direction = velocity_waypoint_for_direction - velocity
-        position_error_for_direction = velocity_waypoint_for_direction - position
-
-        target_direction_for_throttle = accelration_waypoint_for_throttle + velocity_error_for_throttle*0.3 + position_error_for_throttle*0.1
-        target_direction_x_for_throttle = target_direction_for_throttle[0]
-        target_direction_for_direction = accelration_waypoint_for_direction + velocity_error_for_direction*0.3 + position_error_for_direction*0.1
-        target_direction_x_for_direction = target_direction_for_direction[0]
-        while target_direction_x_for_throttle <= 0:
-            target_direction_x_for_throttle = target_direction_x_for_throttle + g
-        while target_direction_x_for_direction <= 0:
-            target_direction_x_for_direction = target_direction_x_for_direction + g
-        target_direction_for_throttle = (target_direction_x_for_throttle, target_direction_for_throttle[1], target_direction_for_throttle[2])
-        target_direction_for_direction = (target_direction_x_for_direction, target_direction_for_direction[1], target_direction_for_direction[2])
+        target_direction = accelration_waypoint + velocity_error*0.3 + position_error*0.1
+        target_direction_x = target_direction[0]
+        while target_direction_x <= 0:
+            target_direction_x = target_direction_x + g
+        target_direction = (target_direction_x, target_direction[1], target_direction[2])
         compensation = norm(aerodynamic_force[1:3])/(available_thrust)
-        throttle = norm(target_direction_for_throttle)/(available_thrust/mass) + compensation
-        throttle = clamp(throttle,0.2,1)
+        throttle = norm(target_direction)/(available_thrust/mass) + compensation
+        throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction_for_direction,45)
-        #print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
+        print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
 
         if velocity[0] >= -2 or norm(position) <= 4*half_rocket_length:
             nav_mode = 'PID'
