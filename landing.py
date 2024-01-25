@@ -1,7 +1,7 @@
 import time
 
 import krpc
-from numpy import array, cos, sin, deg2rad, sqrt
+from numpy import array, cos, sin, deg2rad, sqrt, mean
 from numpy.linalg import norm
 from collections import Counter
 from tqdm import trange
@@ -132,7 +132,7 @@ def find_best_waypoints_by_time(tf, timespan, result):
     trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
     trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
-    min_index = int(160*(timespan/tf))
+    min_index = min( int(160*(timespan/tf)),158 )
 
     try:
         upper_position_waypoint = trajectory_position[min_index]
@@ -175,26 +175,9 @@ draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.auto_pilot.engage()
 
-while vessel.flight(target_reference_frame).surface_altitude >= ignition_height(target_reference_frame):
-    igh = ignition_height(target_reference_frame)
-    print('ignition_height:%s' % (igh),end='\r')
-    velocity = array(vessel.velocity(target_reference_frame))
-    position = array(vessel.position(target_reference_frame))
-
-    target_direction = array([g,0,0]) + velocity*0.3 + position*0.1
-    target_direction_x = -target_direction[0]
-    while target_direction_x <= 0:
-        target_direction_x = target_direction_x + g
-    target_direction = (target_direction_x, target_direction[1], target_direction[2])
-    target_direction = vec_clamp_yz(target_direction,75)
-
-    vessel.auto_pilot.target_direction = target_direction
-print('\n')
-
-
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
-tf = norm(vessel.velocity(target_reference_frame)) / ((0.1*vessel.available_thrust + norm(vessel.flight(target_reference_frame).aerodynamic_force))/vessel.mass)
+tf = 27
 result = generate_solution(estimated_landing_time=tf,
                            gravity=g,
                            dry_mass=vessel.dry_mass,
@@ -222,6 +205,7 @@ nav_mode = 'GFOLD'
 end = False
 legs = False
 index = 0
+start_time = space_center.ut
 
 while not end:
     while nav_mode == 'GFOLD':
@@ -234,19 +218,9 @@ while not end:
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
         timespan = space_center.ut - start_time
-        overlap = mean(array(vessel.auto_pilot.deceleration_time))
+        overlap = 0.09*vessel.auto_pilot.heading_error
         print(overlap)
 
-<<<<<<< Updated upstream
-        waypoints = find_best_waypoints(position,result)
-        waypoint_position_upper = array(waypoints[0])
-        waypoint_position_lower = array(waypoints[1])
-        waypoint_velocity_upper = array(waypoints[2])
-        waypoint_velocity_lower = array(waypoints[3])
-        waypoint_acceleration_upper = array(waypoints[4])
-        waypoint_acceleration_lower = array(waypoints[5])
-        index = waypoints[6]
-=======
         waypoints_for_throttle = find_best_waypoints_by_position(position,result)
         waypoint_position_upper_for_throttle = array(waypoints_for_throttle[0])
         waypoint_position_lower_for_throttle = array(waypoints_for_throttle[1])
@@ -264,7 +238,6 @@ while not end:
         waypoint_acceleration_upper_for_direction = array(waypoints_for_direction[4])
         waypoint_acceleration_lower_for_direction = array(waypoints_for_direction[5])
         index_for_direction = waypoints_for_direction[6]
->>>>>>> Stashed changes
 
         position_waypoint_for_throttle = (waypoint_position_upper_for_throttle+waypoint_position_lower_for_throttle)/2
         velocity_waypoint_for_throttle = (waypoint_position_upper_for_throttle+waypoint_position_lower_for_throttle)/2
@@ -291,19 +264,11 @@ while not end:
         target_direction_for_throttle = (target_direction_x_for_throttle, target_direction_for_throttle[1], target_direction_for_throttle[2])
         target_direction_for_direction = (target_direction_x_for_direction, target_direction_for_direction[1], target_direction_for_direction[2])
         compensation = norm(aerodynamic_force[1:3])/(available_thrust)
-<<<<<<< Updated upstream
-        throttle = norm(target_direction)/(available_thrust/mass) + compensation
-        throttle = clamp(throttle,0.2,1.)
-        vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
-        print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
-=======
         throttle = norm(target_direction_for_throttle)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1)
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction_for_direction,45)
         #print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
->>>>>>> Stashed changes
 
         if velocity[0] >= -2 or norm(position) <= 4*half_rocket_length:
             nav_mode = 'PID'
