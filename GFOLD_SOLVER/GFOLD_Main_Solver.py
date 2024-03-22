@@ -35,14 +35,14 @@ warnings.filterwarnings("ignore")
 
 
 def GFOLD(_s_, _v_, Sk, Vk, S_, 
-          prog_flag:str='p4', solver:int=0, plot:bool=False): # PRIMARY GFOLD SOLVER
+          prog_flag:str='p4', solver:str='ECOS', N_tf:int=160, plot:bool=False): # PRIMARY GFOLD SOLVER
 
-    if solver == 0:
+    if solver == "ECOS":
         solver = ECOS
     else:
         solver = SCS
 
-    N_tf=160  # MUST BE FIXED FOR CODE GEN TO WORK, 250
+    N_tf=N_tf  # MUST BE FIXED FOR CODE GEN TO WORK, 250
 
     sk,vk=Sk,Vk
     if not test:
@@ -162,7 +162,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
 
             objective=Minimize(norm(x[0:3,N_tf-1].reshape((3,1))-V[:,rf]))
             problem=Problem(objective,con)
-            obj_opt=problem.solve(solver=solver,verbose=False)
+            obj_opt=problem.solve(solver=solver,verbose=True)
 
         else:
 
@@ -212,7 +212,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
     u=u.value
     s=s.value
     z=z.value
-    tf=(N_tf/norm(dt.value)).value#/
+    tf=(N_tf/norm(dt.value)).value
     m=list(map(np.exp,z[0].tolist()))
     if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
 

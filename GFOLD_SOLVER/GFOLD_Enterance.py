@@ -34,7 +34,8 @@ def generate_solution(estimated_landing_time:float,
                       target_position:tuple,
                       target_velocity:tuple,
                       prog_flag='p4',
-                      solver=0,
+                      solver='ECOS',
+                      N_tf=160,
                       plot=False):
     kwargs = locals()
     for k,v in kwargs.items():
@@ -108,7 +109,7 @@ def generate_solution(estimated_landing_time:float,
     #print('MAKE S HAVE SHAPE',S.shape)
     #print('MAKE V HAVE SHAPE',V.shape)
 
-    return GFOLD(S,V,Sk,Vk,S_,prog_flag=prog_flag,solver=solver,plot=plot)
+    return GFOLD(S,V,Sk,Vk,S_,prog_flag=prog_flag,solver=solver,N_tf=N_tf,plot=plot)
 
 '''
 if __name__ == '__main__':
