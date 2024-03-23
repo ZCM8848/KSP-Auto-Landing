@@ -152,23 +152,24 @@ draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.auto_pilot.engage()
-
+'''
 while vessel.flight(target_reference_frame).surface_altitude >= ignition_height(target_reference_frame):
     igh = ignition_height(target_reference_frame)
-    print('ignition_height:%s' % (igh),end='\r')
+    #print('ignition_height:%s' % (igh),end='\r')
     velocity = array(vessel.velocity(target_reference_frame))
     position = array(vessel.position(target_reference_frame))
 
-    target_direction = array([g,0,0]) + velocity*0.3 + position*0.1
-    target_direction_x = -target_direction[0]
-    while target_direction_x <= 0:
-        target_direction_x = target_direction_x + g
-    target_direction = (target_direction_x, target_direction[1], target_direction[2])
-    target_direction = vec_clamp_yz(target_direction,75)
+    error = -(velocity*0.3 + position*0.1)
+    error_x = error[0]
+    while error_x <= 0:
+        error_x = error_x + g
+    error = (error_x, error[1], error[2])
+    target_direction = vec_clamp_yz(error,75)
+    print(target_direction)
 
     vessel.auto_pilot.target_direction = target_direction
 print('\n')
-
+'''
 
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
@@ -189,7 +190,8 @@ result = generate_solution(estimated_landing_time=tf,
                            initial_position=vessel.position(target_reference_frame),
                            initial_velocity=vessel.velocity(target_reference_frame),
                            target_position=(half_rocket_length,0,0),
-                           target_velocity=(0,0,0))
+                           target_velocity=(0,0,0),
+                           N_tf=160)
 
 draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
