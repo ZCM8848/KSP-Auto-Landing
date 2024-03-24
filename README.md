@@ -15,5 +15,5 @@ To run the code:
 ---
 
 ##### References:
-[G-FOLD-Python(jonnyhyman)](https://github.com/jonnyhyman/G-FOLD-Python)
+[G-FOLD-Python(jonnyhyman)](https://github.com/jonnyhyman/G-FOLD-Python)  
 [G-FOLD(Wrg1t)](https://github.com/Wrg1t/G-FOLD)
