@@ -7,7 +7,7 @@ from collections import Counter
 from tqdm import trange
 
 from PID import PID, clamp
-from GFOLD_SOLVER import generate_solution
+from GFOLD_SOLVER import GFOLD
 from vector import vec_clamp_yz, normalize
 
 #define basic KRPC things
@@ -173,25 +173,33 @@ print('\n')
 
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
-tf = norm(vessel.velocity(target_reference_frame)) / ((0.1*vessel.available_thrust + norm(vessel.flight(target_reference_frame).aerodynamic_force))/vessel.mass)
-result = generate_solution(estimated_landing_time=tf,
-                           gravity=g,
-                           dry_mass=vessel.dry_mass,
-                           fuel_mass=vessel.mass-vessel.dry_mass,
-                           max_thrust=vessel.available_thrust,
-                           min_throttle=0.2,
-                           max_throttle=1.,
-                           max_structural_Gs=9,
-                           specific_impulse=vessel.specific_impulse,
-                           max_velocity=1000,
-                           glide_slope_cone=9,
-                           thrust_pointing_constraint=30,
-                           planetary_angular_velocity=body.angular_velocity(target_reference_frame),
-                           initial_position=vessel.position(target_reference_frame),
-                           initial_velocity=vessel.velocity(target_reference_frame),
-                           target_position=(half_rocket_length,0,0),
-                           target_velocity=(0,0,0),
-                           N_tf=160)
+#tf = norm(vessel.velocity(target_reference_frame)) / ((0.1*vessel.available_thrust + norm(vessel.flight(target_reference_frame).aerodynamic_force))/vessel.mass)
+min_tf = sqrt(2*vessel.flight(target_reference_frame).surface_altitude/g)
+problem = GFOLD(gravity=g,
+               dry_mass=vessel.dry_mass,
+               fuel_mass=vessel.mass-vessel.dry_mass,
+               max_thrust=vessel.available_thrust,
+               min_throttle=0.2,
+               max_throttle=1.,
+               max_structural_Gs=9,
+               specific_impulse=vessel.specific_impulse,
+               max_velocity=1000,
+               glide_slope_cone=9,
+               thrust_pointing_constraint=30,
+               planetary_angular_velocity=body.angular_velocity(target_reference_frame),
+               initial_position=vessel.position(target_reference_frame),
+               initial_velocity=vessel.velocity(target_reference_frame),
+               target_position=(half_rocket_length,0,0),
+               target_velocity=(0,0,0),
+               N_tf=160,
+               prog_flag='p4',
+               solver='ECOS',
+               plot=False,
+               min_tf=min_tf)
+result = problem.solve()
+if result is None:
+    raise ValueError
+print(f"the best landing time is {result['tf']} seconds")
 
 draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
@@ -213,7 +221,7 @@ while not end:
         mass = vessel.mass
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
-        torque = array(vessel.available_torque)
+        direction = vessel.direction(vessel_surface_reference_frame)
 
         waypoints = find_best_waypoints(position,result)
         waypoint_position_upper = array(waypoints[0])
@@ -236,14 +244,14 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        compensation = norm(aerodynamic_force[1:3])/(available_thrust)
+        compensation = norm(aerodynamic_force[1:3])/norm(available_thrust*normalize(direction))
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
 
-        if velocity[0] >= -2 or norm(position) <= 4*half_rocket_length:
+        if velocity[0] >= -1.5 or norm(position) <= 4*half_rocket_length:
             nav_mode = 'PID'
             terminal_velocity = velocity
             terminal_position = position - array([half_rocket_length,0,0])
@@ -260,9 +268,13 @@ while not end:
         direction = vessel.direction(target_reference_frame)
         velocity = array(vessel.velocity(target_reference_frame))
         position = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
+        mass = vessel.mass
+        available_thrust = vessel.available_thrust
 
         velocity_error = -velocity
         position_error = -position
+
+        landing_time = position[0]/velocity[0]
 
         target_direction = velocity_error*0.3 + position_error*0.1
         target_direction_x = target_direction[0]
@@ -271,7 +283,7 @@ while not end:
         target_direction = (target_direction_x,target_direction[1],target_direction[2])
         throttle = 0.2*(-2-velocity[0])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 85)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 80)
         print('velocity error:%s | position error:%s' % (velocity_error,position_error),end='\r')
 
         if landed(vessel):

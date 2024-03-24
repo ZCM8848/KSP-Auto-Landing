@@ -37,9 +37,9 @@ def generate_solution(estimated_landing_time:float,
                       solver='ECOS',
                       N_tf=160,
                       plot=False):
-    kwargs = locals()
-    for k,v in kwargs.items():
-        print(f"{k.replace('_' ,' ')}: {v}")
+    #kwargs = locals()
+    #for k,v in kwargs.items():
+    #    print(f"{k.replace('_' ,' ')}: {v}")
     
     s = [ # scalars
         #'N'     : 100,                                                 # Deprecated, replaced by N_tf, static

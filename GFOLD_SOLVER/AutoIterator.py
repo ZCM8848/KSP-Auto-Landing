@@ -1,4 +1,5 @@
-import numpy as np
+from tqdm import trange
+from numpy import sqrt
 
 from .GFOLD_Enterance import generate_solution
 
@@ -19,7 +20,12 @@ class GFOLD:
                  initial_position:tuple,
                  initial_velocity:tuple,
                  target_position:tuple,
-                 target_velocity:tuple) -> None:
+                 target_velocity:tuple,
+                 prog_flag:str,
+                 solver:str,
+                 N_tf:int,
+                 plot:bool,
+                 min_tf:int) -> None:
         self.gravity = gravity
         self.dry_mass = dry_mass
         self.fuel_mass = fuel_mass
@@ -36,14 +42,16 @@ class GFOLD:
         self.initial_velocity = initial_velocity
         self.target_position = target_position
         self.target_velocity = target_velocity
-        self.alpha = specific_impulse * 9.8065
-        self.thrust_lower_bound = min_throttle * max_thrust
-        self.thrust_upper_bound = max_throttle * max_thrust
+        self.prog_flag = prog_flag
+        self.solver = solver
+        self.N_tf = N_tf
+        self.plot = plot
+        self.min_tf = min_tf
 
     def estimate_time(self):
         t = []
         o = []
-        for i in range(10,81):
+        for i in trange(int(self.min_tf),80,desc='solving'):
             opt = generate_solution(estimated_landing_time=i,
                                     gravity=self.gravity,
                                     dry_mass=self.dry_mass,
@@ -61,12 +69,13 @@ class GFOLD:
                                     initial_velocity=self.initial_velocity,
                                     target_position=self.target_position,
                                     target_velocity=self.target_velocity,
-                                    prog_flag='p4',
-                                    solver='ECOS',
+                                    prog_flag=self.prog_flag,
+                                    solver=self.solver,
                                     N_tf=20)
             if opt['opt'] is not None:
                 o.append(opt['opt'])
                 t.append(i)
+                #print(f"    TIME:{t[-1]}, COST:{o[-1]}")
         return t[o.index(max(o))]
     
     def solve(self):
@@ -88,7 +97,8 @@ class GFOLD:
                                    initial_velocity=self.initial_velocity,
                                    target_position=self.target_position,
                                    target_velocity=self.target_velocity,
-                                   prog_flag='p4',
-                                   solver='ECOS',
-                                   N_tf=20)
-        return result, tf
+                                   prog_flag=self.prog_flag,
+                                   solver=self.solver,
+                                   N_tf=self.N_tf,
+                                   plot=self.plot)
+        return result

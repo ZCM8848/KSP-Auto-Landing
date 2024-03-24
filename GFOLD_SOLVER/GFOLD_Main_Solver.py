@@ -165,7 +165,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
 
                 objective=Minimize(norm(x[0:3,N_tf-1].reshape((3,1))-V[:,rf]))
                 problem=Problem(objective,con)
-                obj_opt=problem.solve(solver=solver,verbose=True)
+                obj_opt=problem.solve(solver=solver,verbose=False)
 
             else:
 
@@ -192,7 +192,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
                 #objective=Minimize(expression)
                 objective=Maximize(z[0,N_tf-1])
                 problem=Problem(objective,con)
-                obj_opt=problem.solve(solver=solver,verbose=True)
+                obj_opt=problem.solve(solver=solver,verbose=False)
 
             else:
 
@@ -223,7 +223,7 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
         u=u.value
         s=s.value
         z=z.value
-        tf=(N_tf/norm(dt.value)).value
+        tf=(N_tf*norm(dt.value)).value
         m=list(map(np.exp,z[0].tolist()))
         if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
         return {'x':x, 'u':u, 'tf':tf, 'opt':obj_opt, 'z':z}
