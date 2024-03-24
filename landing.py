@@ -8,7 +8,7 @@ from tqdm import trange
 
 from PID import PID, clamp
 from GFOLD_SOLVER import GFOLD
-from vector import vec_clamp_yz, normalize
+from vector import vec_clamp_yz, normalize, vec_ang
 
 #define basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -191,7 +191,7 @@ problem = GFOLD(gravity=g,
                initial_velocity=vessel.velocity(target_reference_frame),
                target_position=(half_rocket_length,0,0),
                target_velocity=(0,0,0),
-               N_tf=160,
+               N_tf=250,
                prog_flag='p4',
                solver='ECOS',
                plot=False,
@@ -221,7 +221,7 @@ while not end:
         mass = vessel.mass
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
-        direction = vessel.direction(vessel_surface_reference_frame)
+        direction = array(vessel.direction(vessel_surface_reference_frame))
 
         waypoints = find_best_waypoints(position,result)
         waypoint_position_upper = array(waypoints[0])
@@ -244,7 +244,7 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        compensation = norm(aerodynamic_force[1:3])/norm(available_thrust*normalize(direction))
+        compensation = norm(aerodynamic_force[1:3])/(vessel.thrust*cos(deg2rad(vec_ang(array([1,0,0]),direction))))
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
@@ -281,9 +281,9 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x += g
         target_direction = (target_direction_x,target_direction[1],target_direction[2])
-        throttle = 0.2*(-2-velocity[0])
+        throttle = 0.1*(-2-velocity[0])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 80)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 85)
         print('velocity error:%s | position error:%s' % (velocity_error,position_error),end='\r')
 
         if landed(vessel):
