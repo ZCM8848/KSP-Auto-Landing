@@ -25,7 +25,8 @@ class GFOLD:
                  solver:str,
                  N_tf:int,
                  plot:bool,
-                 min_tf:int) -> None:
+                 min_tf:int,
+                 max_tf:int) -> None:
         self.gravity = gravity
         self.dry_mass = dry_mass
         self.fuel_mass = fuel_mass
@@ -47,11 +48,12 @@ class GFOLD:
         self.N_tf = N_tf
         self.plot = plot
         self.min_tf = min_tf
+        self.max_tf = max_tf
 
     def estimate_time(self):
         t = []
         o = []
-        for i in trange(int(self.min_tf),80,desc='solving'):
+        for i in trange(int(self.min_tf),self.max_tf,desc='solving'):
             opt = generate_solution(estimated_landing_time=i,
                                     gravity=self.gravity,
                                     dry_mass=self.dry_mass,
@@ -75,7 +77,8 @@ class GFOLD:
             if opt['opt'] is not None:
                 o.append(opt['opt'])
                 t.append(i)
-                #print(f"    TIME:{t[-1]}, COST:{o[-1]}")
+        if len(t) == 0 and len(o) == 0:
+            raise ValueError
         return t[o.index(max(o))]
     
     def solve(self):

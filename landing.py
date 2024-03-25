@@ -174,7 +174,7 @@ print('\n')
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
 #tf = norm(vessel.velocity(target_reference_frame)) / ((0.1*vessel.available_thrust + norm(vessel.flight(target_reference_frame).aerodynamic_force))/vessel.mass)
-min_tf = sqrt(2*vessel.flight(target_reference_frame).surface_altitude/g)
+min_tf = int(sqrt(2*vessel.flight(target_reference_frame).surface_altitude/g))
 problem = GFOLD(gravity=g,
                dry_mass=vessel.dry_mass,
                fuel_mass=vessel.mass-vessel.dry_mass,
@@ -191,14 +191,13 @@ problem = GFOLD(gravity=g,
                initial_velocity=vessel.velocity(target_reference_frame),
                target_position=(half_rocket_length,0,0),
                target_velocity=(0,0,0),
-               N_tf=250,
+               N_tf=160,
                prog_flag='p4',
                solver='ECOS',
                plot=False,
-               min_tf=min_tf)
+               min_tf=min_tf,
+               max_tf=int(sqrt(2)*min_tf))
 result = problem.solve()
-if result is None:
-    raise ValueError
 print(f"the best landing time is {result['tf']} seconds")
 
 draw_trajectory(result['x'],result['u'],target_reference_frame)
@@ -244,11 +243,11 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        compensation = norm(aerodynamic_force[1:3])/(vessel.thrust*cos(deg2rad(vec_ang(array([1,0,0]),direction))))
+        compensation = norm(aerodynamic_force[1:3])/max(available_thrust, available_thrust*cos(deg2rad(vec_ang(-velocity,direction))))
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,60)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
 
         if velocity[0] >= -1.5 or norm(position) <= 4*half_rocket_length:
