@@ -1,9 +1,8 @@
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
-def plot_run3D(tf, x, u, m, s, z, S_,Sk):
+def plot_run3D(tf, x, u, m, s, z, S,Sk):
 
     print('tf',tf)
     t = np.linspace(0,tf,num=len(m))
@@ -39,7 +38,7 @@ def plot_run3D(tf, x, u, m, s, z, S_,Sk):
     r_= np.linspace(0, max(max(r[1,:]),max(r[2,:])), 7)
     a_= np.linspace(0, 2*np.pi, 20)
     R, P = np.meshgrid(r_, a_)
-    X, Y, Z = R*np.cos(P), R*np.sin(P), R*(np.tan(S_[Sk['y_gs']]))
+    X, Y, Z = R*np.cos(P), R*np.sin(P), R*(np.tan(S[0,Sk['y_gs']]))
     #X,Y,Z=R*np.cos(P), R*np.sin(P),((R**2 - 1)**2)
 
     #ax.plot(x(t),y(t),z(t),label='Flight Path')
@@ -58,7 +57,7 @@ def plot_run3D(tf, x, u, m, s, z, S_,Sk):
     ax = f.add_subplot(511)
 
     plt.plot(t,vnorm)
-    y=str(S_[Sk['V_max']])
+    y=str(S[0,Sk['V_max']])
     x=np.array(range(0,int(max(t))))
     plt.plot(x,eval('0*x+'+y))
     plt.title('Velocity Magnitude (m/s)')
@@ -73,13 +72,13 @@ def plot_run3D(tf, x, u, m, s, z, S_,Sk):
 
     plt.subplot(5,1,4)
     plt.plot(t,Th)
-    y=str(S_[Sk['T_max']])
+    y=str(S[0,Sk['T_max']])
     x=np.array(range(0,int(max(t))))
     plt.plot(x,eval('0*x+'+y))
     plt.title('Thrust (N)')
 
-    z0_term = (S_[Sk['m_wet']] - S_[Sk['alpha']] * S_[Sk['r2']])  # see ref [2], eq 34,35,36
-    z1_term = (S_[Sk['m_wet']] - S_[Sk['alpha']] * S_[Sk['r1']])
+    z0_term = (S[0,Sk['m_wet']] - S[0,Sk['alpha']] * S[0,Sk['r2']])  # see ref [2], eq 34,35,36
+    z1_term = (S[0,Sk['m_wet']] - S[0,Sk['alpha']] * S[0,Sk['r1']])
     lim=[]
     lim2=[]
     n=0
@@ -87,12 +86,12 @@ def plot_run3D(tf, x, u, m, s, z, S_,Sk):
     for t_ in t:
         if t_ > 0:
             try:
-                v = S_[Sk['r1']]/(z0_term*t_) * (1 - (z[n] - np.log(z0_term*t_)))
+                v = S[0,Sk['r1']]/(z0_term*t_) * (1 - (z[n] - np.log(z0_term*t_)))
             except ZeroDivisionError:
                 v = 0
             lim.append( v )
             try:
-                v = S_[Sk['r1']]/(z1_term*t_) *(1 - (z[n] - np.log(z0_term*t_)) + (1/2)*(z[n] - np.log(z0_term*t_))**2 )
+                v = S[0,Sk['r1']]/(z1_term*t_) *(1 - (z[n] - np.log(z0_term*t_)) + (1/2)*(z[n] - np.log(z0_term*t_))**2 )
             except ZeroDivisionError:
                 v = 0
             lim2.append( v )

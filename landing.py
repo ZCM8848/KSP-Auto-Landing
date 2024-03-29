@@ -146,59 +146,49 @@ def calculate_control_ratio(torque, half_rocket_length, aerodynamic_force):
     control_ratio = norm(aerodynamic_force[1:3]) / max_control_force
     return control_ratio
 
-target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
+#solver utilities
+def bundle_data(vessel):
+    bundled_data = {}
+    bundled_data['gravity'] = g
+    bundled_data['dry_mass'] = vessel.dry_mass
+    bundled_data['fuel_mass'] = vessel.mass - vessel.dry_mass
+    bundled_data['max_thrust'] = vessel.available_thrust
+    bundled_data['min_throttle'] = 0.2
+    bundled_data['max_throttle'] = 0.9
+    bundled_data['max_structural_Gs'] = 9
+    bundled_data['specific_impulse'] = vessel.specific_impulse
+    bundled_data['max_velocity'] = 900
+    bundled_data['glide_slope_cone'] = 9#degrees?
+    bundled_data['thrust_pointing_constraint'] = 30
+    bundled_data['planetary_angular_velocity'] = body.angular_velocity(target_reference_frame)
+    bundled_data['initial_position'] = vessel.position(target_reference_frame)
+    bundled_data['initial_velocity'] = vessel.velocity(target_reference_frame)
+    bundled_data['target_position'] = (get_half_rocket_length(vessel),0,0)
+    bundled_data['target_velocity'] = (0,0,0)
+    bundled_data['prog_flag'] = 'p4'
+    bundled_data['solver'] = 'ECOS'
+    bundled_data['N_tf'] = 200
+    bundled_data['plot'] = False
+    bundled_data['min_tf'] = min_tf
+    bundled_data['max_tf'] = 2*min_tf
+    return bundled_data
+
+target_reference_frame = create_target_reference_frame(target=targets_JNSQ.VAB_A)
 half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.auto_pilot.engage()
-'''
-while vessel.flight(target_reference_frame).surface_altitude >= ignition_height(target_reference_frame):
-    igh = ignition_height(target_reference_frame)
-    #print('ignition_height:%s' % (igh),end='\r')
-    velocity = array(vessel.velocity(target_reference_frame))
-    position = array(vessel.position(target_reference_frame))
-
-    error = -(velocity*0.3 + position*0.1)
-    error_x = error[0]
-    while error_x <= 0:
-        error_x = error_x + g
-    error = (error_x, error[1], error[2])
-    target_direction = vec_clamp_yz(error,75)
-    print(target_direction)
-
-    vessel.auto_pilot.target_direction = target_direction
-print('\n')
-'''
 
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
-#tf = norm(vessel.velocity(target_reference_frame)) / ((0.1*vessel.available_thrust + norm(vessel.flight(target_reference_frame).aerodynamic_force))/vessel.mass)
-min_tf = int(sqrt(2*vessel.flight(target_reference_frame).surface_altitude/g))
-problem = GFOLD(gravity=g,
-               dry_mass=vessel.dry_mass,
-               fuel_mass=vessel.mass-vessel.dry_mass,
-               max_thrust=vessel.available_thrust,
-               min_throttle=0.2,
-               max_throttle=1.,
-               max_structural_Gs=9,
-               specific_impulse=vessel.specific_impulse,
-               max_velocity=1000,
-               glide_slope_cone=9,
-               thrust_pointing_constraint=30,
-               planetary_angular_velocity=body.angular_velocity(target_reference_frame),
-               initial_position=vessel.position(target_reference_frame),
-               initial_velocity=vessel.velocity(target_reference_frame),
-               target_position=(half_rocket_length,0,0),
-               target_velocity=(0,0,0),
-               N_tf=160,
-               prog_flag='p4',
-               solver='ECOS',
-               plot=False,
-               min_tf=min_tf,
-               max_tf=int(sqrt(2)*min_tf))
-result = problem.solve()
-print(f"the best landing time is {result['tf']} seconds")
+min_tf = int(sqrt(2*vessel.position(target_reference_frame)[0]/g))
+
+bundled_data = bundle_data(vessel)
+problem = GFOLD(bundled_data)
+problem.find_optimal_solution()
+
+result = problem.solution
 
 draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
@@ -250,7 +240,7 @@ while not end:
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,60)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
 
-        if velocity[0] >= -1.5 or norm(position) <= 4*half_rocket_length:
+        if norm(position) <= 4*half_rocket_length:
             nav_mode = 'PID'
             terminal_velocity = velocity
             terminal_position = position - array([half_rocket_length,0,0])

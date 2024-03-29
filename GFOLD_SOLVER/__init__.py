@@ -1,2 +1,1 @@
-from .GFOLD_Enterance import generate_solution
-from .AutoIterator import GFOLD
+from .GFOLD_Main_Solver import GFOLD

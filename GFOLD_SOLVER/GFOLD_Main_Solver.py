@@ -1,97 +1,166 @@
 import numpy as np
-from .EvilPlotting import *
+from cvxpy import Variable, Parameter, Maximize, Minimize, Problem
+from cvxpy import ECOS, SCS
+from cvxpy import norm
 
-'''
+from .GFOLD_utils import e, A
+from .EvilPlotting import plot_run3D
 
-    This code can do both static runs (tests) AND initialize code gen.
-    If doing code generation, you must still compile the generated code.
-
- PROBLEM 1: Minimum Landing Error (tf roughly solved)
- MINIMIZE : norm of landing error vector
- SUBJ TO  :
-            0) initial conditions satisfied (position, velocity)
-            1) final conditions satisfied (altitude, velocity)
-            2) dynamics always satisfied
-            3) x stays in cone at all times
-            4) relaxed convexified mass and thrust constraints
-            5) thrust pointing constraint
-            6) sub-surface flight constraint
-
- PROBLEM 2: Minimum Fuel Use
- MAXIMIZE : landing mass, opt variables are dynamical and
- SUBJ TO  :
-            0) same constraints as p1, plus:
-            1) landing point must be equal or better than that found by p1
-'''
-
-VERSION = 1.1
-
-test = 1  # are we doing a static run or a generation run?
-
-from cvxpy import *
-from cvxpygen.cpg import generate_code
 import warnings
-warnings.filterwarnings("ignore")
+warnings.filterwarnings('ignore')
+
+class GFOLD:
+    def __init__(self, bundled_data:dict):
+        self.gravity =                    bundled_data['gravity']
+        self.dry_mass =                   bundled_data['dry_mass']
+        self.fuel_mass =                  bundled_data['fuel_mass']
+        self.max_thrust =                 bundled_data['max_thrust']
+        self.min_throttle =               bundled_data['min_throttle']
+        self.max_throttle =               bundled_data['max_throttle']
+        self.max_structural_Gs =          bundled_data['max_structural_Gs']
+        self.specific_impulse =           bundled_data['specific_impulse']
+        self.max_velocity =               bundled_data['max_velocity']
+        self.glide_slope_cone =           bundled_data['glide_slope_cone']
+        self.thrust_pointing_constraint = bundled_data['thrust_pointing_constraint']
+        self.planetary_angular_velocity = bundled_data['planetary_angular_velocity']
+        self.initial_position =           bundled_data['initial_position']
+        self.initial_velocity =           bundled_data['initial_velocity']
+        self.target_position =            bundled_data['target_position']
+        self.target_velocity =            bundled_data['target_velocity']
+        self.prog_flag =                  bundled_data['prog_flag']
+        self.solver =                     bundled_data['solver']
+        self.N_tf =                       bundled_data['N_tf']
+        self.plot =                       bundled_data['plot']
+        self.min_tf =                     bundled_data['min_tf']
+        self.max_tf =                     bundled_data['max_tf']
+
+        self.S =                          None
+        self.V =                          None
+        self.Sk =                         None
+        self.Vk =                         None
+
+        self.solution =                   None
+
+        if self.solver == 'ECOS':
+            self.solver = ECOS
+        elif self.solver == 'SCS':
+            self.solver = SCS
 
 
-def GFOLD(_s_, _v_, Sk, Vk, S_, 
-          prog_flag:str='p4', solver:str='ECOS', N_tf:int=160, plot:bool=False): # PRIMARY GFOLD SOLVER
-    try:
-        if solver == "ECOS":
-            solver = ECOS
-        else:
-            solver = SCS
+    def generate_params(self, tf):
+        s = [ # scalars
+            #'N'     : 100,                                                   # Deprecated, replaced by N_tf, static
+            ['tf'    , tf],
+            ['g0'    , 9.80665],                                              # standard gravity [m/s**2]
+            ['m_dry' , self.dry_mass],                                        # dry mass kg
+            ['m_fuel', self.fuel_mass],                                       # fuel in tons
+            ['T_max' , self.max_thrust],                                      # thrust max
+            ['tmin' ,  self.min_throttle],                                    # throttle ability
+            ['tmax' ,  self.max_throttle],                                    # throttle max
+            ['G_max' , self.max_structural_Gs],                               # maximum allowable structural Gs
+            ['Isp'   , self.specific_impulse],                                # fuel efficiency (specific impulse)
+            ['V_max' , self.max_velocity] ,                                   # velocity max
+            ['y_gs'  , np.radians(self.glide_slope_cone)],                    # glide slope cone, must be 0 < Degrees < 90
+            ['p_cs'  , np.cos(np.radians(self.thrust_pointing_constraint))],  # thrust pointing constraint
+        ]
+        v = [ # vectors
 
-        N_tf=N_tf  # MUST BE FIXED FOR CODE GEN TO WORK, 250
+            ['g' , np.array([-self.gravity,0,0])],                            # gravity
+            ['w' , np.array(self.planetary_angular_velocity)] ,               # planetary angular velocity
+            ['nh', np.array([1,0,0])],                                        # thrust vector reference direction
 
-        sk,vk=Sk,Vk
-        if not test:
-            dt=     Parameter((1,1),name='dt') # determines tf implicitly dt = tf/N, tf = dt*N(const)
-            S=      Parameter((1,17),name='S') # contains all parms_static scalar variables
-            V=      Parameter((3,9),name='V') # contains all parms_static vect variables
-            z0=     Parameter((1,N_tf),name='z0')
-            z1=     Parameter((1,N_tf),name='z1')
-            mu_1=   Parameter((1,N_tf),name='mu_1')
-            mu_2=   Parameter((1,N_tf),name='mu_2')
-            z0_term=Parameter((1,N_tf),name='z0_term')
-            z1_term=Parameter((1,N_tf),name='z1_term')
+            ['r0' , np.array(self.initial_position)],                         # initial position
+            ['v0' , np.array(self.initial_velocity)],                         # initial velocity
+            #['v0' , np.array([0,  0,   0]) ],                                # initial velocity
+            #['r0' , np.array([2400, 0, 0]) ],                                # initial position
+            #['v0' , np.array([-40,  0,   0]) ],                              # initial velocity
 
-        else:
-            V=_v_ # for cvxpy testing
-            S=_s_ # for cvxpy testing
+            ['rf3', np.array(self.target_position)]    ,                      # final position target for p4
+            ['rf' , np.array(self.target_position)]    ,                      # final position target
+            ['vf' , np.array(self.target_velocity)]                           # final velocity target
+        ]
 
-            dt=Parameter((1,1),name='dt') # determines tf implicitly dt = tf/N,
-                                        # tf = dt*N(const)
+        sk = [k[0] for k in s]
+        sv = [n[1] for n in s]
+        # derived values:
+        s += [
+                ['alpha' , 1/(sv[sk.index('Isp')]*sv[sk.index('g0')])    ],    # fuel consumption parameter
+                ['m_wet' , (sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])],    # wet mass kg
+                ['r1'    , sv[sk.index('tmin')]*sv[sk.index('T_max')] ],       # lower thrust bound
+                ['r2'    , sv[sk.index('tmax')]*sv[sk.index('T_max')] ],       # upper thrust bound
+                #['z0' , np.log(sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])] # initial log(mass) constraint
+                ['z0' , np.log(sv[sk.index('m_dry')]+sv[sk.index('m_fuel')])]  # initial log(mass) constraint
+        ]
+        v += [
+                ['c' , np.divide(e(0),np.tan(sv[sk.index('y_gs')]))],
+        ]
+        S,Sk,n=[],{},0
+        for loople in (s): # 'loople' = a list who wants to be a tuple, but wants assignment too :)
+            key = loople[0]
+            value=loople[1]
+            Sk[key] = n
+            S.append( value)
+            n+=1
+        self.Sk = Sk
+        S=np.matrix(S)
+        self.S = S
 
-            dt.value = np.array([float(S[0,sk['tf']])/(N_tf)]).reshape((1,1))
+        V,Vk,n=[],{},0
+        for loople in (v):
+            key = loople[0]
+            value=loople[1]
+            Vk[key] = n
+            V.append( value)
+            n+=1
+        self.Vk = Vk
+        V = np.matrix(V).transpose() # form into shape (width,height) not (height,width)
+        self.V = V
 
-            # Precalculate Z limits, then pass in as a PARAMETER
+        #print('MAKE S HAVE SHAPE',S.shape)
+        #print('MAKE V HAVE SHAPE',V.shape)
+        self.S, self.V = S, V
+        self.Sk, self.Vk = Sk, Vk
 
-            z0=           Parameter((1,N_tf),name='z0')
-            z1=           Parameter((1,N_tf),name='z1')
-            mu_1=         Parameter((1,N_tf),name='mu_1')
-            mu_2=         Parameter((1,N_tf),name='mu_2')
-            z0_term=Parameter((1,N_tf),name='z0_term')
-            z1_term=Parameter((1,N_tf),name='z1_term')
+        return None
 
-            z0_term_, z1_term_ = np.zeros((1,N_tf)),np.zeros((1,N_tf))
-            z0_, z1_           = np.zeros((1,N_tf)),np.zeros((1,N_tf))
-            mu_1_, mu_2_       = np.zeros((1,N_tf)),np.zeros((1,N_tf))
+    def solve(self, N_tf, iterative):
 
-            for n in range(0,N_tf-1):
-                z0_term_[0,n] = S[0,sk['m_wet']] - S[0,sk['alpha']] * S[0,sk['r2']] * (n) * dt.value  # see ref [2], eq 34,35,36
-                z1_term_[0,n] = S[0,sk['m_wet']] - S[0,sk['alpha']] * S[0,sk['r1']] * (n) * dt.value
-                z0_[0,n] = np.log( z0_term_[0,n] )
-                z1_[0,n] = np.log( z1_term_[0,n] )
-                mu_1_[0,n] = S[0,sk['r1']]/(z1_term_[0,n])
-                mu_2_[0,n] = S[0,sk['r2']]/(z0_term_[0,n])
+        V=self.V # for cvxpy testing
+        S=self.S # for cvxpy testing
+        sk, vk = self.Sk, self.Vk
 
-            z0_term.value = z0_term_
-            z1_term.value = z1_term_
-            z0.value = z0_
-            z1.value = z1_
-            mu_1.value = mu_1_
-            mu_2.value = mu_2_
+        dt=Parameter((1,1),name='dt') # determines tf implicitly dt = tf/N,
+                                    # tf = dt*N(const)
+
+        dt.value = np.array([float(S[0,sk['tf']])/(N_tf)]).reshape((1,1))
+
+        # Precalculate Z limits, then pass in as a PARAMETER
+
+        z0=           Parameter((1,N_tf),name='z0')
+        z1=           Parameter((1,N_tf),name='z1')
+        mu_1=         Parameter((1,N_tf),name='mu_1')
+        mu_2=         Parameter((1,N_tf),name='mu_2')
+        z0_term=      Parameter((1,N_tf),name='z0_term')
+        z1_term=      Parameter((1,N_tf),name='z1_term')
+
+        z0_term_, z1_term_ = np.zeros((1,N_tf)),np.zeros((1,N_tf))
+        z0_, z1_           = np.zeros((1,N_tf)),np.zeros((1,N_tf))
+        mu_1_, mu_2_       = np.zeros((1,N_tf)),np.zeros((1,N_tf))
+
+        for n in range(0,N_tf-1):
+            z0_term_[0,n] = S[0,sk['m_wet']] - S[0,sk['alpha']] * S[0,sk['r2']] * (n) * dt.value  # see ref [2], eq 34,35,36
+            z1_term_[0,n] = S[0,sk['m_wet']] - S[0,sk['alpha']] * S[0,sk['r1']] * (n) * dt.value
+            z0_[0,n] = np.log( z0_term_[0,n] )
+            z1_[0,n] = np.log( z1_term_[0,n] )
+            mu_1_[0,n] = S[0,sk['r1']]/(z1_term_[0,n])
+            mu_2_[0,n] = S[0,sk['r2']]/(z0_term_[0,n])
+
+        z0_term.value = z0_term_
+        z1_term.value = z1_term_
+        z0.value = z0_
+        z1.value = z1_
+        mu_1.value = mu_1_
+        mu_2.value = mu_2_
 
         # new variables here for brevity in the dynamics equations
         c=vk['c']
@@ -100,9 +169,9 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
         alpha=sk['alpha']
         #print(c,g,rf,alpha)
 
-        if prog_flag=='p3':
+        if self.prog_flag=='p3':
             program = 3
-        elif prog_flag=='p4':
+        elif self.prog_flag=='p4':
             program = 4
 
         x = Variable((6,N_tf),name='x') # state vector (3position,3velocity)
@@ -125,7 +194,6 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
             con += [x[0,N_tf-1] == 0] # end altitude
 
         elif program==4:
-
             # force landing point equal to found program 3 point
             con += [x[0:3,N_tf-1].reshape((3,1)) == V[:,vk['rf3']].reshape((3,1))]
 
@@ -155,77 +223,49 @@ def GFOLD(_s_, _v_, Sk, Vk, S_,
                 con += [z[0,n] <= z1[0,n]]
 
         con += [x[0,0:N_tf-1] >= 0] # no, this is not the Boring Company!
-    except:
-        pass
 
-    def run_p3(solver):
-        #print('-----------------------------')
-        try:
-            if test:
-
-                objective=Minimize(norm(x[0:3,N_tf-1].reshape((3,1))-V[:,rf]))
-                problem=Problem(objective,con)
-                obj_opt=problem.solve(solver=solver,verbose=False)
-
-            else:
-
-                objective=Minimize(norm(x[0:3,N_tf-1]-V[:,rf]))
-                problem=Problem(objective,con)
-                obj_opt=generate_code(problem,'GFOLD_'+prog_flag+'_')
-
-            #print('-----------------------------')
-
-            return obj_opt
-        except:
-            return None
-
-
-    def run_p4(solver):
-        #print('-----------------------------')
-        try:
-            if test:
-
-                #expression = 0
-                #for i in range(N_tf):
-                #    expression += norm(x[4:6,i])*(i**1.1/N_tf) # - rf[0:3,0]
-                #expression += -z[0,N_tf-1]
-                #objective=Minimize(expression)
-                objective=Maximize(z[0,N_tf-1])
-                problem=Problem(objective,con)
-                obj_opt=problem.solve(solver=solver,verbose=False)
-
-            else:
-
-                objective=Maximize(z[0,N_tf-1])
-                problem=Problem(objective,con)
-                #obj_opt=problem.codegen('GFOLD_'+prog_flag)
-                obj_opt = generate_code(problem,'GFOLD_'+prog_flag)
-
-            #print('-----------------------------')
-
-            return obj_opt
-        except:
-            return None
-    
-    def run(flag):
-        try:
-            if flag == 'p3':
-                obj_opt = run_p3(solver=solver)
-            elif flag == 'p4':
-                obj_opt = run_p4(solver=solver)
-            return obj_opt
-        except:
-            return None
-
-    try:
-        obj_opt = run(prog_flag)
+        if self.prog_flag == 'p3':
+            objective=Minimize(norm(x[0:3,N_tf-1].reshape((3,1))-V[:,rf]))
+            problem=Problem(objective,con)
+            obj_opt=problem.solve(solver=self.solver,verbose=False if iterative else True)
+        elif self.prog_flag == 'p4':
+            objective=Maximize(z[0,N_tf-1])
+            problem=Problem(objective,con)
+            obj_opt=problem.solve(solver=self.solver,verbose=False if iterative else True)
+        
         x=x.value
         u=u.value
         s=s.value
         z=z.value
         tf=(N_tf*norm(dt.value)).value
         m=list(map(np.exp,z[0].tolist()))
-        if plot:plot_run3D(tf,x,u,m,s,z,S_,sk)
-        return {'x':x, 'u':u, 'tf':tf, 'opt':obj_opt, 'z':z}
-    except:
-        return {'x':None, 'u':None, 'tf':None, 'opt':None, 'z':None}
+        if self.plot and not iterative:plot_run3D(tf,x,u,m,s,z,self.S,sk)
+
+        self.solution = {'x':x, 'u':u, 'tf':tf, 'opt':obj_opt, 'z':z}
+
+        return None
+
+    def find_optimal_solution(self):
+        time = []
+        cost = []
+        iter_count = 0
+        print('ITERATING:')
+        for tf in range(self.min_tf, self.max_tf+1):
+            self.generate_params(tf)
+            try:
+                self.solve(20,iterative=True)
+                if self.solution['opt'] is not None:
+                    time.append(tf)
+                    cost.append(self.solution['opt'])
+                print(f"    TIME:{tf} | COST:{self.solution['opt']} | PROCESSING:{int(iter_count/(self.max_tf-self.min_tf)*100)}%")
+            except Exception as ex:
+                print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex}) | PROCESSING:{int(iter_count/(self.max_tf-self.min_tf)*100)}%")
+            finally:
+                iter_count += 1
+        if len(cost)==0 or len(time)==0:
+            raise ValueError
+        best_tf = time[cost.index(min(cost))]
+        print(f"OPTIMAL TIME:{best_tf}")
+        self.solve(self.N_tf, iterative=False)
+
+        return None
