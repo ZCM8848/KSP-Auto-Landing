@@ -233,11 +233,11 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        compensation = norm(aerodynamic_force[1:3])/max(available_thrust, available_thrust*cos(deg2rad(vec_ang(-velocity,direction))))
+        compensation = norm(aerodynamic_force[1:3])/available_thrust
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,60)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
 
         if norm(position) <= 4*half_rocket_length:
