@@ -157,9 +157,9 @@ def bundle_data(vessel):
     bundled_data['max_throttle'] = 0.9
     bundled_data['max_structural_Gs'] = 9
     bundled_data['specific_impulse'] = vessel.specific_impulse
-    bundled_data['max_velocity'] = 900
-    bundled_data['glide_slope_cone'] = 9#degrees?
-    bundled_data['thrust_pointing_constraint'] = 30
+    bundled_data['max_velocity'] = 400
+    bundled_data['glide_slope_cone'] = 45
+    bundled_data['thrust_pointing_constraint'] = 20
     bundled_data['planetary_angular_velocity'] = body.angular_velocity(target_reference_frame)
     bundled_data['initial_position'] = vessel.position(target_reference_frame)
     bundled_data['initial_velocity'] = vessel.velocity(target_reference_frame)
@@ -173,7 +173,7 @@ def bundle_data(vessel):
     bundled_data['max_tf'] = 2*min_tf
     return bundled_data
 
-target_reference_frame = create_target_reference_frame(target=targets_JNSQ.VAB_A)
+target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)

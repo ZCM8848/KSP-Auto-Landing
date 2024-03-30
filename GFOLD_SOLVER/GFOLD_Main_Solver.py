@@ -3,7 +3,7 @@ from cvxpy import Variable, Parameter, Maximize, Minimize, Problem
 from cvxpy import ECOS, SCS
 from cvxpy import norm
 
-from .GFOLD_utils import e, A
+from .GFOLD_utils import e
 from .EvilPlotting import plot_run3D
 
 import warnings
@@ -46,6 +46,7 @@ class GFOLD:
         elif self.solver == 'SCS':
             self.solver = SCS
 
+        return None
 
     def generate_params(self, tf):
         s = [ # scalars
@@ -263,7 +264,8 @@ class GFOLD:
             finally:
                 iter_count += 1
         if len(cost)==0 or len(time)==0:
-            raise ValueError
+            print('NO SOLUTION!')
+            quit()
         best_tf = time[cost.index(min(cost))]
         print(f"OPTIMAL TIME:{best_tf}")
         self.solve(self.N_tf, iterative=False)
