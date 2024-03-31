@@ -142,10 +142,17 @@ def bundle_data(vessel):
     bundled_data['max_tf'] = 2*min_tf
     return bundled_data
 
-target_reference_frame = create_target_reference_frame(target=targets_JNSQ.VAB_A)
+target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
+
+while True:
+    igh = ignition_height(target_reference_frame)
+    position = vessel.position(target_reference_frame)
+    if position[0] <= igh:
+        break
+
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.auto_pilot.engage()
 
@@ -209,7 +216,7 @@ while not end:
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
 
-        if norm(position) <= 4*half_rocket_length:
+        if norm(position) <= 4*half_rocket_length or velocity[0] >= -2:
             nav_mode = 'PID'
             terminal_velocity = velocity
             terminal_position = position - array([half_rocket_length,0,0])

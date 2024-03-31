@@ -205,7 +205,8 @@ class GFOLD:
 
             con += [x[3:6,n+1].reshape((3,1)) == x[3:6,n].reshape((3,1)) + (dt*0.5)*((u[:,n].reshape((3,1))+V[:,g].reshape((3,1))) + (u[:,n+1].reshape((3,1))+V[:,g].reshape((3,1))))]
             con += [x[0:3,n+1].reshape((3,1)) == x[0:3,n].reshape((3,1)) + (dt*0.5)*(x[3:6,n+1].reshape((3,1))+x[3:6,n].reshape((3,1)))]
-            con += [x[0,n+1] <= x[0,n]] # We are doing a descent, not an ascent
+            con += [x[0,n+1] <= x[0,n]] # we are doing a descent, not an ascent
+            con += [x[3,n+1] >= x[3,n]] # for energy optimal concern!
 
             con += [ norm((x[0:3,n].reshape((3,1))-V[:,rf].reshape((3,1)))[0:2] ) - V[0,c]*(x[0,n]-V[0,rf])  <= 0 ] # glideslope constraint
             con += [ norm(x[3:6,n].reshape((3,1))) <= S[0,sk['V_max']] ] # velocity
@@ -265,8 +266,23 @@ class GFOLD:
         if len(cost)==0 or len(time)==0:
             print('NO SOLUTION')
             quit()
-        best_tf = time[cost.index(min(cost))]
-        print(f"OPTIMAL TIME:{best_tf}")
-        self.solve(self.N_tf, iterative=False)
+        #a second check
+        available_tf = time
+        cost.clear()
+        print(f"AVAILABLE:{available_tf}")
+        print('ITERATING:')
+        for tf in available_tf:
+            try:
+                self.generate_params(tf)
+                self.solve(self.N_tf, iterative=False)
+                print(f"    TIME:{tf} | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]}")
+                cost.append(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1])
+                break
+            except Exception as ex:
+                print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex})")
+        if len(cost)==0:
+            print('NO SOLUTION')
+            quit()
+        print(f"OPTIMAL TIME:{tf}")
 
         return None
