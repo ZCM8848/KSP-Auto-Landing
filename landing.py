@@ -101,31 +101,6 @@ def draw_trajectory(x,u,reference_frame):
             draw_line(colour=(0,0,255),start=(x[0,i-1],x[1,i-1],x[2,i-1]),end=(x[0,i-1]+u[0,i],x[1,i-1]+u[1,i],x[2,i-1]+u[2,i]),reference_frame=reference_frame)
 
 #control utilities
-def find_best_waypoints(current_position, result):
-    results_position = []
-    trajectory = array(result['x'])
-    trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
-    trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
-    trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
-
-    for point in trajectory_position:
-        results_position.append(norm(point - current_position))
-    min_index = results_position.index(min(results_position))
-
-    try:
-        upper_position_waypoint = trajectory_position[min_index]
-        lower_position_waypoint = trajectory_position[min_index+1]
-        upper_velocity_waypoint = trajectory_velocity[min_index]
-        lower_velocity_waypoint = trajectory_velocity[min_index+1]
-        upper_acceleration_waypoint = trajectory_acceleration[min_index]
-        lower_acceleration_waypoint = trajectory_acceleration[min_index+1]
-    except:
-        upper_position_waypoint = lower_position_waypoint = trajectory_position[min_index]
-        upper_velocity_waypoint = lower_velocity_waypoint = trajectory_velocity[min_index]
-        upper_acceleration_waypoint = lower_acceleration_waypoint = trajectory_acceleration[min_index]
-
-    return upper_position_waypoint, lower_position_waypoint, upper_velocity_waypoint, lower_velocity_waypoint, upper_acceleration_waypoint, lower_acceleration_waypoint, min_index
-
 def get_half_rocket_length(vessel):
     result = [norm(part.position(vessel_reference_frame)) for part in vessel.parts.all if part.position(vessel_reference_frame)[1] < 0]
     value_weight_dict = dict(Counter(result))
@@ -140,12 +115,6 @@ def landed(vessel):
 def ignition_height(target_reference_frame):
     return abs(vessel.flight(target_reference_frame).vertical_speed**2 / (2*(0.6*vessel.available_thrust / vessel.mass - body.surface_gravity)))
 
-def calculate_control_ratio(torque, half_rocket_length, aerodynamic_force):
-    max_control_force = torque * half_rocket_length
-    max_control_force = sqrt(max_control_force[0,0]**2 + max_control_force[0,2]**2)
-    control_ratio = norm(aerodynamic_force[1:3]) / max_control_force
-    return control_ratio
-
 #solver utilities
 def bundle_data(vessel):
     bundled_data = {}
@@ -158,7 +127,7 @@ def bundle_data(vessel):
     bundled_data['max_structural_Gs'] = 9
     bundled_data['specific_impulse'] = vessel.specific_impulse
     bundled_data['max_velocity'] = vessel.flight(target_reference_frame).speed
-    bundled_data['glide_slope_cone'] = 40
+    bundled_data['glide_slope_cone'] = 20
     bundled_data['thrust_pointing_constraint'] = 30
     bundled_data['planetary_angular_velocity'] = body.angular_velocity(target_reference_frame)
     bundled_data['initial_position'] = vessel.position(target_reference_frame)
@@ -194,15 +163,17 @@ draw_trajectory(result['x'],result['u'],target_reference_frame)
 conn.ui.message('SOLUTION GENERATED',duration=1)
 conn.krpc.paused = False
 
-dt = 0.02
 nav_mode = 'GFOLD'
 end = False
 legs = False
-index = 0
+
+trajectory = array(result['x'])
+trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
+trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
+trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
 while not end:
     while nav_mode == 'GFOLD':
-        current_gametime = space_center.ut
 
         velocity = array(vessel.velocity(target_reference_frame))
         position = array(vessel.position(target_reference_frame))
@@ -212,23 +183,21 @@ while not end:
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
         direction = array(vessel.direction(vessel_surface_reference_frame))
 
-        waypoints = find_best_waypoints(position,result)
-        waypoint_position_upper = array(waypoints[0])
-        waypoint_position_lower = array(waypoints[1])
-        waypoint_velocity_upper = array(waypoints[2])
-        waypoint_velocity_lower = array(waypoints[3])
-        waypoint_acceleration_upper = array(waypoints[4])
-        waypoint_acceleration_lower = array(waypoints[5])
-        index = waypoints[6]
+        #get the index of nearest waypoints
+        results_position = []
+        for point in trajectory_position:
+            results_position.append(norm(point - position))
+        min_index = results_position.index(min(results_position))
 
-        position_waypoint = (waypoint_position_upper+waypoint_position_lower)/2
-        velocity_waypoint = (waypoint_velocity_upper+waypoint_velocity_lower)/2
-        accelration_waypoint = (waypoint_acceleration_upper+waypoint_acceleration_lower)/2
+        #define waypoints
+        position_waypoint = array(trajectory_position[min_index])
+        velocity_waypoint = array(trajectory_velocity[min_index])
+        acceleration_waypoint = array(trajectory_acceleration[min_index])
 
         velocity_error = velocity_waypoint - velocity
         position_error = position_waypoint - position
 
-        target_direction = accelration_waypoint + velocity_error*0.3 + position_error*0.1
+        target_direction = acceleration_waypoint + velocity_error*0.3 + position_error*0.1
         target_direction_x = target_direction[0]
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
@@ -238,7 +207,7 @@ while not end:
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
-        print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,index),end='\r')
+        print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
 
         if norm(position) <= 4*half_rocket_length:
             nav_mode = 'PID'
@@ -250,8 +219,6 @@ while not end:
         elif norm(position) <= 130 and not legs:
             vessel.control.legs = True
             legs = True
-
-        dt = space_center.ut - current_gametime
     
     while nav_mode == 'PID':
         direction = vessel.direction(target_reference_frame)

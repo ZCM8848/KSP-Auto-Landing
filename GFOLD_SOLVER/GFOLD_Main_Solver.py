@@ -205,6 +205,7 @@ class GFOLD:
 
             con += [x[3:6,n+1].reshape((3,1)) == x[3:6,n].reshape((3,1)) + (dt*0.5)*((u[:,n].reshape((3,1))+V[:,g].reshape((3,1))) + (u[:,n+1].reshape((3,1))+V[:,g].reshape((3,1))))]
             con += [x[0:3,n+1].reshape((3,1)) == x[0:3,n].reshape((3,1)) + (dt*0.5)*(x[3:6,n+1].reshape((3,1))+x[3:6,n].reshape((3,1)))]
+            con += [x[0,n+1] <= x[0,n]] # We are doing a descent, not an ascent
 
             con += [ norm((x[0:3,n].reshape((3,1))-V[:,rf].reshape((3,1)))[0:2] ) - V[0,c]*(x[0,n]-V[0,rf])  <= 0 ] # glideslope constraint
             con += [ norm(x[3:6,n].reshape((3,1))) <= S[0,sk['V_max']] ] # velocity
@@ -253,10 +254,10 @@ class GFOLD:
             self.generate_params(tf)
             try:
                 self.solve(20,iterative=True)
-                if self.solution['opt'] is not None:
+                if self.solution['z'][-1,-1] is not None:
                     time.append(tf)
-                    cost.append(self.solution['opt'])
-                print(f"    TIME:{tf} | COST:{self.solution['opt']} | PROCESSING:{int(iter_count/(self.max_tf-self.min_tf)*100)}%")
+                    cost.append(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1])
+                print(f"    TIME:{tf} | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]} | PROCESSING:{int(iter_count/(self.max_tf-self.min_tf)*100)}%")
             except Exception as ex:
                 print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex}) | PROCESSING:{int(iter_count/(self.max_tf-self.min_tf)*100)}%")
             finally:
