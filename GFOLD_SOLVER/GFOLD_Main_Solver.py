@@ -240,9 +240,8 @@ class GFOLD:
         z=z.value
         tf=(N_tf*norm(dt.value)).value
         m=list(map(np.exp,z[0].tolist()))
-        if self.plot and not iterative:plot_run3D(tf,x,u,m,s,z,self.S,sk)
 
-        self.solution = {'x':x, 'u':u, 'tf':tf, 'opt':obj_opt, 'z':z}
+        self.solution = {'x':x, 'u':u, 'm':m, 's':s, 'z':z}
 
         return None
 
@@ -274,7 +273,7 @@ class GFOLD:
         for tf in available_tf:
             try:
                 self.generate_params(tf)
-                self.solve(self.N_tf, iterative=False)
+                self.solve(self.N_tf, iterative=True)
                 print(f"    TIME:{tf} | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]}")
                 cost.append(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1])
                 break
@@ -284,5 +283,6 @@ class GFOLD:
             print('NO SOLUTION')
             quit()
         print(f"OPTIMAL TIME:{tf}")
+        if self.plot:plot_run3D(tf,self.solution['x'],self.solution['u'],self.solution['m'],self.solution['s'],self.solution['z'],self.S,self.Sk)
 
         return None
