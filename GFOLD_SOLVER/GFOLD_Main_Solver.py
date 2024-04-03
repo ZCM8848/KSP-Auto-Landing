@@ -206,7 +206,7 @@ class GFOLD:
             con += [x[3:6,n+1].reshape((3,1)) == x[3:6,n].reshape((3,1)) + (dt*0.5)*((u[:,n].reshape((3,1))+V[:,g].reshape((3,1))) + (u[:,n+1].reshape((3,1))+V[:,g].reshape((3,1))))]
             con += [x[0:3,n+1].reshape((3,1)) == x[0:3,n].reshape((3,1)) + (dt*0.5)*(x[3:6,n+1].reshape((3,1))+x[3:6,n].reshape((3,1)))]
             con += [x[0,n+1] <= x[0,n]] # we are doing a descent, not an ascent
-            con += [x[3,n+1] >= x[3,n]] # for energy optimal concern!
+            #con += [x[3,n+1] >= x[3,n]] # for energy optimal concern!(tested, but save only 0.3% of ΔV)
 
             con += [ norm((x[0:3,n].reshape((3,1))-V[:,rf].reshape((3,1)))[0:2] ) - V[0,c]*(x[0,n]-V[0,rf])  <= 0 ] # glideslope constraint
             con += [ norm(x[3:6,n].reshape((3,1))) <= S[0,sk['V_max']] ] # velocity

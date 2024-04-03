@@ -142,19 +142,16 @@ def bundle_data(vessel):
     bundled_data['max_tf'] = 2*min_tf
     return bundled_data
 
-target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
+target_reference_frame = create_target_reference_frame(target=targets_JNSQ.VAB_A)
 half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 
-while True:
-    igh = ignition_height(target_reference_frame)
-    position = vessel.position(target_reference_frame)
-    if position[0] <= igh:
-        break
-
-vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
-vessel.auto_pilot.engage()
+#while True:
+#    igh = ignition_height(target_reference_frame)
+#    position = vessel.position(target_reference_frame)
+#    if position[0] <= igh:
+#        break
 
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
@@ -178,6 +175,10 @@ trajectory = array(result['x'])
 trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i in range(len(trajectory[0]))]
 trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
 trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
+
+vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
+vessel.auto_pilot.target_roll = 0
+vessel.auto_pilot.engage()
 
 while not end:
     while nav_mode == 'GFOLD':
@@ -209,7 +210,7 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        compensation = norm(aerodynamic_force[1:3])/available_thrust
+        compensation = 0.1*norm(aerodynamic_force[1:3])/available_thrust
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
@@ -230,7 +231,7 @@ while not end:
     while nav_mode == 'PID':
         direction = vessel.direction(target_reference_frame)
         velocity = array(vessel.velocity(target_reference_frame))
-        position = array(vessel.position(target_reference_frame)) - array([half_rocket_length,0,0])
+        position = array(vessel.position(target_reference_frame))
         mass = vessel.mass
         available_thrust = vessel.available_thrust
 
