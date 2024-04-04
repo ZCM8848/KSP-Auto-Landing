@@ -128,7 +128,7 @@ def bundle_data(vessel):
     bundled_data['specific_impulse'] = vessel.specific_impulse
     bundled_data['max_velocity'] = vessel.flight(target_reference_frame).speed
     bundled_data['glide_slope_cone'] = 20
-    bundled_data['thrust_pointing_constraint'] = 30
+    bundled_data['thrust_pointing_constraint'] = 15
     bundled_data['planetary_angular_velocity'] = body.angular_velocity(target_reference_frame)
     bundled_data['initial_position'] = vessel.position(target_reference_frame)
     bundled_data['initial_velocity'] = vessel.velocity(target_reference_frame)
@@ -142,7 +142,7 @@ def bundle_data(vessel):
     bundled_data['max_tf'] = 2*min_tf
     return bundled_data
 
-target_reference_frame = create_target_reference_frame(target=targets_JNSQ.VAB_A)
+target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
@@ -177,7 +177,6 @@ trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i i
 trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
-vessel.auto_pilot.target_roll = 0
 vessel.auto_pilot.engage()
 
 while not end:
@@ -214,7 +213,7 @@ while not end:
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,45)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,90-15)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
 
         if norm(position) <= 4*half_rocket_length or velocity[0] >= -2:
