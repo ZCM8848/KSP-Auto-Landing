@@ -252,24 +252,30 @@ class GFOLD:
         print('ITERATING:')
         for tf in range(self.min_tf, self.max_tf+1):
             self.generate_params(tf)
+            progress = int(iter_count/(self.max_tf-self.min_tf)*100)
+            if progress < 10:
+                progress = f'0{str(progress)}'
+
             try:
                 self.solve(20,iterative=True)
                 if self.solution['z'][-1,-1] is not None:
                     time.append(tf)
                     cost.append(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1])
-                print(f"    TIME:{tf} | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]} | PROCESSING:{int(iter_count/(self.max_tf-self.min_tf)*100)}%")
+                print(f"    TIME:{tf} ({progress}%) | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]}")
             except Exception as ex:
-                print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex}) | PROCESSING:{int(iter_count/(self.max_tf-self.min_tf)*100)}%")
+                print(f"    TIME:{tf} ({progress}%) | COST:inf (SOLVER FAILED:{ex})")
             finally:
                 iter_count += 1
+            
         if len(cost)==0 or len(time)==0:
             print('NO SOLUTION')
             quit()
+        
         #a second check
         available_tf = time
         cost.clear()
-        print(f"AVAILABLE:{available_tf}")
-        print('ITERATING:')
+        #print(f"AVAILABLE:{available_tf}")
+        print('CHECKING:')
         for tf in available_tf:
             try:
                 self.generate_params(tf)
@@ -278,7 +284,8 @@ class GFOLD:
                 cost.append(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1])
                 break
             except Exception as ex:
-                print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex})")
+                print(f"    TIME:{tf} | FALSE SOLUTION (SOLVER FAILED:{ex})")
+        
         if len(cost)==0:
             print('NO SOLUTION')
             quit()

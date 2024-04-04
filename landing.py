@@ -128,8 +128,8 @@ def bundle_data(vessel):
     bundled_data['specific_impulse'] = vessel.specific_impulse
     bundled_data['max_velocity'] = vessel.flight(target_reference_frame).speed
     bundled_data['glide_slope_cone'] = 20
-    bundled_data['thrust_pointing_constraint'] = 15
-    bundled_data['planetary_angular_velocity'] = body.angular_velocity(target_reference_frame)
+    bundled_data['thrust_pointing_constraint'] = 10
+    bundled_data['planetary_angular_velocity'] = body.angular_velocity(vessel_surface_reference_frame)
     bundled_data['initial_position'] = vessel.position(target_reference_frame)
     bundled_data['initial_velocity'] = vessel.velocity(target_reference_frame)
     bundled_data['target_position'] = (get_half_rocket_length(vessel),0,0)
@@ -213,7 +213,7 @@ while not end:
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,90-15)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,90-10)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
 
         if norm(position) <= 4*half_rocket_length or velocity[0] >= -2:
@@ -246,7 +246,7 @@ while not end:
         target_direction = (target_direction_x,target_direction[1],target_direction[2])
         throttle = 0.1*(-2-velocity[0])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 85)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 90-10)
         print('velocity error:%s | position error:%s' % (velocity_error,position_error),end='\r')
 
         if landed(vessel):
