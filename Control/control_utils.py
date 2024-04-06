@@ -55,7 +55,7 @@ def q(axis, angle):
     return (s * axis[0], s * axis[1], s * axis[2], c)
 
 def rotation_mat(q):
-    x, y, z, w = q[0,0], q[0,1], q[0,2], q[0,3]
+    x, y, z, w = q[0], q[1], q[2], q[3]
     return mat([
     [1-2*y**2-2*z**2, 2*x*y+2*w*z, 2*x*z-2*w*y],
     [2*x*y-2*w*z, 1-2*x**2-2*z**2, 2*y*z+2*w*x],
