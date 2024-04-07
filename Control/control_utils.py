@@ -21,7 +21,7 @@ def conic_clamp(vector, angle:float):
     '''
     Clamp a vector inside a cone
     '''
-    vector = array(vector)
+    vector = array(vector).copy()
     angle = deg2rad(angle)
 
     vector_vertical = vector[0]
@@ -29,7 +29,7 @@ def conic_clamp(vector, angle:float):
     norm_horizontal = norm(vector_horizontal)
     max_n = abs(vector_vertical/tan(angle))
     if max_n < norm_horizontal:
-        yz = yz / norm_horizontal * max_n
+        vector_horizontal = vector_horizontal / norm_horizontal * max_n
     return vector
 
 def normalize(v):
