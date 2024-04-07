@@ -1,6 +1,6 @@
 from math import pi, sin, cos, tan, sqrt
 from numpy import array, cross, dot, deg2rad, rad2deg, mat, arccos
-from numpy.linalg import norm, inv
+from numpy.linalg import norm
 
 #math functions
 def lerp(vec1, vec2, t):
@@ -17,29 +17,20 @@ def sgn(f):
     return 0
 
 #vector-related
-def conic_clamp(target_a, min_mag, max_mag, max_tilt):
-    a_mag = norm(target_a)
-    hor_dir = array([0, target_a[1], target_a[2]])
-    hor_dir /= norm(hor_dir)
-    #target_direction = target_a / a_mag
-    a_hor = norm(target_a[1:3])
-    a_ver = target_a[0]
-    
-    if (a_hor < min_mag * sin(max_tilt)):
-        a_ver_min = sqrt(min_mag**2 - a_hor**2)
-    else:
-        a_ver_min = cos(max_tilt) * min_mag
-    
-    if (a_hor < max_mag * sin(max_tilt)):
-        a_ver_max = sqrt(max_mag**2 - a_hor**2)
-    else:
-        a_ver_max = cos(max_tilt) * max_mag
-    
-    a_ver = clamp(a_ver, a_ver_max, a_ver_min)
-    
-    a_hor = min(a_hor, a_ver * tan(max_tilt))
-    
-    return hor_dir * a_hor + array([a_ver, 0, 0])
+def conic_clamp(vector, angle:float):
+    '''
+    Clamp a vector inside a cone
+    '''
+    vector = array(vector)
+    angle = deg2rad(angle)
+
+    vector_vertical = vector[0]
+    vector_horizontal = vector[1:3]
+    norm_horizontal = norm(vector_horizontal)
+    max_n = abs(vector_vertical/tan(angle))
+    if max_n < norm_horizontal:
+        yz = yz / norm_horizontal * max_n
+    return vector
 
 def normalize(v):
     v = array(v)
