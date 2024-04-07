@@ -1,5 +1,6 @@
-from numpy import array, mat, sin, cos, dot, cross, arccos, deg2rad, tan, rad2deg, sqrt
-from numpy.linalg import norm
+from math import pi, sin, cos, tan, sqrt
+from numpy import array, cross, dot, deg2rad, rad2deg, mat, arccos
+from numpy.linalg import norm, inv
 
 #math functions
 def lerp(vec1, vec2, t):
@@ -67,6 +68,7 @@ def transform(vec, matrix):
     return array([res[0,0], res[0,1], res[0,2]])
 
 def angle_around_axis(v1, v2, axis):
+    '''The angle between <v1> and <v2>, return in radians'''
     axis = normalize(axis)
     v1 = normalize(cross(v1, axis))
     v2 = normalize(cross(v2, axis))

@@ -1,27 +1,23 @@
-import time
-
 import krpc
-from numpy import array, cos, sin, deg2rad, sqrt
 from numpy.linalg import norm, inv
 from collections import Counter
 from tqdm import trange
 
 from GFOLD_SOLVER import GFOLD
 from Control import *
+from vector import vec_clamp_yz
 
 #define adjustable params
 #Geeral constraits
 max_tilt = 10
-
-ctrl_x_rot_kp = 0.5
-ctrl_x_rot_kd = 0.25
-ctrl_y_avel_kp = 0.2
-ctrl_z_rot_kp = 0.5
-ctrl_z_rot_kd = 0.25
-#G-FOLD guidiance phase
-
-#PID landing phase
 throttle_limit_ctrl = [0.05, 1.0]
+
+ctrl_x_rot_kp = 5
+ctrl_x_rot_kd = 2.5
+ctrl_y_avel_kp = 2
+ctrl_z_rot_kp = 5
+ctrl_z_rot_kd = 2.5
+#PID landing phase
 final_throttle = 0.8
 final_kp = 1
 
@@ -71,22 +67,6 @@ def create_target_reference_frame(target):
     target_reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, 
                                                                          position=(target_reference_frame_height, 0., 0.))
     return target_reference_frame
-
-#define instant reference frame
-def create_instant_reference_frame():
-    vessel_lon = vessel.flight().longitude
-    vessel_lat = vessel.flight().latitude
-    temp_reference_frame = space_center.ReferenceFrame.create_relative(body_reference_frame, 
-                                                                       rotation=(0., sin(-deg2rad(vessel_lon/2.)), 0., cos(-deg2rad(vessel_lon/2.))))#spin around y axis by -target_lon degrees
-    temp_reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, 
-                                                                       rotation=(0., 0., sin(deg2rad(vessel_lat/2.)), cos(deg2rad(vessel_lat/2.))))  #spin around z axis by target_lat degrees
-    if body.bedrock_height(vessel_lat, vessel_lon) < 0:
-        instant_reference_frame_height = body.equatorial_radius
-    else:
-        instant_reference_frame_height = body.equatorial_radius + body.surface_height(vessel_lat,vessel_lon)
-    instant_reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, 
-                                                                          position=(instant_reference_frame_height,0.,0.))
-    return instant_reference_frame
 
 #debug
 def draw_reference_frame(reference_frame):
@@ -198,8 +178,9 @@ trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i i
 trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
 trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
-vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
-vessel.auto_pilot.engage()
+vessel.control.sas = False
+#vessel.auto_pilot.reference_frame = target_reference_frame
+#vessel.auto_pilot.engage()
 
 while not end:
     if nav_mode == 'GFOLD':
@@ -234,10 +215,11 @@ while not end:
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
-        target_direction = conic_clamp(target_direction,1, 1, max_tilt)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,80)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
 
         #executor
+        current_direction = array([0,1,0])
         dt = max(space_center.ut - start_time, 0.002)
         target_direction_local = transform(target_direction, rotation_srf2local)
         avel_local = transform(array(vessel.angular_velocity(vessel_surface_reference_frame)), rotation_srf2local)

@@ -2,7 +2,7 @@ import numpy as np
 from numpy import array, cross, dot, ndarray, rad2deg, radians, cos, tan, sin, arccos
 from scipy.spatial.transform import Rotation as R
 from numpy.linalg.linalg import norm
-from PID import clamp
+from Control import clamp
 
 def sgn(f):
     if f > 0:
