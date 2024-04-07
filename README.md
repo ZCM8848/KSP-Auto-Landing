@@ -9,7 +9,7 @@ This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some function
 ---
 
 ##### TODO：
-[ ] Fix autopilot problems  
+- [ ] Fix autopilot problems  
 
 ---
 
