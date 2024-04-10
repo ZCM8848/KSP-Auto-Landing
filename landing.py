@@ -3,7 +3,7 @@ from numpy.linalg import inv
 from collections import Counter
 from tqdm import trange
 
-from GFOLD_SOLVER import GFOLD
+from Solver import GFOLD
 from Control import *
 
 #define adjustable params
@@ -13,7 +13,7 @@ throttle_limit = [0.2, 0.9]
 
 pitch_controller_kp = 0.5
 pitch_controller_kd = 1
-roll_controller_kd = 2
+roll_controller_kd = 1
 yaw_controller_kp = 0.5
 yaw_controller_kd = 1
 #PID landing phase
@@ -263,7 +263,7 @@ while not end:
         ctrl_hor = -error_hor * 0.01 - vel_hor * 0.03
         target_direction = ctrl_hor + array([1, 0, 0])
         target_direction /= norm(target_direction)
-        target_direction = conic_clamp(target_direction, 90-max_tilt)
+        target_direction = conic_clamp(target_direction, 85)
         dt = max(space_center.ut - start_time, 0.002)
 
         direction_controler_output = pointer(target_direction, dt)
@@ -277,4 +277,3 @@ while not end:
             print('END')
             end = True
             break
-    
