@@ -7,8 +7,8 @@ from collections import Counter
 from tqdm import trange
 
 from PID import PID, clamp
-from Solver import GFOLD
-from Control import *
+from GFOLD_SOLVER import GFOLD
+from vector import vec_clamp_yz, normalize, vec_ang
 
 #define basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -207,7 +207,7 @@ while not end:
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle,0.2,1.)
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(target_direction,90-10)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,90-10)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
 
         if norm(position) <= 4*half_rocket_length or velocity[0] >= -2:
@@ -238,7 +238,7 @@ while not end:
         target_direction = (target_direction_x,target_direction[1],target_direction[2])
         throttle = -2-velocity[0]
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(target_direction, 90-10)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 90-10)
         print('velocity error:%s | position error:%s' % (velocity_error,position_error),end='\r')
 
         if landed(vessel):
