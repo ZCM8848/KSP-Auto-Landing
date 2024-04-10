@@ -9,7 +9,7 @@ This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some function
 ---
 
 ##### TODO：
-- [*] Fix autopilot problems (not actually)
+- [x] Fix autopilot problems (not actually)
 - [ ] Add a boosterback burn and sea landing general sequence
 
 ---
