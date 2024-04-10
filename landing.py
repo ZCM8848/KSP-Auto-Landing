@@ -131,12 +131,6 @@ half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
 
-#while True:
-#    igh = ignition_height(target_reference_frame)
-#    position = vessel.position(target_reference_frame)
-#    if position[0] <= igh:
-#        break
-
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
 min_tf = int(sqrt(2*vessel.position(target_reference_frame)[0]/g))
