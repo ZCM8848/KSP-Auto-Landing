@@ -11,14 +11,14 @@ from Control import *
 max_tilt = 10
 throttle_limit = [0.2, 0.9]
 
-pitch_controller_kp = 0.5
-pitch_controller_kd = 1
-roll_controller_kd = 1
-yaw_controller_kp = 0.5
-yaw_controller_kd = 1
+pitch_controller_kp = 5
+pitch_controller_kd = 8
+yaw_controller_kp = 5
+yaw_controller_kd = 8
+roll_controller_kd = 5
 #PID landing phase
-pid_activation_range = 330
-final_throttle = 0.8
+pid_activation_range = 130
+final_throttle = throttle_limit[1]
 final_kp = 0.1
 
 #define basic KRPC things
@@ -110,7 +110,7 @@ def landed(vessel):
 def ignition_height(target_reference_frame):
     return abs(vessel.flight(target_reference_frame).vertical_speed**2 / (2*(0.6*vessel.available_thrust / vessel.mass - body.surface_gravity)))
 
-def pointer(direction, dt):
+def pointer(target_direction, dt):
     '''
     Used to point your vessel to a desired direction, in <target reference frame>
     The output is a dictionary including pitch, yaw and roll
@@ -121,7 +121,7 @@ def pointer(direction, dt):
     control_yaw = -clamp(ctrl_z_rot.update(angle_around_axis(target_direction_local, array([0,1,0]), array([0,0,1])), dt), 1, -1)
     control_roll = clamp(avel_local[1] * roll_controller_kd, 1, -1)
 
-    return {'pitch':control_pitch, 'yaw':control_yaw, 'roll':control_roll}
+    return control_pitch, control_yaw, control_roll
 
 #solver utilities
 def bundle_data(vessel):
@@ -192,6 +192,7 @@ trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i i
 trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
 vessel.control.sas = False
+print('GFOLD PHASE:')
 
 while not end:
     while nav_mode == 'GFOLD':
@@ -226,20 +227,18 @@ while not end:
         compensation = 0.1*norm(aerodynamic_force[1:3])/available_thrust
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle, throttle_limit[0], throttle_limit[1])
-        print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
+        print('    throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index))
         dt = max(space_center.ut - start_time, 0.002)
         vessel.control.throttle = throttle
         direction_controler_output = pointer(target_direction, dt)
-        vessel.control.pitch = direction_controler_output['pitch']
-        vessel.control.yaw = direction_controler_output['yaw']
-        vessel.control.roll = direction_controler_output['roll']
+        vessel.control.pitch = direction_controler_output[0]
+        vessel.control.yaw = direction_controler_output[1]
+        vessel.control.roll = direction_controler_output[2]
         
         if norm(position) <= pid_activation_range:
             nav_mode = 'PID'
-            terminal_velocity = velocity
-            terminal_position = position
             vessel.control.legs = True
-            print('\nterminal velocity:%s | terminal position:%s' % (terminal_velocity,terminal_position))
+            print('PID LANDING PHASE:')
             break
     
     while nav_mode == 'PID':
@@ -256,24 +255,40 @@ while not end:
         est_h_low = position[0] - velocity[0]**2 / (2 * max_acc_low)
         est_h_center = (est_h + est_h_low) / 2
         
-        vessel.control.throttle = clamp(lerp(throttle_limit[1] * final_throttle, throttle_limit[1], -est_h_low / (est_h - est_h_low) * (1+final_kp)), throttle_limit[1], throttle_limit[0])
+        throttle = clamp(lerp(throttle_limit[1] * final_throttle, throttle_limit[1], -est_h_low / (est_h - est_h_low) * (1+final_kp)), throttle_limit[1], throttle_limit[0])
         
-        error_hor = array([0, position[1], position[2]])
-        vel_hor = array([0, velocity[1], velocity[2]])
-        ctrl_hor = -error_hor * 0.01 - vel_hor * 0.03
-        target_direction = ctrl_hor + array([1, 0, 0])
-        target_direction /= norm(target_direction)
-        target_direction = conic_clamp(target_direction, 85)
-        dt = max(space_center.ut - start_time, 0.002)
+        target_direction = velocity_error*0.3 + position_error*0.1
+        target_direction_x = target_direction[0]
+        while target_direction_x <= 0:
+            target_direction_x += g
+        target_direction = (target_direction_x,target_direction[1],target_direction[2])
 
+        vessel.control.throttle = throttle
         direction_controler_output = pointer(target_direction, dt)
-        vessel.control.pitch = direction_controler_output['pitch']
-        vessel.control.yaw = direction_controler_output['yaw']
-        vessel.control.roll = direction_controler_output['roll']
+        vessel.control.pitch = direction_controler_output[0]
+        vessel.control.yaw = direction_controler_output[1]
+        vessel.control.roll = direction_controler_output[2]
+
+        dt = max(space_center.ut - start_time, 0.002)
+        print("    throttle:%.3f" % (throttle))
+
+        if position[0] <= 4*half_rocket_length:
+            nav_mode = 'final'
+            vessel.auto_pilot.reference_frame = target_reference_frame
+            vessel.auto_pilot.engage()
+            print('FINAL ADJUSTMETS:')
+            break
+
+    while nav_mode == 'final':
+        velocity = vessel.velocity(target_reference_frame)
+
+        vessel.control.throttle = -2-velocity[0]
+        target_direction = (1, 0, 0)
+        vessel.auto_pilot.target_direction = target_direction
+        print(("    throttle:%.3f" % (throttle)))
 
         if landed(vessel):
             vessel.control.throttle = 0.
-            print('\ntouchdown velocity:%s' % (velocity))
             print('END')
             end = True
             break
