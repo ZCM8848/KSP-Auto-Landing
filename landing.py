@@ -3,9 +3,12 @@ from numpy.linalg import inv
 from collections import Counter
 from tqdm import trange
 
-from PID import PID, clamp
-from GFOLD_SOLVER import GFOLD
-from vector import vec_clamp_yz, normalize, vec_ang
+from Control import *
+from Solver import GFOLD
+
+#params
+throttle_limit = [0.2, 0.9]
+max_tilt = 10
 
 #define basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -95,19 +98,6 @@ def landed(vessel):
 
 def ignition_height(target_reference_frame):
     return abs(vessel.flight(target_reference_frame).vertical_speed**2 / (2*(0.6*vessel.available_thrust / vessel.mass - body.surface_gravity)))
-
-def pointer(target_direction, dt):
-    '''
-    Used to point your vessel to a desired direction, in <target reference frame>
-    The output is a dictionary including pitch, yaw and roll
-    '''
-    target_direction_local = transform(target_direction, rotation_srf2local)
-    avel_local = transform(array(vessel.angular_velocity(vessel_surface_reference_frame)), rotation_srf2local)
-    control_pitch = -clamp(ctrl_x_rot.update(angle_around_axis(target_direction_local, array([0,1,0]), array([1,0,0])), dt), 1, -1)
-    control_yaw = -clamp(ctrl_z_rot.update(angle_around_axis(target_direction_local, array([0,1,0]), array([0,0,1])), dt), 1, -1)
-    control_roll = clamp(avel_local[1] * roll_controller_kd, 1, -1)
-
-    return control_pitch, control_yaw, control_roll
 
 #solver utilities
 def bundle_data(vessel):
@@ -209,7 +199,7 @@ while not end:
         print('    throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index))
         dt = max(space_center.ut - start_time, 0.002)
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,90-10)
+        vessel.auto_pilot.target_direction = conic_clamp(target_direction,90-10)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
 
         if norm(position) <= 4*half_rocket_length or velocity[0] >= -2:
@@ -238,7 +228,7 @@ while not end:
         target_direction = (target_direction_x,target_direction[1],target_direction[2])
         throttle = 0.1*(-2-velocity[0])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 90-10)
+        vessel.auto_pilot.target_direction = conic_clamp(target_direction, 90-10)
         print('velocity error:%s | position error:%s' % (velocity_error,position_error),end='\r')
 
         if landed(vessel):
