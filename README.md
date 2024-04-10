@@ -9,7 +9,8 @@ This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some function
 ---
 
 ##### TODO：
-- [ ] Fix autopilot problems  
+- [*] Fix autopilot problems (not actually)
+- [ ] Add a boosterback burn and sea landing general sequence
 
 ---
 
@@ -20,7 +21,7 @@ To run the code:
 ---
 
 ##### References:
-[G-FOLD-Python(jonnyhyman)](https://github.com/jonnyhyman/G-FOLD-Python)  
-[G-FOLD(Wrg1t)](https://github.com/Wrg1t/G-FOLD)  
+[G-FOLD-Python](https://github.com/jonnyhyman/G-FOLD-Python)  
+[G-FOLD](https://github.com/Wrg1t/G-FOLD)  
 [GFOLD_KSP](https://github.com/xdedss/GFOLD_KSP)  
 [Lossless Convexification of Nonconvex Control Bound and Pointing Constraints of the Soft Landing Optimal Control Problem](http://www.larsblackmore.com/iee_tcst13.pdf)
