@@ -1,14 +1,11 @@
-import time
-
 import krpc
-from numpy import array, cos, sin, deg2rad, sqrt
-from numpy.linalg import norm
+from numpy.linalg import inv
 from collections import Counter
 from tqdm import trange
 
 from PID import PID, clamp
-from Solver import GFOLD
-from Control import *
+from GFOLD_SOLVER import GFOLD
+from vector import vec_clamp_yz, normalize, vec_ang
 
 #define basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -26,14 +23,14 @@ body_reference_frame = body.reference_frame
 
 #define targets
 class targets:
-    launchpad = (-74.557673364044,-0.0972078545440865)
+    launchpad =      (-74.557673364044,-0.0972078545440865)
     landing_zone_1 = (-74.4730633292066,-0.185355657540052)
     landing_zone_2 = (-74.4729967713462,-0.20551670559373)
     landing_zone_3 = (-74.4853049576317,-0.195548763275873)
 
 class targets_JNSQ:
-    launchpad = (-91.7839786112259,5.1753303155099E-06)
-    VAB_A = (-91.8063860071064,-4.23555000546582E-06)
+    launchpad =      (-91.7839786112259,5.1753303155099E-06)
+    VAB_A =          (-91.8063860071064,-4.23555000546582E-06)
 
 
 #define target reference frame *(Search for "Quaternion vs. Three-Dimensional Rotation" on your own)*
@@ -56,22 +53,6 @@ def create_target_reference_frame(target):
     target_reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, 
                                                                          position=(target_reference_frame_height, 0., 0.))
     return target_reference_frame
-
-#define instant reference frame
-def create_instant_reference_frame():
-    vessel_lon = vessel.flight().longitude
-    vessel_lat = vessel.flight().latitude
-    temp_reference_frame = space_center.ReferenceFrame.create_relative(body_reference_frame, 
-                                                                       rotation=(0., sin(-deg2rad(vessel_lon/2.)), 0., cos(-deg2rad(vessel_lon/2.))))#spin around y axis by -target_lon degrees
-    temp_reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, 
-                                                                       rotation=(0., 0., sin(deg2rad(vessel_lat/2.)), cos(deg2rad(vessel_lat/2.))))  #spin around z axis by target_lat degrees
-    if body.bedrock_height(vessel_lat, vessel_lon) < 0:
-        instant_reference_frame_height = body.equatorial_radius
-    else:
-        instant_reference_frame_height = body.equatorial_radius + body.surface_height(vessel_lat,vessel_lon)
-    instant_reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, 
-                                                                          position=(instant_reference_frame_height,0.,0.))
-    return instant_reference_frame
 
 #debug
 def draw_reference_frame(reference_frame):
@@ -115,6 +96,19 @@ def landed(vessel):
 def ignition_height(target_reference_frame):
     return abs(vessel.flight(target_reference_frame).vertical_speed**2 / (2*(0.6*vessel.available_thrust / vessel.mass - body.surface_gravity)))
 
+def pointer(target_direction, dt):
+    '''
+    Used to point your vessel to a desired direction, in <target reference frame>
+    The output is a dictionary including pitch, yaw and roll
+    '''
+    target_direction_local = transform(target_direction, rotation_srf2local)
+    avel_local = transform(array(vessel.angular_velocity(vessel_surface_reference_frame)), rotation_srf2local)
+    control_pitch = -clamp(ctrl_x_rot.update(angle_around_axis(target_direction_local, array([0,1,0]), array([1,0,0])), dt), 1, -1)
+    control_yaw = -clamp(ctrl_z_rot.update(angle_around_axis(target_direction_local, array([0,1,0]), array([0,0,1])), dt), 1, -1)
+    control_roll = clamp(avel_local[1] * roll_controller_kd, 1, -1)
+
+    return control_pitch, control_yaw, control_roll
+
 #solver utilities
 def bundle_data(vessel):
     bundled_data = {}
@@ -122,13 +116,13 @@ def bundle_data(vessel):
     bundled_data['dry_mass'] = vessel.dry_mass
     bundled_data['fuel_mass'] = vessel.mass - vessel.dry_mass
     bundled_data['max_thrust'] = vessel.available_thrust
-    bundled_data['min_throttle'] = 0.2
-    bundled_data['max_throttle'] = 0.9
+    bundled_data['min_throttle'] = throttle_limit[0]
+    bundled_data['max_throttle'] = throttle_limit[1]
     bundled_data['max_structural_Gs'] = 9
     bundled_data['specific_impulse'] = vessel.specific_impulse
     bundled_data['max_velocity'] = vessel.flight(target_reference_frame).speed
     bundled_data['glide_slope_cone'] = 20
-    bundled_data['thrust_pointing_constraint'] = 10
+    bundled_data['thrust_pointing_constraint'] = max_tilt
     bundled_data['planetary_angular_velocity'] = body.angular_velocity(vessel_surface_reference_frame)
     bundled_data['initial_position'] = vessel.position(target_reference_frame)
     bundled_data['initial_velocity'] = vessel.velocity(target_reference_frame)
@@ -138,14 +132,20 @@ def bundle_data(vessel):
     bundled_data['solver'] = 'ECOS'
     bundled_data['N_tf'] = 160
     bundled_data['plot'] = False
-    bundled_data['min_tf'] = min_tf
-    bundled_data['max_tf'] = 2*min_tf
+    bundled_data['min_tf'] = 20
+    bundled_data['max_tf'] = 22
     return bundled_data
 
 target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
 draw_reference_frame(vessel_surface_reference_frame)
+
+#while True:
+#    igh = ignition_height(target_reference_frame)
+#    position = vessel.position(target_reference_frame)
+#    if position[0] <= igh:
+#        break
 
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
@@ -170,19 +170,18 @@ trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i i
 trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
 trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
-vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
-vessel.auto_pilot.engage()
+vessel.control.sas = False
+print('GFOLD PHASE:')
 
 while not end:
     while nav_mode == 'GFOLD':
-
+        start_time = space_center.ut
         velocity = array(vessel.velocity(target_reference_frame))
         position = array(vessel.position(target_reference_frame))
         thrust = vessel.thrust
         mass = vessel.mass
         available_thrust = vessel.available_thrust
         aerodynamic_force = array(vessel.flight(target_reference_frame).aerodynamic_force)
-        direction = array(vessel.direction(vessel_surface_reference_frame))
 
         #get the index of nearest waypoints
         results_position = []
@@ -203,47 +202,47 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
+        target_direction = conic_clamp(target_direction, 90-max_tilt)
         compensation = 0.1*norm(aerodynamic_force[1:3])/available_thrust
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
-        throttle = clamp(throttle,0.2,1.)
+        throttle = clamp(throttle, throttle_limit[0], throttle_limit[1])
+        print('    throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index))
+        dt = max(space_center.ut - start_time, 0.002)
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(target_direction,90-10)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction,90-10)
         print('throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index),end='\r')
 
         if norm(position) <= 4*half_rocket_length or velocity[0] >= -2:
             nav_mode = 'PID'
-            terminal_velocity = velocity
-            terminal_position = position - array([half_rocket_length,0,0])
             vessel.control.legs = True
-            print('\nterminal velocity:%s | terminal position:%s' % (terminal_velocity,terminal_position))
+            print('PID LANDING PHASE:')
             break
-        elif norm(position) <= 130 and not legs:
-            vessel.control.legs = True
-            legs = True
     
     while nav_mode == 'PID':
-        direction = vessel.direction(target_reference_frame)
+        start_time = space_center.ut
         velocity = array(vessel.velocity(target_reference_frame))
         position = array(vessel.position(target_reference_frame))
+        thrust = vessel.thrust
         mass = vessel.mass
         available_thrust = vessel.available_thrust
 
         velocity_error = -velocity
         position_error = -position
 
+        landing_time = position[0]/velocity[0]
+
         target_direction = velocity_error*0.3 + position_error*0.1
         target_direction_x = target_direction[0]
         while target_direction_x <= 0:
             target_direction_x += g
         target_direction = (target_direction_x,target_direction[1],target_direction[2])
-        throttle = -2-velocity[0]
+        throttle = 0.1*(-2-velocity[0])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(target_direction, 90-10)
+        vessel.auto_pilot.target_direction = vec_clamp_yz(target_direction, 90-10)
         print('velocity error:%s | position error:%s' % (velocity_error,position_error),end='\r')
 
         if landed(vessel):
             vessel.control.throttle = 0.
-            print('\ntouchdown velocity:%s' % (velocity))
             print('END')
             end = True
             break

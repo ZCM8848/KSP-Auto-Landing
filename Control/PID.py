@@ -1,4 +1,4 @@
-from control_utils import lerp, clamp
+from .control_utils import lerp, clamp
 
 class PID:
     def __init__(self):
