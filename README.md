@@ -8,8 +8,9 @@ This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some function
 
 ---
 
-### TODO：
-- [x] Fix autopilot problems  
+##### TODO：
+- [x] Fix autopilot problems (not actually)
+- [ ] Add a boosterback burn and sea landing general sequence
 
 ---
 
@@ -19,7 +20,7 @@ To run the code:
 
 ---
 
-### References:
+##### References:
 [G-FOLD-Python(jonnyhyman)](https://github.com/jonnyhyman/G-FOLD-Python)  
 [G-FOLD(Wrg1t)](https://github.com/Wrg1t/G-FOLD)  
 [GFOLD_KSP](https://github.com/xdedss/GFOLD_KSP)  
