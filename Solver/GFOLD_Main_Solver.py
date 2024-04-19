@@ -253,17 +253,15 @@ class GFOLD:
         for tf in range(self.min_tf, self.max_tf+1):
             self.generate_params(tf)
             progress = int(iter_count/(self.max_tf-self.min_tf)*100)
-            if progress < 10:
-                progress = f'0{str(progress)}'
 
             try:
                 self.solve(20,iterative=True)
                 if self.solution['z'][-1,-1] is not None:
                     time.append(tf)
                     cost.append(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1])
-                print(f"    TIME:{tf} ({progress}%) | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]}")
+                print(f"    TIME:{tf} | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]} ({progress}%)")
             except Exception as ex:
-                print(f"    TIME:{tf} ({progress}%) | COST:inf (SOLVER FAILED:{ex})")
+                print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex}) ({progress}%)")
             finally:
                 iter_count += 1
             
