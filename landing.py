@@ -200,7 +200,7 @@ while not end:
             print('PID LANDING PHASE:')
             break
             
-        if norm(position) / norm(velocity) <= 6:
+        if norm(position) / norm(velocity) <= 4:
             vessel.control.legs = True
     
     while nav_mode == 'PID':
