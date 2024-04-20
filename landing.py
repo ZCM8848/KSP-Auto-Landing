@@ -191,7 +191,7 @@ while not end:
         throttle = norm(target_direction)/(available_thrust/mass) + compensation
         throttle = clamp(throttle, throttle_limit[0], throttle_limit[1])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(target_direction,90-10)
+        vessel.auto_pilot.target_direction = conic_clamp(target_direction,90-max_tilt)
         print('    throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index))
 
         if norm(position) <= 4*half_rocket_length or velocity[0] >= -2:
@@ -206,16 +206,19 @@ while not end:
     while nav_mode == 'PID':
         velocity = array(vessel.velocity(target_reference_frame))
         position = array(vessel.position(target_reference_frame))
+        available_thrust = vessel.available_thrust
+        mass = vessel.mass
 
-        velocity_error = -velocity
-        position_error = -position
-
-        target_direction = velocity_error*0.3 + position_error*0.1
-        target_direction_x = target_direction[0]
-        while target_direction_x <= 0:
-            target_direction_x += g
-        target_direction = (target_direction_x,target_direction[1],target_direction[2])
-        throttle = 0.5*(-2-velocity[0])
+        max_acc = throttle_limit[1] * (available_thrust / mass) - g
+        max_acc_low = throttle_limit[1] * 0.8 * (available_thrust / mass) - g
+        est_h = position[0] - velocity[0]**2 / (2 * max_acc)
+        est_h_low = position[0] - velocity[0]**2 / (2 * max_acc_low)
+        est_h_center = (est_h + est_h_low) / 2
+        position_hor = array([0, position[1], position[2]])
+        vel_hor = array([0, velocity[1], velocity[2]])
+        ctrl_hor = -position_hor * 0.03 - vel_hor * 0.06
+        target_direction = ctrl_hor + array([1, 0, 0])
+        throttle = clamp(0.5*(-2-velocity[0]), 0, throttle_limit[1])
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = conic_clamp(target_direction, 85)
 
