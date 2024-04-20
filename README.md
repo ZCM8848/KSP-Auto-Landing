@@ -20,7 +20,7 @@ To run the code:
 
 ---
 
-##### References:
+### References:
 [G-FOLD-Python](https://github.com/jonnyhyman/G-FOLD-Python)  
 [G-FOLD](https://github.com/Wrg1t/G-FOLD)  
 [GFOLD_KSP](https://github.com/xdedss/GFOLD_KSP)  
