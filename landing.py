@@ -220,7 +220,7 @@ while not end:
         target_direction = ctrl_hor + array([1, 0, 0])
         throttle = clamp(0.5*(-2-velocity[0]), 0, throttle_limit[1])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(target_direction, 85)
+        vessel.auto_pilot.target_direction = conic_clamp(target_direction, 87)
 
         print(f'    throttle:{throttle}')
 
