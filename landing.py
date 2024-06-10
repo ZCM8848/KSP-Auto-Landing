@@ -1,5 +1,4 @@
 import krpc
-from numpy.linalg import inv
 from collections import Counter
 from tqdm import trange
 
