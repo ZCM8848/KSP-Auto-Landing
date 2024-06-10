@@ -3,7 +3,7 @@ from cvxpy import Variable, Parameter, Maximize, Minimize, Problem
 from cvxpy import ECOS, SCS
 from cvxpy import norm
 
-from .GFOLD_utils import e, A
+from .GFOLD_utils import e
 from .EvilPlotting import plot_run3D
 
 import warnings
