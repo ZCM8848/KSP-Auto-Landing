@@ -10,7 +10,9 @@ This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some function
 
 ### TODO：
 - [x] Fix autopilot problems  
-- [ ] Add a boosterback burn and sea landing general sequence
+- [ ] Add a boosterback burn and sea landing general sequence  
+- [ ] Improve control algorithm performance (against huge aerodynamic force)  
+      *I'm learning to solve this problem and hope someone can help me*😢
 
 ---
 
