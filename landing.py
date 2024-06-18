@@ -3,7 +3,7 @@ from collections import Counter
 from tqdm import trange
 
 from Control import *
-from Solver import GFOLD
+from GFOLD_SOLVER import GFOLD
 
 #params
 throttle_limit = [0.2, 0.9]
