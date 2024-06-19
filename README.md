@@ -32,3 +32,8 @@ To run the code:
 
 ### Links:
 [GFOLD-solver](https://github.com/ZCM8848/GFOLD-solver)
+
+---
+
+### Demo:
+[Fixed-point landing terminal guidance of rockets based on GFOLD algorithm](https://www.bilibili.com/video/BV1M6gNe7ECU)
