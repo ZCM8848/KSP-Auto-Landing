@@ -1,4 +1,4 @@
-# KSP-Auto-landing (beta)
+# KSP-Auto-Landing (beta)
 *Some python scripts enable your Kerbal rocket to land (safely, hopefully) at a fixed point*
 
 ---
