@@ -259,7 +259,8 @@ class GFOLD:
                 if self.solution['z'][-1,-1] is not None:
                     time.append(tf)
                     cost.append(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1])
-                print(f"    TIME:{tf} | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]} ({progress}%)")
+                if tf < 10: tf = f'0{tf}'
+                print(f"    TIME:{tf} | COST:{round(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1], 5)} ({progress}%)")
             except Exception as ex:
                 print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex}) ({progress}%)")
             finally:
@@ -275,10 +276,12 @@ class GFOLD:
         #print(f"AVAILABLE:{available_tf}")
         print('CHECKING:')
         for tf in available_tf:
+            if tf < 10: tf = f'0{tf}'
             try:
+                tf = int(tf)
                 self.generate_params(tf)
                 self.solve(self.N_tf, iterative=True)
-                print(f"    TIME:{tf} | COST:{np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1]}")
+                print(f"    TIME:{tf} | COST:{round(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1], 5)}")
                 cost.append(np.log(self.dry_mass+self.fuel_mass)-self.solution['z'][-1,-1])
                 break
             except Exception as ex:

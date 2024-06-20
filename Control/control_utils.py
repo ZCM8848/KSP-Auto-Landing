@@ -1,4 +1,4 @@
-from math import pi, sin, cos, tan, sqrt
+from math import sin, cos, tan, exp, sqrt, e, pi, inf
 from numpy import array, cross, dot, deg2rad, rad2deg, mat, arccos
 from numpy.linalg import norm
 
@@ -15,6 +15,12 @@ def sgn(f):
     elif f < 0:
         return -1
     return 0
+
+def improved_sigmoid(x):
+    return -1/(1+e**(-x*x)) + 1
+
+def normal_distribution(x):
+    return 1/(sqrt(2*pi)) * e**(-(x**2)/2*0.4**2)
 
 #vector-related
 def conic_clamp(vector, angle:float):

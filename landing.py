@@ -96,7 +96,7 @@ def landed(vessel):
     return all(leg.is_grounded for leg in legs)
 
 def ignition_height(target_reference_frame):
-    return abs(vessel.flight(target_reference_frame).vertical_speed**2 / (2*(0.6*vessel.available_thrust / vessel.mass - body.surface_gravity)))
+    return abs(vessel.flight(target_reference_frame).vertical_speed**2 / (2*(throttle_limit[1]*vessel.available_thrust / vessel.mass - body.surface_gravity)))
 
 #solver utilities
 def bundle_data(vessel):
@@ -128,8 +128,53 @@ def bundle_data(vessel):
 target_reference_frame = create_target_reference_frame(target=targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 draw_reference_frame(target_reference_frame)
-draw_reference_frame(vessel_surface_reference_frame)
+draw_reference_frame(vessel_reference_frame)
 
+#activate autopilot
+vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
+vessel.auto_pilot.engage()
+vertical_controller = PID()
+vertical_controller.kp = 2
+vertical_controller.ki = 0
+vertical_controller.kd = 3.4
+
+#aerodynamic guidiance
+print('AERODYNAMIC GUIDIANCE:')
+while vessel.position(target_reference_frame)[0] >= ignition_height(target_reference_frame):
+    position = array(vessel.position(target_reference_frame))
+    velocity = array(vessel.velocity(target_reference_frame))
+    estimated_landing_time = norm(position) / norm(velocity)
+    estimated_landing_point = position + estimated_landing_time * velocity
+
+    target_direction = - velocity + estimated_landing_point
+    vessel.auto_pilot.target_direction = target_direction
+    vessel.control.throttle = 0
+    print('    HEIGHT:%.3f | IGNITION HEIGHT:%.3f' % (position[0], ignition_height(target_reference_frame)))
+
+#initilize landing burn
+print('LANDING BURN:')
+while vessel.velocity(target_reference_frame)[0] <= -100 and vessel.position(target_reference_frame)[0] >= 2000:
+    position = array(vessel.position(target_reference_frame))
+    velocity = array(vessel.velocity(target_reference_frame))
+    available_thrust = vessel.available_thrust
+    mass = vessel.mass
+
+    remaining_height = position[0] - 2000
+
+    acc = (-100**2 + velocity[0]**2)/(2*remaining_height)
+
+    target_direction = -array(space_center.transform_direction(velocity, from_=target_reference_frame, to=vessel_surface_reference_frame))
+    vessel.auto_pilot.target_direction = target_direction
+    vessel.control.throttle = clamp((acc*mass) / available_thrust, throttle_limit[0], throttle_limit[1])
+    print('    THROTTLE:%.3f' % (vessel.control.throttle))
+
+while vessel.velocity(target_reference_frame)[0] <= -100:
+    velocity = array(vessel.velocity(target_reference_frame))
+    target_direction = -array(space_center.transform_direction(velocity, from_=target_reference_frame, to=vessel_surface_reference_frame))
+    vessel.control.throttle = throttle_limit[1]
+    print('    THROTTLE:%.3f' % (vessel.control.throttle))
+
+#final landing phase
 conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION',duration=1)
 min_tf = int(sqrt(2*vessel.position(target_reference_frame)[0]/g))
@@ -152,12 +197,11 @@ trajectory_position = [(trajectory[0,i],trajectory[1,i],trajectory[2,i]) for i i
 trajectory_velocity = [(trajectory[3,i],trajectory[4,i],trajectory[5,i]) for i in range(len(trajectory[0]))]
 trajectory_acceleration = [(result['u'][0,i],result['u'][1,i],result['u'][2,i]) for i in range(len(result['u'][0]))]
 
-vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
-vessel.auto_pilot.engage()
 print('GFOLD PHASE:')
 
 while not end:
     while nav_mode == 'GFOLD':
+        #gather information
         velocity = array(vessel.velocity(target_reference_frame))
         position = array(vessel.position(target_reference_frame))
         thrust = vessel.thrust
@@ -176,9 +220,11 @@ while not end:
         velocity_waypoint = array(trajectory_velocity[min_index])
         acceleration_waypoint = array(trajectory_acceleration[min_index])
 
+        #define errors
         velocity_error = velocity_waypoint - velocity
         position_error = position_waypoint - position
 
+        #main control
         target_direction = acceleration_waypoint + velocity_error*0.3 + position_error*0.1
         target_direction_x = target_direction[0]
         while target_direction_x <= 0:
@@ -191,7 +237,7 @@ while not end:
         throttle = clamp(throttle, throttle_limit[0], throttle_limit[1])
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = conic_clamp(target_direction,90-max_tilt)
-        print('    throttle:%3f | compensation:%3f | index%i' % (throttle,compensation,min_index))
+        print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle,compensation,min_index))
 
         if norm(position) <= 4*half_rocket_length or velocity[0] >= -2:
             nav_mode = 'PID'
@@ -221,7 +267,7 @@ while not end:
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = conic_clamp(target_direction, 87)
 
-        print(f'    throttle:{throttle}')
+        print('    THROTTLE:%.3f' % (throttle))
 
         if landed(vessel):
             vessel.control.throttle = 0.
