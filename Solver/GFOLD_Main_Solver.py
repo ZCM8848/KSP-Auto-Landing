@@ -281,13 +281,11 @@ class GFOLD:
         # a second check
         available_tf = time
         cost.clear()
-        # print(f"AVAILABLE:{available_tf}")
         print('CHECKING:')
         for tf in available_tf:
             if tf < 10: tf = f'0{tf}'
             try:
-                tf = int(tf)
-                self.generate_params(tf)
+                self.generate_params(int(tf))
                 self.solve(self.N_tf, iterative=True)
                 print(
                     f"    TIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)}")

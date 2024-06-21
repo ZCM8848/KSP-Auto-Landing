@@ -1,5 +1,6 @@
-from math import sin, cos, tan, exp, sqrt, e, pi, inf
-from numpy import array, cross, dot, deg2rad, rad2deg, mat, arccos
+from math import sin, cos, tan
+
+from numpy import array, cross, dot, deg2rad, mat, arccos
 from numpy.linalg import norm
 
 
@@ -20,35 +21,12 @@ def sgn(f):
     return 0
 
 
-def improved_sigmoid(x):
-    return -1 / (1 + e ** (-x * x)) + 1
-
-
-def normal_distribution(x):
-    return 1 / (sqrt(2 * pi)) * e ** (-(x ** 2) / 2 * 0.4 ** 2)
-
-
 # vector-related
-def conic_clamp(vector, angle: float):
-    """
-    Clamp a vector inside a cone
-    """
-    vector = array(vector).copy()
-    angle = deg2rad(angle)
-
-    vector_vertical = vector[0]
-    vector_horizontal = vector[1:3]
-    norm_horizontal = norm(vector_horizontal)
-    max_n = abs(vector_vertical / tan(angle))
-    if max_n < norm_horizontal:
-        vector_horizontal = vector_horizontal / norm_horizontal * max_n
-    return vector
-
-
 def normalize(v):
     v = array(v)
     n = norm(v)
-    if n == 0.: return v
+    if n == 0:
+        return v
     return v / n
 
 
@@ -58,7 +36,7 @@ def q(axis, angle):
     c = cos(angle / 2)
     axis = array([x + .0, y + .0, z + .0])
     axis /= norm(axis)
-    return (s * axis[0], s * axis[1], s * axis[2], c)
+    return s * axis[0], s * axis[1], s * axis[2], c
 
 
 def rotation_mat(q):
@@ -76,9 +54,25 @@ def transform(vec, matrix):
 
 
 def angle_around_axis(v1, v2, axis):
-    '''The angle between <v1> and <v2>, return in radians'''
+    """The angle between <v1> and <v2>, return in radians"""
     axis = normalize(axis)
     v1 = normalize(cross(v1, axis))
     v2 = normalize(cross(v2, axis))
     direction = sgn(dot(cross(v1, v2), axis))
     return direction * arccos(dot(v1, v2))
+
+
+def conic_clamp(vec1, vec2, angle):
+    """
+    <vec1> is the standard vector\n
+    <vec2> is the constrained vector\n
+    <angle> represents the half-cone angle of the cone (angle system)
+    """
+    angle = deg2rad(angle)
+    angle_between_vectors = arccos(dot(vec1, vec2) / (norm(vec1) * norm(vec2)))
+    if angle_between_vectors <= angle:
+        return vec2
+    else:
+        projection_vertical = normalize(vec1) * norm(vec2) * cos(angle_between_vectors)
+        projection_horizontal = normalize(vec2 - projection_vertical) * tan(angle) * norm(projection_vertical)
+        return projection_vertical + projection_horizontal

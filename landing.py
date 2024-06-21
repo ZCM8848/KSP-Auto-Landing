@@ -1,6 +1,7 @@
 import krpc
 from collections import Counter
 from tqdm import trange
+from math import sqrt
 
 from Control import *
 from Solver import GFOLD
@@ -32,6 +33,7 @@ class Targets:
     landing_zone_3 = (-74.4853049576317, -0.195548763275873)
 
 
+# noinspection PyPep8Naming
 class Targets_JNSQ:
     launchpad = (-91.7839786112259, 5.1753303155099E-06)
     VAB_A = (-91.8063860071064, -4.23555000546582E-06)
@@ -114,7 +116,7 @@ def landed(rocket):
 
 def ignition_height(reference_frame):
     return abs(vessel.flight(reference_frame).vertical_speed ** 2 / (
-            2 * (throttle_limit[1] * vessel.available_thrust / vessel.mass - body.surface_gravity)))
+            2 * (throttle_limit[1] * vessel.available_thrust / vessel.mass - g)))
 
 
 # solver utilities
@@ -144,14 +146,15 @@ vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.auto_pilot.engage()
 
 # aerodynamic guidance
-print('AERODYNAMIC GUIDIANCE:')
-while vessel.position(target_reference_frame)[0] >= ignition_height(target_reference_frame):
+print('AERODYNAMIC GUIDANCE:')
+while vessel.position(target_reference_frame)[0] >= min(ignition_height(target_reference_frame), 10000):
     position = array(vessel.position(target_reference_frame))
     velocity = array(vessel.velocity(target_reference_frame))
     estimated_landing_time = norm(position) / norm(velocity)
     estimated_landing_point = position + estimated_landing_time * velocity
 
     target_direction = - velocity + estimated_landing_point
+    target_direction = conic_clamp(-velocity, target_direction, 7)
     vessel.auto_pilot.target_direction = target_direction
     vessel.control.throttle = 0
     print('    HEIGHT:%.3f | IGNITION HEIGHT:%.3f' % (position[0], ignition_height(target_reference_frame)))
@@ -238,14 +241,14 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        target_direction = conic_clamp(target_direction, 90 - max_tilt)
+        target_direction = conic_clamp(-normalize(velocity) + 5 * array([1, 0, 0]), target_direction, max_tilt)
         target_direction = space_center.transform_direction(target_direction, from_=target_reference_frame,
                                                             to=vessel_surface_reference_frame)
         compensation = norm(aerodynamic_force[1:3]) / available_thrust
         throttle = norm(target_direction) / (available_thrust / mass) + compensation
         throttle = clamp(throttle, throttle_limit[0], throttle_limit[1])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(target_direction, 90 - max_tilt)
+        vessel.auto_pilot.target_direction = target_direction
         print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
 
         if norm(position) <= 4 * half_rocket_length or velocity[0] >= -2:
@@ -272,9 +275,9 @@ while not end:
         vel_hor = array([0, velocity[1], velocity[2]])
         ctrl_hor = -position_hor * 0.03 - vel_hor * 0.06
         target_direction = ctrl_hor + array([1, 0, 0])
-        throttle = clamp(0.5 * (-2 - velocity[0]), 0, throttle_limit[1])
+        throttle = clamp(0.5 * (-2 - velocity[0]), throttle_limit[0], throttle_limit[1])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(target_direction, 87)
+        vessel.auto_pilot.target_direction = conic_clamp(array([1, 0, 0]), target_direction, 3)
 
         print('    THROTTLE:%.3f' % throttle)
 
