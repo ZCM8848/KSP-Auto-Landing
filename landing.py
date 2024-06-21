@@ -241,7 +241,7 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        target_direction = conic_clamp(-normalize(velocity) + 5 * array([1, 0, 0]), target_direction, max_tilt)
+        target_direction = conic_clamp(-normalize((velocity)) + 5 * array([1, 0, 0]), target_direction, max_tilt)
         target_direction = space_center.transform_direction(target_direction, from_=target_reference_frame,
                                                             to=vessel_surface_reference_frame)
         compensation = norm(aerodynamic_force[1:3]) / available_thrust
