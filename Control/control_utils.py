@@ -61,6 +61,9 @@ def angle_around_axis(v1, v2, axis):
     direction = sgn(dot(cross(v1, v2), axis))
     return direction * arccos(dot(v1, v2))
 
+def angle_between(vec1, vec2):
+    """in radians"""
+    return arccos(dot(vec1, vec2) / (norm(vec1) * norm(vec2)))
 
 def conic_clamp(vec1, vec2, angle):
     """
@@ -69,7 +72,7 @@ def conic_clamp(vec1, vec2, angle):
     <angle> represents the half-cone angle of the cone (angle system)
     """
     angle = deg2rad(angle)
-    angle_between_vectors = arccos(dot(vec1, vec2) / (norm(vec1) * norm(vec2)))
+    angle_between_vectors = angle_between(vec1, vec2)
     if angle_between_vectors <= angle:
         return vec2
     else:
