@@ -54,7 +54,7 @@ def transform(vec, matrix):
 
 
 def angle_around_axis(v1, v2, axis):
-    """The angle between <v1> and <v2>, return in radians"""
+    """The angle between v1 and v2, return in radians"""
     axis = normalize(axis)
     v1 = normalize(cross(v1, axis))
     v2 = normalize(cross(v2, axis))
@@ -67,9 +67,9 @@ def angle_between(vec1, vec2):
 
 def conic_clamp(vec1, vec2, angle):
     """
-    <vec1> is the standard vector\n
-    <vec2> is the constrained vector\n
-    <angle> represents the half-cone angle of the cone (angle system)
+    vec1 is the standard vector\n
+    vec2 is the constrained vector\n
+    angle represents the half-cone angle of the cone (angle system)
     """
     angle = deg2rad(angle)
     angle_between_vectors = angle_between(vec1, vec2)
