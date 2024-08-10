@@ -178,14 +178,13 @@ while not SKIP_BOOSTERBACK:
 while not SKIP_BOOSTERBACK:
     while not falling:
         vessel.auto_pilot.target_direction = target_direction
+        vessel.control.throttle = 0
         if vessel.velocity(target_reference_frame)[0] < -10:
             falling = True
             break
     
     position = array(vessel.position(target_reference_frame))
     velocity = array(vessel.velocity(target_reference_frame))
-    #mass = vessel.mass
-    #available_thrust = vessel.available_thrust
 
     estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
     estimated_landing_point = position + estimated_landing_time * velocity
@@ -241,7 +240,7 @@ while True:
     estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
     estimated_landing_point = position + estimated_landing_time * velocity
     horizontal_error = norm(estimated_landing_point[1:3])
-    gfold_start_altitude = 5 * horizontal_error
+    gfold_start_altitude = max(5 * horizontal_error, 4000)
 
     acc = (velocity[0]**2 - GFOLD_START_VELOCITY**2) / (2 * (position[0] - gfold_start_altitude))
     throttle = mass * acc / available_thrust if position[0] >= gfold_start_altitude else THROTTLE_LIMIT[1]
@@ -261,6 +260,7 @@ conn.ui.message('GENERATING SOLUTION', duration=1)
 
 bundled_data = bundle_data(vessel)
 problem = GFOLD(bundled_data)
+problem.N_tf = 250
 problem.find_optimal_solution()
 
 result = problem.solution
