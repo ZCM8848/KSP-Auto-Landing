@@ -136,8 +136,8 @@ def bundle_data(rocket):
 
 target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
-draw_reference_frame(target_reference_frame)
-draw_reference_frame(vessel_reference_frame)
+#draw_reference_frame(target_reference_frame)
+#draw_reference_frame(vessel_reference_frame)
 
 # activate autopilot
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
@@ -145,6 +145,7 @@ vessel.auto_pilot.engage()
 vessel.control.rcs = True
 
 # boosterback maneuver
+error = [2e32]
 print("BOOTERBACK MANEUVER:")
 while not SKIP_BOOSTERBACK:
     position = array(vessel.position(target_reference_frame))
@@ -166,35 +167,14 @@ while not SKIP_BOOSTERBACK:
     target_acceleration = (norm(target_velocity)**2 - norm(velocity)**2) / (2 * apoapsis_altitude)
     throttle =target_acceleration * mass / available_thrust
     throttle = clamp(throttle, THROTTLE_LIMIT[0], THROTTLE_LIMIT[1])
+    if horizontal_error <= 1000:
+        error.append(horizontal_error)
+        throttle = THROTTLE_LIMIT[0]
     vessel.control.throttle = throttle
 
     print("    ERROR:%.1f | TIME TO APOAPSOS:%.1f | THROTTLE:%.3f" % (horizontal_error, time_to_apoapsis, throttle))
-    if horizontal_error <= 1000:
-        vessel.control.throttle = THROTTLE_LIMIT[0]
-        falling = False
-        error = [2e100]
-        break
-
-while not SKIP_BOOSTERBACK:
-    while not falling:
-        vessel.auto_pilot.target_direction = target_direction
-        vessel.control.throttle = 0
-        if vessel.velocity(target_reference_frame)[0] < -10:
-            falling = True
-            break
-    
-    position = array(vessel.position(target_reference_frame))
-    velocity = array(vessel.velocity(target_reference_frame))
-
-    estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
-    estimated_landing_point = position + estimated_landing_time * velocity
-    horizontal_error = norm(estimated_landing_point[1:3])
-    error.append(horizontal_error)
-
-    vessel.auto_pilot.target_direction = (0, -position[1], position[2])
-    vessel.control.throttle = THROTTLE_LIMIT[0]
-    print('    ERROR:%.3f' % (horizontal_error))
     if horizontal_error > min(error):
+        vessel.control.throttle = 0
         break
 
 # aerodynamic guidance
@@ -207,6 +187,7 @@ while not SKIP_AERODYNAMIC_GUIDANCE:
     estimated_landing_point = position + estimated_landing_time * velocity
     altitude = vessel.flight(target_reference_frame).surface_altitude
     horizontal_error = norm(estimated_landing_point[1:3])
+    gfold_start_altitude = max(5 * horizontal_error, 4000)
     ignition_altitude = ignition_height(target_reference_frame)
 
     target_direction = - velocity + estimated_landing_point
@@ -216,7 +197,7 @@ while not SKIP_AERODYNAMIC_GUIDANCE:
     vessel.control.throttle = 0
     print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
 
-    if altitude <= ignition_altitude:
+    if altitude <= max(gfold_start_altitude, ignition_altitude):
         break
 
 while SKIP_AERODYNAMIC_GUIDANCE:
@@ -260,7 +241,6 @@ conn.ui.message('GENERATING SOLUTION', duration=1)
 
 bundled_data = bundle_data(vessel)
 problem = GFOLD(bundled_data)
-problem.N_tf = 250
 problem.find_optimal_solution()
 
 result = problem.solution
@@ -346,7 +326,7 @@ while not end:
         target_direction = ctrl_hor + array([1, 0, 0])
         throttle = clamp(0.5 * (-2 - velocity[0]), THROTTLE_LIMIT[0], THROTTLE_LIMIT[1])
         vessel.control.throttle = throttle
-        vessel.auto_pilot.target_direction = conic_clamp(array([1, 0, 0]), target_direction, 5)
+        vessel.auto_pilot.target_direction = conic_clamp(array([1, 0, 0]), target_direction, MAX_TILT)
 
         print('    THROTTLE:%.3f' % throttle)
 
