@@ -36,5 +36,5 @@ To run the code:
 ---
 
 ### Demo:
-[Fixed-point landing terminal guidance of rockets based on GFOLD algorithm](https://www.bilibili.com/video/BV1M6gNe7ECU)
+[Fixed-point landing terminal guidance of rockets based on GFOLD algorithm](https://www.bilibili.com/video/BV1M6gNe7ECU)  
 [Demonstration of the whole process of the return-fixed-point landing algorithm of the New Glenn-like rocket](https://www.bilibili.com/video/BV1oXYDeLE3L/)
