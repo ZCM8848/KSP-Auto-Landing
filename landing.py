@@ -118,6 +118,7 @@ def ignition_height(reference_frame):
 # solver utilities
 def bundle_data(rocket):
     min_tf = int(sqrt(2 * rocket.position(target_reference_frame)[0] / g))
+    tf = int(norm(rocket.position(target_reference_frame)[1:3]) / 10)
     data = {'gravity': g, 'dry_mass': rocket.dry_mass, 'fuel_mass': rocket.mass - rocket.dry_mass,
             'max_thrust': rocket.available_thrust,
             'min_throttle': THROTTLE_LIMIT[0], 'max_throttle': THROTTLE_LIMIT[1],
@@ -129,7 +130,7 @@ def bundle_data(rocket):
             'initial_position': rocket.position(target_reference_frame),
             'initial_velocity': rocket.velocity(target_reference_frame),
             'target_position': (get_half_rocket_length(rocket), 0, 0), 'target_velocity': (0, 0, 0),
-            'prog_flag': 'p4', 'solver': 'ECOS', 'N_tf': 160, 'plot': False,
+            'prog_flag': 'p4', 'solver': 'ECOS', 'N_tf': tf, 'plot': False, #160
             'min_tf': min_tf, 'max_tf': int(min_tf * sqrt(3))}
     return data
 
@@ -176,6 +177,9 @@ while not SKIP_BOOSTERBACK:
     if horizontal_error > min(error):
         vessel.control.throttle = 0
         break
+
+while vessel.position(target_reference_frame)[0] >= vessel.orbit.body.atmosphere_depth:
+    vessel.auto_pilot.target_direction = (1, 0, 0)
 
 # aerodynamic guidance
 print('AERODYNAMIC GUIDANCE:')
