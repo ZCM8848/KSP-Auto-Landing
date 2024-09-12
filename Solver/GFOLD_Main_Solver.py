@@ -3,31 +3,6 @@ import time
 import os
 
 class GFOLD:
-    #def __init__(self, v_data=None):
-    #    print(os.getcwd())
-    #    if v_data != None:
-    #        self.set_params()
-    
-    #def set_params(self, v_data):
-    #    self.Isp_inv = 1 / v_data['specific_impulse']
-    #    self.alpha = 1 / 9.80665 / v_data['specific_impulse']
-    #    self.G_max = v_data['max_structural_Gs']
-    #    self.V_max = v_data['max_velocity']
-    #    self.y_gs_cot = 1 / np.tan(v_data['glide_slope_cone'])
-    #    self.p_cs_cos = np.cos(v_data['thrust_pointing_constraint'])
-    #    self.m_wet = v_data['mass']
-    #    self.m_wet_log = np.log(v_data['mass'])
-    #    self.r1 = v_data['max_thrust'] * v_data['min_throttle']
-    #    self.r2 = v_data['max_thrust'] * v_data['max_throttle']
-    #    self.tf_ = v_data['tf']
-    #    self.straight_fac = v_data['straight']
-    #    
-    #    self.x0 = v_data['x0']
-    #    self.g = v_data['gravity']
-
-    #    self.plot = v_data['plot']
-    #    self.N = 250
-    #    self.v_data = v_data
     def __init__(self):
         self.Isp_inv = 1 / np.load('.\\Solver\\inputs\\specific_impulse.npy')
         self.alpha = 1 / 9.80665 / np.load('.\\Solver\\inputs\\specific_impulse.npy')

@@ -26,8 +26,8 @@ class PID:
             self.diff = (error - self.error_prev) / dt
         
         self.integral += error * dt * self.ki
-        self.integral = clamp(self.integral, self.integral_limit, -self.integral_limit)
-        self.diff = lerp(self.diff, (error - self.error_prev) / dt, 1-self.sd)
+        self.integral = clamp(self.integral, self.integral_limit, - self.integral_limit)
+        self.diff = lerp(self.diff, (error - self.error_prev) / dt, 1 - self.sd)
         p = -error * self.kp
         i = -self.integral
         d = -self.diff * self.kd
