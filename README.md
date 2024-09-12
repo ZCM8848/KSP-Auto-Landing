@@ -4,15 +4,14 @@
 ---
 
 ### CAUTION: 
-This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some functions may not yet completed and buggy.
+This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some functions may not yet completed and buggy.  
+*Now C solver available*
 
 ---
 
 ### TODO：
 - [x] Fix autopilot problems  
 - [x] Add a boosterback burn and sea landing general sequence  
-- [ ] Improve control algorithm performance (against huge aerodynamic force)  
-      *I'm learning to solve this problem and hope someone can help me*😢
 
 ---
 
