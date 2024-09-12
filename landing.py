@@ -1,10 +1,12 @@
 import krpc
 from collections import Counter
 from tqdm import trange
-from math import sqrt
+from math import sqrt, radians
+import numpy as np
+from os import system
+from time import sleep
 
 from Control import *
-from Solver import GFOLD
 from params import *
 
 # define basic KRPC things
@@ -117,25 +119,24 @@ def ignition_height(reference_frame):
 
 # solver utilities
 def bundle_data(rocket):
-    min_tf = int(sqrt(2 * rocket.position(target_reference_frame)[0] / g))
-    tf = int(norm(rocket.position(target_reference_frame)[1:3]) / 10)
-    data = {'gravity': g, 'dry_mass': rocket.dry_mass, 'fuel_mass': rocket.mass - rocket.dry_mass,
+    data = {'gravity': array([-g, 0, 0]),
+            'tf': 20,
+            'mass' : rocket.mass,
             'max_thrust': rocket.available_thrust,
             'min_throttle': THROTTLE_LIMIT[0], 'max_throttle': THROTTLE_LIMIT[1],
             'max_structural_Gs': 9,
             'specific_impulse': rocket.specific_impulse,
-            'max_velocity': rocket.flight(target_reference_frame).speed, 'glide_slope_cone': 20,
-            'thrust_pointing_constraint': MAX_TILT,
-            'planetary_angular_velocity': body.angular_velocity(vessel_surface_reference_frame),
-            'initial_position': rocket.position(target_reference_frame),
-            'initial_velocity': rocket.velocity(target_reference_frame),
-            'target_position': (get_half_rocket_length(rocket), 0, 0), 'target_velocity': (0, 0, 0),
-            'prog_flag': 'p4', 'solver': 'ECOS', 'N_tf': tf, 'plot': False, #160
-            'min_tf': min_tf, 'max_tf': int(min_tf * sqrt(3))}
-    return data
+            'max_velocity': rocket.flight(target_reference_frame).speed,
+            'glide_slope_cone': radians(40),
+            'thrust_pointing_constraint': radians(0.5 * MAX_TILT),
+            'x0': np.append(rocket.position(target_reference_frame), rocket.velocity(target_reference_frame)),
+            'straight' : 1,
+            }
+    for key, value in data.items():
+        np.save(f".\\Solver\\inputs\\{key}", value)
 
 
-target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
+target_reference_frame = create_target_reference_frame(target=Targets.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 #draw_reference_frame(target_reference_frame)
 #draw_reference_frame(vessel_reference_frame)
@@ -206,21 +207,24 @@ while not SKIP_AERODYNAMIC_GUIDANCE:
 
 while SKIP_AERODYNAMIC_GUIDANCE:
     velocity = array(vessel.velocity(target_reference_frame))
+    position = array(vessel.position(target_reference_frame))
     altitude = vessel.flight(target_reference_frame).surface_altitude
     vessel.control.throttle = 0.
     vessel.auto_pilot.target_direction = -velocity
     ignition_altitude = ignition_height(target_reference_frame)
     print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f' % (altitude, ignition_altitude))
-    if altitude <= ignition_altitude:
+    if altitude <= max(ignition_altitude, 5 * norm(position[1:3])):
         break
 
 # initialize landing burn
+bundle_data(vessel)
 print('LANDING BURN:')
 while True:
     position = array(vessel.position(target_reference_frame))
     velocity = array(vessel.velocity(target_reference_frame))
     thrust = vessel.thrust
     mass = vessel.mass
+    altitude = vessel.flight(target_reference_frame).surface_altitude
 
     estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
     estimated_landing_point = position + estimated_landing_time * velocity
@@ -241,16 +245,14 @@ while True:
 
 # final landing phase
 conn.krpc.paused = True
-conn.ui.message('GENERATING SOLUTION', duration=1)
-
-bundled_data = bundle_data(vessel)
-problem = GFOLD(bundled_data)
-problem.find_optimal_solution()
-
-result = problem.solution
+conn.ui.message('GENERATING SOLUTION')
+bundle_data(vessel)
+system(".\\Solver\\solve.bat")
+sleep(3)
+result = {'x' : np.load('.\\Solver\\results\\x.npy'), 'u' : np.load('.\\Solver\\results\\u.npy')}
 
 draw_trajectory(result['x'], result['u'], target_reference_frame)
-conn.ui.message('SOLUTION GENERATED', duration=1)
+conn.ui.message('SOLUTION GENERATED')
 conn.krpc.paused = False
 
 nav_mode = 'GFOLD'
@@ -304,7 +306,7 @@ while not end:
         vessel.auto_pilot.target_direction = target_direction
         print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
 
-        if norm(position) <= 4 * half_rocket_length:
+        if norm(position) <= 4 * half_rocket_length or velocity[0] >= -2:
             nav_mode = 'PID'
             vessel.control.legs = True
             print('PID LANDING PHASE:')
