@@ -1,5 +1,4 @@
 from math import sin, cos, tan
-
 from numpy import array, cross, dot, deg2rad, mat, arccos
 from numpy.linalg import norm
 
