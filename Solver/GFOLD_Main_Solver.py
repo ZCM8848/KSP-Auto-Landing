@@ -1,6 +1,5 @@
 import numpy as np
 import time
-import os
 
 class GFOLD:
     def __init__(self):
@@ -20,7 +19,7 @@ class GFOLD:
         self.x0 = np.load('.\\Solver\\inputs\\x0.npy')
         self.g = np.load('.\\Solver\\inputs\\gravity.npy')
 
-        self.N = 250
+        self.N = 160
     def pack_data(self, N):
         dt = self.tf_ / N
         alpha_dt = self.alpha * dt

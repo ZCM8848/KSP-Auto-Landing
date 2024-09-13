@@ -4,7 +4,6 @@ from tqdm import trange
 from math import sqrt, radians
 import numpy as np
 from os import system
-from time import sleep
 
 from Control import *
 from params import *
@@ -119,18 +118,20 @@ def ignition_height(reference_frame):
 
 # solver utilities
 def bundle_data(rocket):
+    velocity = rocket.velocity(target_reference_frame)
+    position = rocket.position(target_reference_frame)
     data = {'gravity': array([-g, 0, 0]),
-            'tf': 20,
+            'tf': position[0] / 100,
             'mass' : rocket.mass,
             'max_thrust': rocket.available_thrust,
             'min_throttle': THROTTLE_LIMIT[0], 'max_throttle': THROTTLE_LIMIT[1],
-            'max_structural_Gs': 9,
+            'max_structural_Gs': 3,
             'specific_impulse': rocket.specific_impulse,
             'max_velocity': rocket.flight(target_reference_frame).speed,
             'glide_slope_cone': radians(40),
             'thrust_pointing_constraint': radians(0.5 * MAX_TILT),
             'x0': np.append(rocket.position(target_reference_frame), rocket.velocity(target_reference_frame)),
-            'straight' : 1,
+            'straight' : 0 ,
             }
     for key, value in data.items():
         np.save(f".\\Solver\\inputs\\{key}", value)
@@ -248,7 +249,6 @@ conn.krpc.paused = True
 conn.ui.message('GENERATING SOLUTION')
 bundle_data(vessel)
 system(".\\Solver\\solve.bat")
-sleep(3)
 result = {'x' : np.load('.\\Solver\\results\\x.npy'), 'u' : np.load('.\\Solver\\results\\u.npy')}
 
 draw_trajectory(result['x'], result['u'], target_reference_frame)
@@ -296,17 +296,17 @@ while not end:
         while target_direction_x <= 0:
             target_direction_x = target_direction_x + g
         target_direction = (target_direction_x, target_direction[1], target_direction[2])
-        target_direction = conic_clamp(array([5, 0, 0])+target_direction, target_direction, MAX_TILT)
+        target_direction = conic_clamp(array([1, 0, 0]), target_direction, MAX_TILT)
         target_direction = space_center.transform_direction(target_direction, from_=target_reference_frame,
                                                             to=vessel_surface_reference_frame)
-        compensation = 3*norm(aerodynamic_force[1:3]) / available_thrust
+        compensation = 3 * norm(aerodynamic_force[1:3]) / available_thrust
         throttle = norm(target_direction) / (available_thrust / mass) + compensation
         throttle = clamp(throttle, THROTTLE_LIMIT[0], THROTTLE_LIMIT[1])
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = target_direction
         print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
 
-        if norm(position) <= 4 * half_rocket_length or velocity[0] >= -2:
+        if norm(position) <= 6 * half_rocket_length:
             nav_mode = 'PID'
             vessel.control.legs = True
             print('PID LANDING PHASE:')
