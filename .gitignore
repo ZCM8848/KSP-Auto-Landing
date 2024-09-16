@@ -1,0 +1,5 @@
+./__pycache__
+./GFOLD_SOLVER/__pycache__
+*.pyc
+test.py
+test2.py
