@@ -122,7 +122,7 @@ def bundle_data(rocket):
     data = {'gravity': g, 'dry_mass': rocket.dry_mass, 'fuel_mass': rocket.mass - rocket.dry_mass,
             'max_thrust': rocket.available_thrust,
             'min_throttle': THROTTLE_LIMIT[0], 'max_throttle': THROTTLE_LIMIT[1],
-            'max_structural_Gs': 9,
+            'max_structural_Gs': 3,
             'specific_impulse': rocket.specific_impulse,
             'max_velocity': rocket.flight(target_reference_frame).speed, 'glide_slope_cone': 20,
             'thrust_pointing_constraint': MAX_TILT,
