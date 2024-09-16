@@ -1,11 +1,15 @@
-# KSP-Auto-Landing (beta)
+# KSP-Auto-Landing
 *Some python scripts enable your Kerbal rocket to land (safely, hopefully) at a fixed point*
 
 ---
 
 ### CAUTION: 
 This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some functions may not yet completed and buggy.  
-*Now C solver available*
+
+---
+
+### Abuot the solver:  
+It's basically my own utilization of [this project](https://github.com/xdedss/GFOLD_KSP)  
 
 ---
 
