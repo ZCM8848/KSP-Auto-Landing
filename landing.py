@@ -131,7 +131,7 @@ def bundle_data(rocket):
             'glide_slope_cone': radians(40),
             'thrust_pointing_constraint': radians(0.5 * MAX_TILT),
             'x0': np.append(rocket.position(target_reference_frame), rocket.velocity(target_reference_frame)),
-            'straight' : 0 ,
+            'straight' : 1 ,
             }
     for key, value in data.items():
         np.save(f".\\Solver\\inputs\\{key}", value)
@@ -245,26 +245,29 @@ while True:
         break
 
 # final landing phase
-conn.krpc.paused = True
-conn.ui.message('GENERATING SOLUTION')
-bundle_data(vessel)
-system(".\\Solver\\solve.bat")
-result = {'x' : np.load('.\\Solver\\results\\x.npy'), 'u' : np.load('.\\Solver\\results\\u.npy')}
+def GFOLD_solve(rocket):
+    conn.krpc.paused = True
+    conn.ui.message('GENERATING SOLUTION')
+    bundle_data(rocket)
+    system(".\\Solver\\solve.bat")
+    result = {'x' : np.load('.\\Solver\\results\\x.npy'), 'u' : np.load('.\\Solver\\results\\u.npy')}
 
-draw_trajectory(result['x'], result['u'], target_reference_frame)
-conn.ui.message('SOLUTION GENERATED')
-conn.krpc.paused = False
+    #draw_trajectory(result['x'], result['u'], target_reference_frame)
+    conn.ui.message('SOLUTION GENERATED')
+    conn.krpc.paused = False
+
+    trajectory = array(result['x'])
+    trajectory_position = [(trajectory[0, i], trajectory[1, i], trajectory[2, i]) for i in range(len(trajectory[0]))]
+    trajectory_velocity = [(trajectory[3, i], trajectory[4, i], trajectory[5, i]) for i in range(len(trajectory[0]))]
+    trajectory_acceleration = [(result['u'][0, i], result['u'][1, i], result['u'][2, i]) for i in range(len(result['u'][0]))]
+    return trajectory_position, trajectory_velocity, trajectory_acceleration
 
 nav_mode = 'GFOLD'
 end = False
 
-trajectory = array(result['x'])
-trajectory_position = [(trajectory[0, i], trajectory[1, i], trajectory[2, i]) for i in range(len(trajectory[0]))]
-trajectory_velocity = [(trajectory[3, i], trajectory[4, i], trajectory[5, i]) for i in range(len(trajectory[0]))]
-trajectory_acceleration = [(result['u'][0, i], result['u'][1, i], result['u'][2, i]) for i in range(len(result['u'][0]))]
-
 print('GFOLD PHASE:')
 
+trajectory_position, trajectory_velocity, trajectory_acceleration = GFOLD_solve(vessel)
 while not end:
     while nav_mode == 'GFOLD':
         # gather information
@@ -301,10 +304,13 @@ while not end:
                                                             to=vessel_surface_reference_frame)
         compensation = 3 * norm(aerodynamic_force[1:3]) / available_thrust
         throttle = norm(target_direction) / (available_thrust / mass) + compensation
-        throttle = clamp(throttle, THROTTLE_LIMIT[0], THROTTLE_LIMIT[1])
         vessel.control.throttle = throttle
         vessel.auto_pilot.target_direction = target_direction
         print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
+
+        if abs(velocity[0]) <= 2 and norm(position) > 6 * half_rocket_length:
+            print('    RECALCULATE TRAJECTORY...')
+            trajectory_position, trajectory_velocity, trajectory_acceleration = GFOLD_solve(vessel)
 
         if norm(position) <= 6 * half_rocket_length:
             nav_mode = 'PID'
