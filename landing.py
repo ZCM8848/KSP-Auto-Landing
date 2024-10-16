@@ -1,7 +1,8 @@
 import krpc
 from collections import Counter
 from tqdm import trange
-from math import sqrt
+from math import sqrt, degrees
+from time import sleep
 
 from Control import *
 from Solver import GFOLD
@@ -156,7 +157,6 @@ while not SKIP_BOOSTERBACK:
     time_to_apoapsis = max(velocity[0] / g, 0)
     apoapsis_altitude = position[0] + 0.5 * g * time_to_apoapsis**2
 
-    #estimated_falling_time = sqrt(2 * apoapsis_altitude / g)
     estimated_falling_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
     estimated_landing_time = max(time_to_apoapsis + estimated_falling_time, 0.1)
     estimated_landing_point = position + estimated_landing_time * velocity
@@ -176,29 +176,39 @@ while not SKIP_BOOSTERBACK:
     print("    ERROR:%.1f | TIME TO APOAPSOS:%.1f | THROTTLE:%.3f" % (horizontal_error, time_to_apoapsis, throttle))
     if horizontal_error > min(error):
         vessel.control.throttle = 0
+        vessel.auto_pilot.disengage()
+        vessel.auto_pilot.sas = True
+        sleep(2)
+        vessel.control.speed_mode = space_center.SpeedMode.surface
+        vessel.control.sas_mode = space_center.SASMode.retrograde
         break
+# An adapiton to Autopilot's bug
+while True:
+    direction = array(vessel.direction(target_reference_frame))
+    velocity = array(vessel.velocity(target_reference_frame))
 
-while vessel.position(target_reference_frame)[0] >= vessel.orbit.body.atmosphere_depth:
-    vessel.auto_pilot.target_direction = (1, 0, 0)
+    if degrees(angle_between(-velocity, direction)) <= 10:
+        vessel.control.sas = False
+        vessel.auto_pilot.engage()
+        break
 
 # aerodynamic guidance
 print('AERODYNAMIC GUIDANCE:')
 while not SKIP_AERODYNAMIC_GUIDANCE:
     position = array(vessel.position(target_reference_frame))
     velocity = array(vessel.velocity(target_reference_frame))
-    #estimated_landing_time = norm(position) / norm(velocity)
     estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
     estimated_landing_point = position + estimated_landing_time * velocity
     altitude = vessel.flight(target_reference_frame).surface_altitude
     horizontal_error = norm(estimated_landing_point[1:3])
-    gfold_start_altitude = max(5 * horizontal_error, 4000)
+    gfold_start_altitude = max(5 * horizontal_error, 1000)
     ignition_altitude = ignition_height(target_reference_frame)
 
-    target_direction = - velocity + estimated_landing_point
-    target_direction = conic_clamp(-velocity, target_direction, 7)
-    target_direction = (abs(target_direction[0]), target_direction[1], target_direction[2])
-    vessel.auto_pilot.target_direction = target_direction
-    vessel.control.throttle = 0
+    target_direction = -velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]])
+    target_direction = conic_clamp(-velocity, target_direction, 20)
+    vessel.auto_pilot.target_direction = normalize(target_direction) + normalize(position)
+    #vessel.control.throttle = 0
+    vessel.auto_pilot.target_roll = 90
     print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
 
     if altitude <= max(gfold_start_altitude, ignition_altitude):
