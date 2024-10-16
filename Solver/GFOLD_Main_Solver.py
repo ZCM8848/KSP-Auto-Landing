@@ -149,8 +149,7 @@ class GFOLD:
         mu_1_, mu_2_ = np.zeros((1, N_tf)), np.zeros((1, N_tf))
 
         for n in range(0, N_tf - 1):
-            z0_term_[0, n] = S[0, sk['m_wet']] - S[0, sk['alpha']] * S[0, sk['r2']] * (
-                n) * dt.value  # see ref [2], eq 34,35,36
+            z0_term_[0, n] = S[0, sk['m_wet']] - S[0, sk['alpha']] * S[0, sk['r2']] * (n) * dt.value  # see ref [2], eq 34,35,36
             z1_term_[0, n] = S[0, sk['m_wet']] - S[0, sk['alpha']] * S[0, sk['r1']] * n * dt.value
             z0_[0, n] = np.log(z0_term_[0, n])
             z1_[0, n] = np.log(z1_term_[0, n])
