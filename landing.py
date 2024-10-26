@@ -1,7 +1,7 @@
 import krpc
 from collections import Counter
 from tqdm import trange
-from math import sqrt, radians, degrees
+from math import sqrt, radians, degrees, inf
 import numpy as np
 from os import system
 from time import sleep
@@ -36,6 +36,7 @@ class Targets:
 class Targets_JNSQ:
     launchpad = (-91.7839786112259, 5.1753303155099E-06)
     VAB_A = (-91.8063860071064, -4.23555000546582E-06)
+    landing_zone_1 = (-91.751988161994, -0.0328541891640322)
 
 
 # define target reference frame
@@ -155,7 +156,7 @@ def GFOLD_solve(rocket):
     return trajectory_position, trajectory_velocity, trajectory_acceleration
 
 
-target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
+target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.landing_zone_1)
 half_rocket_length = get_half_rocket_length(vessel)
 #draw_reference_frame(target_reference_frame)
 #draw_reference_frame(vessel_reference_frame)
@@ -222,9 +223,9 @@ print('AERODYNAMIC GUIDANCE:')
 while not SKIP_AERODYNAMIC_GUIDANCE:
     position = array(vessel.position(target_reference_frame))
     velocity = array(vessel.velocity(target_reference_frame))
-    terminal_velocity = vessel.flight(target_reference_frame).terminal_velocity
+    terminal_velocity = clamp(vessel.flight(target_reference_frame).terminal_velocity, 0.1, inf)
 
-    estimated_landing_time1 = norm(position) / norm(velocity)
+    estimated_landing_time1 = norm(position) / norm(velocity) # estimated_landing_time1
     estimated_landing_time2 = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
     ratio = clamp(norm(velocity) / terminal_velocity, 0, 1)
     estimated_landing_time = ratio * estimated_landing_time1 + (1 - ratio) * estimated_landing_time2
@@ -238,9 +239,9 @@ while not SKIP_AERODYNAMIC_GUIDANCE:
     target_direction = conic_clamp(-velocity, target_direction, MAX_TILT)
     vessel.auto_pilot.target_direction = target_direction
     vessel.control.throttle = 0
-    print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
+    print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f | RATIO:%.3f' % (altitude, ignition_altitude, horizontal_error, ratio))
 
-    if altitude <= max(gfold_start_altitude, ignition_altitude) and horizontal_error <= 10:
+    if altitude <= max(gfold_start_altitude, ignition_altitude):
         break
 
 while SKIP_AERODYNAMIC_GUIDANCE:
@@ -262,7 +263,7 @@ while True:
     thrust = vessel.thrust
     mass = vessel.mass
     altitude = vessel.flight(target_reference_frame).surface_altitude
-    terminal_velocity = vessel.flight(target_reference_frame).terminal_velocity
+    terminal_velocity = clamp(vessel.flight(target_reference_frame).terminal_velocity, 0.1, inf)
 
     estimated_landing_time1 = norm(position) / norm(velocity)
     estimated_landing_time2 = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
