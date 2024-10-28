@@ -116,7 +116,7 @@ def bundle_data(rocket):
             'glide_slope_cone': radians(40),
             'thrust_pointing_constraint': radians(0.5 * MAX_TILT),
             'x0': append(rocket.position(target_reference_frame), rocket.velocity(target_reference_frame)),
-            'straight' : 1 ,
+            'straight' : 0.1 ,
             }
     for key, value in data.items():
         save(f".\\Solver\\inputs\\{key}", value)
@@ -128,7 +128,7 @@ def GFOLD_solve(rocket):
     system(".\\Solver\\solve.bat")
     result = {'x' : load('.\\Solver\\results\\x.npy'), 'u' : load('.\\Solver\\results\\u.npy')}
 
-    #draw_trajectory(result['x'], result['u'], target_reference_frame)
+    draw_trajectory(result['x'], result['u'], target_reference_frame)
     conn.ui.message('SOLUTION GENERATED')
     conn.krpc.paused = False
 
@@ -237,6 +237,11 @@ while True:
     velocity = array(vessel.velocity(target_reference_frame))
     thrust = vessel.thrust
     mass = vessel.mass
+    air_speed = vessel.flight(target_reference_frame).true_air_speed
+
+    target_direction = -velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]])
+    target_direction = conic_clamp(-velocity, target_direction, 20)
+    vessel.auto_pilot.target_direction = normalize(target_direction) + normalize(position)
 
     estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
     estimated_landing_point = position + estimated_landing_time * velocity
@@ -247,8 +252,13 @@ while True:
     throttle = mass * acc / available_thrust if position[0] >= gfold_start_altitude else THROTTLE_LIMIT[1]
     throttle = clamp(throttle, THROTTLE_LIMIT[0], THROTTLE_LIMIT[1])
 
+    if air_speed >= 300:
+        target_direction = -velocity
+    else:
+        target_direction = -velocity + array([0, -estimated_landing_point[1], -estimated_landing_point[2]])
+
+    vessel.auto_pilot.target_direction = conic_clamp(-velocity, target_direction, 5)
     vessel.control.throttle = throttle
-    vessel.auto_pilot.target_direction = -velocity
 
     print('    ALTITUDE:%.3f | THROTTLE:%.3f | ERROR:%.3f' % (position[0], throttle, horizontal_error))
 
