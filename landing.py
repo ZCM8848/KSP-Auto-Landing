@@ -115,12 +115,25 @@ def landed(rocket):
 def ignition_height(reference_frame):
     return abs(vessel.flight(reference_frame).vertical_speed ** 2 / (2 * (THROTTLE_LIMIT[1] * vessel.available_thrust / vessel.mass - g)))
 
+def impact_point(reference_frame):
+    terminal_velocity = vessel.flight(reference_frame).terminal_velocity
+    estimated_landing_time1 = norm(position) / norm(velocity)
+    estimated_landing_time2 = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
+    ratio = clamp(norm(velocity) / terminal_velocity, 0, 1)
+    estimated_landing_time = ratio * estimated_landing_time1 + (1 - ratio) * estimated_landing_time2
+    estimated_landing_point = position + estimated_landing_time * velocity
+    return estimated_landing_point
+
+def get_aerodynamic_force_at(position, velocity):
+    return vessel.flight(target_reference_frame).simulate_aerodynamic_force_at(position, velocity)
+
 
 # solver utilities
 def bundle_data(rocket):
     min_tf = int(sqrt(2 * rocket.position(target_reference_frame)[0] / g))
     tf = int(norm(rocket.position(target_reference_frame)[1:3]) / 10)
-    data = {'gravity': g, 'dry_mass': rocket.dry_mass, 'fuel_mass': rocket.mass - rocket.dry_mass,
+    data = {'vessel': rocket, 'trf': target_reference_frame,
+            'gravity': g, 'dry_mass': rocket.dry_mass, 'fuel_mass': rocket.mass - rocket.dry_mass,
             'max_thrust': rocket.available_thrust,
             'min_throttle': THROTTLE_LIMIT[0], 'max_throttle': THROTTLE_LIMIT[1],
             'max_structural_Gs': 3,
@@ -136,7 +149,7 @@ def bundle_data(rocket):
     return data
 
 
-target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
+target_reference_frame = create_target_reference_frame(target=Targets.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 #draw_reference_frame(target_reference_frame)
 #draw_reference_frame(vessel_reference_frame)
@@ -157,9 +170,10 @@ while not SKIP_BOOSTERBACK:
     time_to_apoapsis = max(velocity[0] / g, 0)
     apoapsis_altitude = position[0] + 0.5 * g * time_to_apoapsis**2
 
-    estimated_falling_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
-    estimated_landing_time = max(time_to_apoapsis + estimated_falling_time, 0.1)
-    estimated_landing_point = position + estimated_landing_time * velocity
+    #estimated_falling_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
+    #estimated_landing_time = max(time_to_apoapsis + estimated_falling_time, 0.1)
+    #estimated_landing_point = position + estimated_landing_time * velocity
+    estimated_landing_point = impact_point(target_reference_frame)
     horizontal_error = norm(estimated_landing_point[1:3])
 
     target_direction = (0, -estimated_landing_point[1], -estimated_landing_point[2])
@@ -197,12 +211,13 @@ print('AERODYNAMIC GUIDANCE:')
 while not SKIP_AERODYNAMIC_GUIDANCE:
     position = array(vessel.position(target_reference_frame))
     velocity = array(vessel.velocity(target_reference_frame))
-    estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
-    estimated_landing_point = position + estimated_landing_time * velocity
+    #estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
+    #estimated_landing_point = position + estimated_landing_time * velocity
     altitude = vessel.flight(target_reference_frame).surface_altitude
     horizontal_error = norm(estimated_landing_point[1:3])
     gfold_start_altitude = max(5 * horizontal_error, 1000)
     ignition_altitude = ignition_height(target_reference_frame)
+    estimated_landing_point = impact_point(target_reference_frame)
 
     target_direction = -velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]])
     target_direction = conic_clamp(-velocity, target_direction, 20)
