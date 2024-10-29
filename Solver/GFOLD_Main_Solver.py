@@ -206,29 +206,39 @@ class GFOLD:
             #    https://goo.gl/jssWkB
             #    https://en.wikipedia.org/wiki/Leapfrog_integration
 
-            con += [x[3:6, n + 1].reshape((3, 1)) == x[3:6, n].reshape((3, 1)) + (dt * 0.5) * (
-                    (u[:, n].reshape((3, 1)) + V[:, g].reshape((3, 1))) + (
-                    u[:, n + 1].reshape((3, 1)) + V[:, g].reshape((3, 1))))]
-            con += [x[0:3, n + 1].reshape((3, 1)) == x[0:3, n].reshape((3, 1)) + (dt * 0.5) * (
-                    x[3:6, n + 1].reshape((3, 1)) + x[3:6, n].reshape((3, 1)))]
-            con += [x[0, n + 1] <= x[0, n]]  # we are doing a descent, not an ascent
+            velocity_now = x[3:6, n].reshape((3, 1))
+            velocity_next = x[3:6, n + 1].reshape((3, 1))
+            max_velocity = S[0, sk['V_max']]
+            position_now = x[0:3, n].reshape((3, 1))
+            position_next = x[0:3, n + 1].reshape((3, 1))
+            acceleration_now = u[:, n].reshape((3, 1))
+            acceleration_next = u[:, n + 1].reshape((3, 1))
+            gravitational_acceleration = V[:, g].reshape((3, 1))
+            target_position = V[:, rf].reshape((3, 1))
+            mass_now = z[0, n]
+            mass_next = z[0, n + 1]
+            slack_now = s[0, n]
+            slack_next = s[0, n + 1]
+
+            con += [velocity_next == velocity_now + (dt * 0.5) * ((acceleration_now + gravitational_acceleration) + (acceleration_next + gravitational_acceleration))]
+            con += [position_next == position_now + (dt * 0.5) * (velocity_next + velocity_now)]
+            con += [position_next[0] <= position_now[0]]  # we are doing a descent, not an ascent
             # con += [x[3,n+1] >= x[3,n]] # for energy optimal concern!(tested, but save only 0.3% of ΔV)
 
-            con += [norm((x[0:3, n].reshape((3, 1)) - V[:, rf].reshape((3, 1)))[0:2]) - V[0, c] * (
-                    x[0, n] - V[0, rf]) <= 0]  # glideslope constraint
-            con += [norm(x[3:6, n].reshape((3, 1))) <= S[0, sk['V_max']]]  # velocity
+            con += [norm((position_now - target_position)[0:2]) - V[0, c] * (position_now[0] - target_position[0]) <= 0]  # glideslope constraint
+            con += [norm(velocity_now) <= max_velocity]  # velocity
 
-            con += [z[0, n + 1] == z[0, n] - (S[0, alpha] * dt * 0.5) * (s[0, n] + s[0, n + 1])]  # mass decreases
-            con += [norm(u[:, n]) <= s[0, n]]  # limit thrust magnitude & also therefore, mass
+            con += [mass_next == mass_now - (S[0, alpha] * dt * 0.5) * (slack_now + slack_next)]  # mass decreases
+            con += [norm(acceleration_now) <= slack_now]  # limit thrust magnitude & also therefore, mass
 
             # Thrust pointing constraint
-            con += [u[0, n] >= S[0, sk['p_cs']] * s[0, n]]
+            con += [acceleration_now[0] >= S[0, sk['p_cs']] * slack_now]
             if n > 0:
                 # lower thrust bound
                 # con += [s[0,n] >= mu_1[0,n] * (1 - (z[:,n] - z0[0,n]) + (1/2)*square(z[:,n] - z0[0,n]))]
-                con += [s[0, n] <= mu_2[0, n] * (1 - (z[:, n] - z0[0, n]))]  # upper thrust bound
-                con += [z[0, n] >= z0[0, n]]  # Ensures physical bounds on z are never violated
-                con += [z[0, n] <= z1[0, n]]
+                con += [slack_now <= mu_2[0, n] * (1 - (z[:, n] - z0[0, n]))]  # upper thrust bound
+                con += [mass_now >= z0[0, n]]  # Ensures physical bounds on z are never violated
+                con += [mass_now <= z1[0, n]]
 
         con += [x[0, 0:N_tf - 1] >= 0]  # no, this is not the Boring Company!
 

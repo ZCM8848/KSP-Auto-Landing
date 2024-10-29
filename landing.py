@@ -124,8 +124,8 @@ def impact_point(reference_frame):
     estimated_landing_point = position + estimated_landing_time * velocity
     return estimated_landing_point
 
-def get_aerodynamic_force_at(position, velocity):
-    return vessel.flight(target_reference_frame).simulate_aerodynamic_force_at(position, velocity)
+def aerodynamic_force_at(position, velocity):
+    return array(vessel.flight(target_reference_frame).simulate_aerodynamic_force_at(position, velocity))
 
 
 # solver utilities
