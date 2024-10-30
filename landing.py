@@ -7,6 +7,9 @@ from time import sleep
 from Control import *
 from Solver import GFOLD
 from params import *
+from Models.stock.model import density
+
+from numpy import polyfit
 
 # define basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -127,6 +130,8 @@ def impact_point(reference_frame):
 def aerodynamic_force_at(position, velocity):
     return array(vessel.flight(target_reference_frame).simulate_aerodynamic_force_at(position, velocity))
 
+def drag_coefficient(vessel):
+    return 2 * norm(vessel.flight().aerodynamic_force) / (density(vessel.flight().mean_altitude) * vessel.flight().true_air_speed**2 * ROCKET_DIAMETER)
 
 # solver utilities
 def bundle_data(rocket):
@@ -145,7 +150,8 @@ def bundle_data(rocket):
             'initial_velocity': rocket.velocity(target_reference_frame),
             'target_position': (get_half_rocket_length(rocket), 0, 0), 'target_velocity': (0, 0, 0),
             'prog_flag': 'p4', 'solver': 'ECOS', 'N_tf': tf, 'plot': False, #160
-            'min_tf': min_tf, 'max_tf': int(min_tf * sqrt(3))}
+            'min_tf': min_tf, 'max_tf': int(min_tf * sqrt(3)),
+            'density_function': density, 'drag_coefficient': drag_coefficient(vessel), 'diameter': ROCKET_DIAMETER}
     return data
 
 
