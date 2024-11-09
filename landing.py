@@ -155,7 +155,7 @@ def bundle_data(rocket):
     return data
 
 
-target_reference_frame = create_target_reference_frame(target=Targets.launchpad)
+target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 #draw_reference_frame(target_reference_frame)
 #draw_reference_frame(vessel_reference_frame)
