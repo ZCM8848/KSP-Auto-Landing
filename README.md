@@ -8,6 +8,24 @@ This project is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some function
 
 ---
 
+### Why I'm doing this?:  
+Well, this is what my average development goes (refer to *Helluva Boss S1E2*):  
+Me: [*wake up in the bed*]  
+Me: [*launch KSP & vscode*]  
+Me: [*alt+tab to vscode and Press F5*]    
+KRPC: Good morning, Octavia! Did you sleep well, my owlet?  
+Me: [*hold my head with one hand, impatiently*] Was that a serious question?  
+KRPC: [*shake head*] What's that you're debugging into with your python interpretor?  
+Me: This script is called **My algorithm is burning down around me**, it's by `vessel.autopilot`. It's a built-in stuff.  
+KRPC: [*guilty*] Oh! How charming...  
+Me: So you two(KRPC & Kerbal Reusability Expansion) doen screaming for the day?  
+[*The sound of rocket crash onto the ground and explode*]  
+  
+So, that's basic the thing... I'm tired for continuous fixing my script forproblems doesn't even exist due to the incompetent built-in autopilot.  
+(O.S. I quite resonate with Octavia goetia, but saying it right here will be so off-topic LOL)
+
+---
+
 ### Abuot the solver:  
 It's basically my own utilization of [this project](https://github.com/xdedss/GFOLD_KSP)  
 
