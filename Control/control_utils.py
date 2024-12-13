@@ -1,6 +1,5 @@
-from math import sin, cos, tan
-
-from numpy import array, cross, dot, deg2rad, mat, arccos
+from math import sin, cos, tan, pi, radians, degrees, sqrt
+from numpy import array, cross, dot, arccos, asmatrix, abs
 from numpy.linalg import norm
 
 
@@ -29,6 +28,8 @@ def normalize(v):
         return v
     return v / n
 
+def rotate(k, v, ang):
+    return cos(ang) * v + (1 - cos(ang)) * dot(v, k) * k + sin(ang) * cross(k, v)
 
 def q(axis, angle):
     (x, y, z) = axis
@@ -41,7 +42,7 @@ def q(axis, angle):
 
 def rotation_mat(q):
     x, y, z, w = q[0], q[1], q[2], q[3]
-    return mat([
+    return asmatrix([
         [1 - 2 * y ** 2 - 2 * z ** 2, 2 * x * y + 2 * w * z, 2 * x * z - 2 * w * y],
         [2 * x * y - 2 * w * z, 1 - 2 * x ** 2 - 2 * z ** 2, 2 * y * z + 2 * w * x],
         [2 * x * z + 2 * w * y, 2 * y * z - 2 * w * x, 1 - 2 * x ** 2 - 2 * y ** 2]
@@ -49,7 +50,7 @@ def rotation_mat(q):
 
 
 def transform(vec, matrix):
-    res = mat(vec) * matrix
+    res = asmatrix(vec) * matrix
     return array([res[0, 0], res[0, 1], res[0, 2]])
 
 
@@ -71,11 +72,13 @@ def conic_clamp(vec1, vec2, angle):
     vec2 is the constrained vector\n
     angle represents the half-cone angle of the cone (angle system)
     """
-    angle = deg2rad(angle)
+    angle = radians(angle)
     angle_between_vectors = angle_between(vec1, vec2)
+    
     if angle_between_vectors <= angle:
         return vec2
     else:
-        projection_vertical = normalize(vec1) * norm(vec2) * cos(angle_between_vectors)
-        projection_horizontal = normalize(vec2 - projection_vertical) * tan(angle) * norm(projection_vertical)
+        projection_vertical = normalize(vec1) * norm(vec2) * cos(angle)
+        projection_horizontal = normalize(cross(vec1, projection_vertical)) * tan(angle) * norm(projection_vertical)
         return projection_vertical + projection_horizontal
+

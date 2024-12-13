@@ -37,10 +37,6 @@ class GFOLD:
         self.min_tf = bundled_data['min_tf']
         self.max_tf = bundled_data['max_tf']
 
-        self.density = bundled_data['density_function']
-        self.drag_coefficient = bundled_data['drag_coefficient']
-        self.diameter = bundled_data['diameter']
-
         self.S = None
         self.V = None
         self.Sk = None
@@ -52,11 +48,6 @@ class GFOLD:
             self.solver = ECOS
         elif self.solver == 'SCS':
             self.solver = SCS
-
-    def aerodynamic_force(self, position, velocity):
-        f = 0.5 * self.density(position[0]) * velocity[0]**2 * self.diameter * self.drag_coefficient
-        f = -(f * velocity) / norm(f * velocity)
-        return f
 
     def generate_params(self, tf):
         s = [  # scalars
@@ -228,10 +219,8 @@ class GFOLD:
             mass_next = z[0, n + 1]
             slack_now = s[0, n]
             slack_next = s[0, n + 1]
-            aerodynamic_acceleration_now = (self.aerodynamic_force(position_now, velocity_now) / mass_now).reshape((3, 1))
-            aerodynamic_acceleration_next = (self.aerodynamic_force(position_next, velocity_next) / mass_next).reshape((3, 1))
 
-            con += [velocity_next == velocity_now + (dt * 0.5) * ((acceleration_now + gravitational_acceleration + aerodynamic_acceleration_now) + (acceleration_next + gravitational_acceleration + aerodynamic_acceleration_next))]
+            con += [velocity_next == velocity_now + (dt * 0.5) * ((acceleration_now + gravitational_acceleration) + (acceleration_next + gravitational_acceleration))]
             con += [position_next == position_now + (dt * 0.5) * (velocity_next + velocity_now)]
             con += [position_next[0] <= position_now[0]]  # we are doing a descent, not an ascent
             # con += [x[3,n+1] >= x[3,n]] # for energy optimal concern!(tested, but save only 0.3% of ΔV)
@@ -292,7 +281,6 @@ class GFOLD:
                     f"    TIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)} ({progress}%)")
             except Exception as ex:
                 print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex}) ({progress}%)")
-                print(traceback.format_exc())
             finally:
                 iter_count += 1
 
