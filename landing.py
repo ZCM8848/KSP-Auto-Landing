@@ -93,7 +93,7 @@ def landed(rocket):
     return all(leg.is_grounded for leg in legs)
 
 def ignition_height(reference_frame):
-    return abs(vessel.flight(reference_frame).vertical_speed ** 2 / (2 * (THROTTLE_LIMIT[1] * vessel.available_thrust / vessel.mass - g)))
+    return abs(vessel.flight(reference_frame).vertical_speed ** 2 / (2 * (sum(THROTTLE_LIMIT) / 2) * vessel.available_thrust / vessel.mass - g))
 
 def impact_point(reference_frame):
     position = vessel.position()
@@ -130,7 +130,7 @@ def bundle_data(rocket):
     return data
 
 # get ready
-target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
+target_reference_frame = create_target_reference_frame(target=Targets.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.control.rcs = True
@@ -335,8 +335,9 @@ while not end:
         target_direction = (target_position - 0.4*position - 0.8*velocity)
         target_direction = (abs(target_direction[0]), target_direction[1], target_direction[2])
         target_direction = conic_clamp((1,0,0), target_direction, 5)
+        throttle = 0.1 * (-2 - velocity[0])
         vessel.update_ap(target_direction)
-        vessel.control.throttle = 0.1 * (-2 - velocity[0])
+        vessel.control.throttle = throttle
 
         print('    THROTTLE:%.3f' % throttle)
 
