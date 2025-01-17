@@ -272,7 +272,7 @@ class GFOLD:
             progress = int(iter_count / (self.max_tf - self.min_tf) * 100)
 
             try:
-                self.solve(20, iterative=True)
+                self.solve(40, iterative=True)
                 if self.solution['z'][-1, -1] is not None:
                     time.append(tf)
                     cost.append(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1])
@@ -286,7 +286,7 @@ class GFOLD:
 
         if len(cost) == 0 or len(time) == 0:
             print('NO SOLUTION')
-            quit()
+            return None
 
         # a second check
         available_tf = time
@@ -305,8 +305,8 @@ class GFOLD:
                 print(f"    TIME:{tf} | FALSE SOLUTION (SOLVER FAILED:{ex})")
 
         if len(cost) == 0:
-            print('NO SOLUTION')
-            quit()
+            print('NO SOLUTION, USING LOW RESOLUTION SOLUTION INSTEAD')
+            return None
         print(f"OPTIMAL TIME:{tf}")
         if self.plot: plot_run3D(tf, self.solution['x'], self.solution['u'], self.solution['m'], self.solution['s'],
                                  self.solution['z'], self.S, self.Sk)

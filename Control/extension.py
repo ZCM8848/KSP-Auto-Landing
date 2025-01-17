@@ -39,7 +39,7 @@ class Rocket:
         self.ap.update_max_acc(acc2)
         self.ap_config_updated_at = time()
 
-    def update_ap(self, dir, roll: float=None):
+    def update_ap(self, dir, roll: float=None): # roll in radians
         self.last_dir = dir
         self.last_roll = roll
         self._ap_auto_config()

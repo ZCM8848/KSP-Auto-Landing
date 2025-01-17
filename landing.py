@@ -4,7 +4,7 @@ from tqdm import trange
 
 from Control import *
 from Solver import GFOLD
-from params import *
+from Params import *
 
 
 # define basic KRPC things
@@ -95,6 +95,17 @@ def landed(rocket):
 def ignition_height(reference_frame):
     return abs(vessel.flight(reference_frame).vertical_speed ** 2 / (2 * (sum(THROTTLE_LIMIT) / 2) * vessel.available_thrust / vessel.mass - g))
 
+def descent_throttle(position, velocity, target_height=0, vt=-2):
+    position = position[0]
+    velocity = velocity[0]
+    g = body.surface_gravity
+    aero_force = vessel.flight(vessel_reference_frame).aerodynamic_force[2]
+    mass = vessel.mass
+    available_thrust = vessel.available_thrust
+
+    acc = (vt**2 + velocity**2) / (2 * (position - target_height)) + g + aero_force / (mass * g)
+    return mass * acc / available_thrust
+
 def impact_point(reference_frame):
     position = vessel.position()
     velocity = vessel.velocity()
@@ -124,19 +135,20 @@ def bundle_data(rocket):
             'planetary_angular_velocity': body.angular_velocity(vessel_surface_reference_frame),
             'initial_position': rocket.position(),
             'initial_velocity': rocket.velocity(),
-            'target_position': (get_half_rocket_length(rocket), 0, 0), 'target_velocity': (0, 0, 0),
+            'target_position': (400, 0, 0), 'target_velocity': (-50, 0, 0),
             'prog_flag': 'p4', 'solver': 'ECOS', 'N_tf': tf, 'plot': False, #160
             'min_tf': min_tf, 'max_tf': int(min_tf * sqrt(3))}
     return data
 
 # get ready
-target_reference_frame = create_target_reference_frame(target=Targets.launchpad)
+target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.control.rcs = True
 vessel.control.sas = False
 
 # define extended vessel
+_vessel = vessel
 vessel = Rocket(space_center, vessel, target_reference_frame)
 
 # boosterback maneuver
@@ -175,14 +187,14 @@ while not SKIP_BOOSTERBACK:
 print("ENTRY BURN:")
 while vessel.flight(target_reference_frame).surface_altitude >= body.atmosphere_depth:
     vessel.update_ap((1, 0, 0))
-while True:
+while not SKIP_ENTRYBURN:
     position = array(vessel.position())
     velocity = array(vessel.velocity())
-    altitude = vessel.flight(target_reference_frame).surface_altitude
-    gfold_start_altitude = max(5 * horizontal_error, 1000)
-    ignition_altitude = ignition_height(target_reference_frame)
     estimated_landing_point = impact_point(target_reference_frame)
     horizontal_error = norm(estimated_landing_point[1:3])
+    altitude = vessel.flight(target_reference_frame).surface_altitude
+    gfold_start_altitude = max(5 * horizontal_error, 5000)
+    ignition_altitude = ignition_height(target_reference_frame)
 
     target_direction = -(- velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]]))
     target_direction = normalize(target_direction) + normalize(position)
@@ -199,11 +211,11 @@ print('AERODYNAMIC GUIDANCE:')
 while not SKIP_AERODYNAMIC_GUIDANCE:
     position = array(vessel.position())
     velocity = array(vessel.velocity())
+    estimated_landing_point = impact_point(target_reference_frame)
     altitude = vessel.flight(target_reference_frame).surface_altitude
     horizontal_error = norm(estimated_landing_point[1:3])
     gfold_start_altitude = max(5 * horizontal_error, 1000)
     ignition_altitude = ignition_height(target_reference_frame)
-    estimated_landing_point = impact_point(target_reference_frame)
 
     target_direction = - velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]])
     target_direction = normalize(target_direction) + normalize(position)
@@ -228,16 +240,17 @@ while SKIP_AERODYNAMIC_GUIDANCE:
 
 # initialize landing burn
 print('LANDING BURN:')
+vessel.control.rcs = False
 while True:
     position = array(vessel.position())
     velocity = array(vessel.velocity())
-    thrust = vessel.thrust
+    available_thrust = vessel.available_thrust
     mass = vessel.mass
 
     estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
     estimated_landing_point = position + estimated_landing_time * velocity
     horizontal_error = norm(estimated_landing_point[1:3])
-    gfold_start_altitude = max(5 * horizontal_error, 4000)
+    gfold_start_altitude = max(5 * horizontal_error, 5000)
 
     acc = (velocity[0]**2 - GFOLD_START_VELOCITY**2) / (2 * (position[0] - gfold_start_altitude))
     throttle = mass * acc / available_thrust if position[0] >= gfold_start_altitude else THROTTLE_LIMIT[1]
@@ -272,6 +285,9 @@ trajectory = array(result['x'])
 trajectory_position = [(trajectory[0, i], trajectory[1, i], trajectory[2, i]) for i in range(len(trajectory[0]))]
 trajectory_velocity = [(trajectory[3, i], trajectory[4, i], trajectory[5, i]) for i in range(len(trajectory[0]))]
 trajectory_acceleration = [(result['u'][0, i], result['u'][1, i], result['u'][2, i]) for i in range(len(result['u'][0]))]
+
+target_position = trajectory_position[-1]
+target_velocity = trajectory_velocity[-1]
 
 print('GFOLD PHASE:')
 
@@ -316,13 +332,11 @@ while not end:
         vessel.update_ap(target_direction)
         print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
 
-        if norm(position) <= 4 * half_rocket_length:
+        if norm(target_position - position) <= 10 and norm(target_velocity - velocity) <= 10:
             nav_mode = 'PID'
-            vessel.control.legs = True
-            print('PID LANDING PHASE:')
             break
 
-        if norm(position) / norm(velocity) <= 4:
+        if norm(position) / norm(velocity) <= 4 and LANDING_GEAR:
             vessel.control.legs = True
 
     while nav_mode == 'PID':
@@ -332,14 +346,17 @@ while not end:
         mass = vessel.mass
         target_position = array([half_rocket_length, 0, 0])
 
-        target_direction = (target_position - 0.4*position - 0.8*velocity)
+        target_direction = (target_position - 0.3*position - 0.3*velocity)
         target_direction = (abs(target_direction[0]), target_direction[1], target_direction[2])
-        target_direction = conic_clamp((1,0,0), target_direction, 5)
-        throttle = 0.1 * (-2 - velocity[0])
+        target_direction = conic_clamp((1,0,0), target_direction, 10)
+        throttle = descent_throttle(position, velocity, target_height=half_rocket_length) if velocity[0] <= -2 else mass * g / available_thrust
         vessel.update_ap(target_direction)
         vessel.control.throttle = throttle
 
         print('    THROTTLE:%.3f' % throttle)
+
+        if norm(position) / norm(velocity) <= 4 and LANDING_GEAR:
+            vessel.control.legs = True
 
         if landed(vessel) and LAND_CONFIRM:
             vessel.control.throttle = 0.
