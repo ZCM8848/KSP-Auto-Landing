@@ -135,7 +135,7 @@ def bundle_data(rocket):
             'planetary_angular_velocity': body.angular_velocity(vessel_surface_reference_frame),
             'initial_position': rocket.position(),
             'initial_velocity': rocket.velocity(),
-            'target_position': (400, 0, 0), 'target_velocity': (-50, 0, 0),
+            'target_position': (600, 0, 0), 'target_velocity': (-50, 0, 0),
             'prog_flag': 'p4', 'solver': 'ECOS', 'N_tf': tf, 'plot': False, #160
             'min_tf': min_tf, 'max_tf': int(min_tf * sqrt(3))}
     return data
@@ -344,11 +344,12 @@ while not end:
         position = array(vessel.position())
         available_thrust = vessel.available_thrust
         mass = vessel.mass
-        target_position = array([half_rocket_length, 0, 0])
 
-        target_direction = (target_position - 0.3*position - 0.3*velocity)
-        target_direction = (abs(target_direction[0]), target_direction[1], target_direction[2])
-        target_direction = conic_clamp((1,0,0), target_direction, 10)
+        acc_hor = - position[1:3] * 0.3 - velocity[1:3] * 0.3
+        acc_ver = available_thrust / mass
+        acc_ver = max(acc_ver, norm(acc_hor) * 1.5)
+        acc = array([0, acc_hor[0], acc_hor[1]]) + array([acc_ver, 0, 0])
+        target_direction = conic_clamp((1,0,0), acc, 5)
         throttle = descent_throttle(position, velocity, target_height=half_rocket_length) if velocity[0] <= -2 else mass * g / available_thrust
         vessel.update_ap(target_direction)
         vessel.control.throttle = throttle
