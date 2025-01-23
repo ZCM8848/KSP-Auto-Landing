@@ -141,7 +141,7 @@ def bundle_data(rocket):
     return data
 
 # get ready
-target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
+target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.landing_zone_2)
 half_rocket_length = get_half_rocket_length(vessel)
 vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.control.rcs = True
@@ -185,6 +185,8 @@ while not SKIP_BOOSTERBACK:
 
 # entry burn
 print("ENTRY BURN:")
+while vessel.flight(target_reference_frame).vertical_speed >= 0:
+    vessel.update_ap((1, 0, 0))
 while vessel.flight(target_reference_frame).surface_altitude >= body.atmosphere_depth:
     vessel.update_ap((1, 0, 0))
 while not SKIP_ENTRYBURN:
@@ -198,6 +200,7 @@ while not SKIP_ENTRYBURN:
 
     target_direction = -(- velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]]))
     target_direction = normalize(target_direction) + normalize(position)
+    target_direction = conic_clamp(-velocity, target_direction, 30)
     vessel.update_ap(target_direction)
     vessel.control.throttle = THROTTLE_LIMIT[1]
 
@@ -214,8 +217,7 @@ while not SKIP_AERODYNAMIC_GUIDANCE:
     estimated_landing_point = impact_point(target_reference_frame)
     altitude = vessel.flight(target_reference_frame).surface_altitude
     horizontal_error = norm(estimated_landing_point[1:3])
-    gfold_start_altitude = max(5 * horizontal_error, 1000)
-    ignition_altitude = ignition_height(target_reference_frame)
+    ignition_altitude = max(ignition_height(target_reference_frame), 10000)
 
     target_direction = - velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]])
     target_direction = normalize(target_direction) + normalize(position)
@@ -224,7 +226,7 @@ while not SKIP_AERODYNAMIC_GUIDANCE:
     vessel.control.throttle = 0
     print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
 
-    if altitude <= max(gfold_start_altitude, ignition_altitude):
+    if altitude <= ignition_altitude:
         break
 
 while SKIP_AERODYNAMIC_GUIDANCE:
@@ -246,10 +248,9 @@ while True:
     velocity = array(vessel.velocity())
     available_thrust = vessel.available_thrust
     mass = vessel.mass
+    altitude = vessel.flight(target_reference_frame).surface_altitude
 
-    estimated_landing_time = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g * position[0])) / g, (velocity[0] + sqrt(velocity[0]**2 + 2 * g * position[0])) / g)
-    estimated_landing_point = position + estimated_landing_time * velocity
-    horizontal_error = norm(estimated_landing_point[1:3])
+    horizontal_error = norm(impact_point(target_reference_frame)[1:3])
     gfold_start_altitude = max(5 * horizontal_error, 5000)
 
     acc = (velocity[0]**2 - GFOLD_START_VELOCITY**2) / (2 * (position[0] - gfold_start_altitude))
@@ -261,7 +262,7 @@ while True:
 
     print('    ALTITUDE:%.3f | THROTTLE:%.3f | ERROR:%.3f' % (position[0], throttle, horizontal_error))
 
-    if altitude <= gfold_start_altitude or velocity[0] >= -GFOLD_START_VELOCITY:
+    if altitude <= gfold_start_altitude and velocity[0] >= -GFOLD_START_VELOCITY:
         break
 
 # final landing phase
@@ -274,7 +275,7 @@ problem.find_optimal_solution()
 
 result = problem.solution
 
-draw_trajectory(result['x'], result['u'], target_reference_frame)
+# draw_trajectory(result['x'], result['u'], target_reference_frame)
 conn.ui.message('SOLUTION GENERATED', duration=1)
 conn.krpc.paused = False
 
@@ -332,11 +333,11 @@ while not end:
         vessel.update_ap(target_direction)
         print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
 
-        if norm(target_position - position) <= 10 and norm(target_velocity - velocity) <= 10:
+        if position[0] <= target_position[0]:
             nav_mode = 'PID'
             break
 
-        if norm(position) / norm(velocity) <= 4 and LANDING_GEAR:
+        if LANDING_GEAR and norm(position) / norm(velocity) <= 4:
             vessel.control.legs = True
 
     while nav_mode == 'PID':
@@ -356,14 +357,15 @@ while not end:
 
         print('    THROTTLE:%.3f' % throttle)
 
-        if norm(position) / norm(velocity) <= 4 and LANDING_GEAR:
+        if LANDING_GEAR and position[0] <= 100:
             vessel.control.legs = True
 
-        if landed(vessel) and LAND_CONFIRM:
+        if (LAND_CONFIRM and landed(vessel)) or velocity[0] >= 0:
             vessel.control.throttle = 0.
             vessel.control.sas = True
             vessel.control.rcs = True
             print(f"TOUCHDOWN VELOCITY:{velocity}")
             print('END')
             end = True
+            quit()
             break

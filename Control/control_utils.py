@@ -68,17 +68,38 @@ def angle_between(vec1, vec2):
 
 def conic_clamp(vec1, vec2, angle):
     """
-    vec1 is the standard vector\n
-    vec2 is the constrained vector\n
+    vec1 is the standard vector
+
+    vec2 is the constrained vector
+
     angle represents the half-cone angle of the cone (angle system)
     """
+    # Normalize vec1 and vec2
+    vec1 = normalize(vec1)
+    vec2 = normalize(vec2)
     angle = radians(angle)
-    angle_between_vectors = angle_between(vec1, vec2)
-    
-    if angle_between_vectors <= angle:
+
+    # Calculate the cosine of the angle between vec1 and vec2
+    cos_theta = dot(vec1, vec2)
+
+    # If the angle is within the cone, return vec2 as is
+    if cos_theta >= cos(angle):
         return vec2
     else:
-        projection_vertical = normalize(vec1) * norm(vec2) * cos(angle)
-        projection_horizontal = normalize(cross(vec1, projection_vertical)) * tan(angle) * norm(projection_vertical)
+        # Calculate the projection of vec2 onto vec1
+        projection_length = cos(angle)
+        projection_vertical = vec1 * projection_length
+        
+        # Calculate the horizontal component
+        horizontal_component = vec2 - projection_vertical
+        horizontal_length = norm(horizontal_component)
+        
+        # Normalize the horizontal component and scale it to the correct length
+        if horizontal_length > 0:
+            horizontal_unit = normalize(horizontal_component)
+            projection_horizontal = horizontal_unit * sin(angle)
+        else:
+            projection_horizontal = array([0, 0, 0])
+        
+        # Combine the vertical and horizontal components
         return projection_vertical + projection_horizontal
-
