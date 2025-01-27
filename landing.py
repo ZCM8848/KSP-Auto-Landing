@@ -4,7 +4,7 @@ from tqdm import trange
 
 from Control import *
 from Solver import GFOLD
-from Params import *
+from Internal import *
 
 
 # define basic KRPC things
@@ -32,19 +32,14 @@ def create_target_reference_frame(target):
         target_lon = target[0]
         target_lat = target[1]
     # spin around y-axis by -target_lon degrees
-    temp_reference_frame = space_center.ReferenceFrame.create_relative(body_reference_frame,
-                                                                       rotation=(0., sin(-radians(target_lon / 2)), 0.,
-                                                                                 cos(-radians(target_lon / 2))))
+    temp_reference_frame = space_center.ReferenceFrame.create_relative(body_reference_frame, rotation=(0., sin(-radians(target_lon / 2)), 0., cos(-radians(target_lon / 2))))
     # spin around z axis by target_lat degrees
-    temp_reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame,
-                                                                       rotation=(0., 0., sin(radians(target_lat / 2)),
-                                                                                 cos(radians(target_lat / 2))))
+    temp_reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, rotation=(0., 0., sin(radians(target_lat / 2)), cos(radians(target_lat / 2))))
     if body.bedrock_height(target_lat, target_lon) < 0:
         target_reference_frame_height = body.equatorial_radius
     else:
         target_reference_frame_height = body.equatorial_radius + body.surface_height(target_lat, target_lon)
-    reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame,
-                                                                  position=(target_reference_frame_height, 0., 0.))
+    reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, position=(target_reference_frame_height, 0., 0.))
     return reference_frame
 
 
@@ -91,6 +86,12 @@ def get_half_rocket_length(rocket):
 def landed(rocket):
     legs = rocket.parts.legs
     return all(leg.is_grounded for leg in legs)
+
+def has_legs(rocket):
+    legs = len(rocket.parts.legs)
+    if len(legs) == 0:
+        return False
+    return True
 
 def ignition_height(reference_frame):
     return abs(vessel.flight(reference_frame).vertical_speed ** 2 / (2 * (sum(THROTTLE_LIMIT) / 2) * vessel.available_thrust / vessel.mass - g))
@@ -141,9 +142,8 @@ def bundle_data(rocket):
     return data
 
 # get ready
-target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.landing_zone_2)
+target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
-vessel.auto_pilot.reference_frame = vessel_surface_reference_frame
 vessel.control.rcs = True
 vessel.control.sas = False
 
@@ -152,7 +152,7 @@ _vessel = vessel
 vessel = Rocket(space_center, vessel, target_reference_frame)
 
 # boosterback maneuver
-error = [2e32]
+error = [float('inf')]
 print("BOOTERBACK MANEUVER:")
 while not SKIP_BOOSTERBACK:
     position = array(vessel.position())
@@ -175,8 +175,8 @@ while not SKIP_BOOSTERBACK:
     if horizontal_error <= 1000:
         error.append(horizontal_error)
         throttle = THROTTLE_LIMIT[0]
-    vessel.control.throttle = throttle if degrees(angle_between(target_direction, direction)) <= 5 else 0
-
+    # vessel.control.throttle = throttle if degrees(angle_between(target_direction, direction)) <= 5 else 0
+    vessel.control.throttle = throttle
     print("    ERROR:%.1f | TIME TO APOAPSOS:%.1f | THROTTLE:%.3f" % (horizontal_error, time_to_apoapsis, throttle))
     if horizontal_error > min(error):
         vessel.control.throttle = 0
@@ -221,7 +221,7 @@ while not SKIP_AERODYNAMIC_GUIDANCE:
 
     target_direction = - velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]])
     target_direction = normalize(target_direction) + normalize(position)
-    # target_direction = conic_clamp(-velocity, target_direction, MAX_TILT)
+    target_direction = conic_clamp(-velocity, target_direction, MAX_TILT)
     vessel.update_ap(target_direction)
     vessel.control.throttle = 0
     print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
@@ -341,6 +341,7 @@ while not end:
             vessel.control.legs = True
 
     while nav_mode == 'PID':
+        half_rocket_length = FINAL_ALTITUDE if FINAL_ALTITUDE != 0 else half_rocket_length
         velocity = array(vessel.velocity())
         position = array(vessel.position())
         available_thrust = vessel.available_thrust
@@ -367,5 +368,4 @@ while not end:
             print(f"TOUCHDOWN VELOCITY:{velocity}")
             print('END')
             end = True
-            quit()
             break
