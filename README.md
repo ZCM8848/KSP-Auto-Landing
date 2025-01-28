@@ -3,13 +3,15 @@
 
 ---
 
-### CAUTION: 
-This project maybe is still **IN EARLY STAGE OF DEVELOPMENT**, therefore some functions may not yet completed and buggy.
-
----
-
-### Usage:
-To run the code:
+### Usage:  
+First, install the dependences:  
+`pip install -r requirements.txt`  
+  
+Next, adjust settings in:  
+`./Internal/params.py`(for control params)  
+`./landing.py`(line 145, in function `create_target_reference_frame` ,`targets=`)
+   
+Finally, run the script:  
 `python landing.py`
 
 ---
@@ -30,4 +32,5 @@ To run the code:
 
 ### Demo:
 [Fixed-point landing terminal guidance of rockets based on GFOLD algorithm](https://www.bilibili.com/video/BV1M6gNe7ECU)  
-[Demonstration of the whole process of the return-fixed-point landing algorithm of the New Glenn-like rocket](https://www.bilibili.com/video/BV1oXYDeLE3L/)
+[Demonstration of the whole process of the return-fixed-point landing algorithm of the New Glenn-like rocket](https://www.bilibili.com/video/BV1oXYDeLE3L/)  
+[Use K.A.L. and chopsticks to catch a rocket](https://www.bilibili.com/video/BV1FKfSYFEAo/)
