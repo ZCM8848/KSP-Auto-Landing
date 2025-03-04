@@ -1,5 +1,5 @@
 from math import sin, cos, tan, pi, radians, degrees, sqrt
-from numpy import array, cross, dot, arccos, asmatrix, abs
+from numpy import array, cross, dot, arccos, asmatrix, abs, clip
 from numpy.linalg import norm
 
 
