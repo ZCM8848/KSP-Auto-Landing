@@ -131,8 +131,7 @@ def impact_point(reference_frame):
 # solver utilities
 def bundle_data(rocket):
     min_tf = int(sqrt(2 * rocket.position()[0] / g))
-    # tf = int(norm(rocket.position()[1:3]) / 5)
-    tf = 200
+    N = 200
     data = {'vessel': rocket, 'trf': target_reference_frame,
             'gravity': g, 'dry_mass': rocket.dry_mass, 'fuel_mass': rocket.mass - rocket.dry_mass,
             'max_thrust': rocket.available_thrust,
@@ -145,12 +144,12 @@ def bundle_data(rocket):
             'initial_position': rocket.position(),
             'initial_velocity': rocket.velocity(),
             'target_position': (600, 0, 0), 'target_velocity': (-50, 0, 0),
-            'prog_flag': 'p4', 'solver': 'ECOS', 'N_tf': tf, 'plot': False, #160
+            'prog_flag': 'p4', 'solver': 'ECOS', 'N_tf': N, 'plot': False, #160
             'min_tf': min_tf, 'max_tf': int(min_tf * sqrt(3))}
     return data
 
 # get ready
-target_reference_frame = create_target_reference_frame(target=Targets.launchpad)
+target_reference_frame = create_target_reference_frame(target=Targets_JNSQ.launchpad)
 half_rocket_length = get_half_rocket_length(vessel)
 vessel.control.rcs = True
 vessel.control.sas = False
