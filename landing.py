@@ -184,7 +184,7 @@ while not SKIP_BOOSTERBACK:
         throttle = THROTTLE_LIMIT[0]
     # vessel.control.throttle = throttle if degrees(angle_between(target_direction, direction)) <= 5 else 0
     vessel.control.throttle = throttle
-    print("    ERROR:%.1f | TIME TO APOAPSOS:%.1f | THROTTLE:%.3f" % (horizontal_error, time_to_apoapsis, throttle))
+    print("\tERROR:%.1f | TIME TO APOAPSOS:%.1f | THROTTLE:%.3f" % (horizontal_error, time_to_apoapsis, throttle))
     if horizontal_error > min(error):
         vessel.control.throttle = 0
         vessel.control.brakes = True
@@ -210,7 +210,7 @@ while not SKIP_ENTRYBURN:
     vessel.update_ap(target_direction, TARGET_ROLL)
     vessel.control.throttle = THROTTLE_LIMIT[1]
 
-    print("    ERROR: %.3f" % (horizontal_error))
+    print("\tERROR: %.3f" % (horizontal_error))
 
     if norm(estimated_landing_point[1:3]) <= 500:
         break
@@ -220,7 +220,9 @@ print('AERODYNAMIC GUIDANCE:')
 while not SKIP_AERODYNAMIC_GUIDANCE:
     position = array(vessel.position())
     velocity = array(vessel.velocity())
-    estimated_landing_point = impact_point(target_reference_frame)
+    conpensation = 3000 * normalize(position)
+    conpensation = array([0, conpensation[1], conpensation[2]])
+    estimated_landing_point = impact_point(target_reference_frame) + conpensation
     altitude = vessel.flight(target_reference_frame).surface_altitude
     horizontal_error = norm(estimated_landing_point[1:3])
     gfold_start_altitude = max(5 * horizontal_error, 3000)
@@ -231,7 +233,7 @@ while not SKIP_AERODYNAMIC_GUIDANCE:
     target_direction = conic_clamp(-velocity, target_direction, MAX_TILT)
     vessel.update_ap(target_direction, TARGET_ROLL)
     vessel.control.throttle = 0
-    print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
+    print('\tALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
 
     if altitude <= ignition_altitude:
         break
@@ -244,7 +246,7 @@ while SKIP_AERODYNAMIC_GUIDANCE:
     vessel.update_ap(target_direction, TARGET_ROLL)
     gfold_start_altitude = max(5 * horizontal_error, 3000)
     ignition_altitude = max(ignition_height(target_reference_frame, gfold_start_altitude), 5000)
-    print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f' % (altitude, ignition_altitude))
+    print('\tALTITUDE:%.3f | IGNITION ALTITUDE:%.3f' % (altitude, ignition_altitude))
     if altitude <= ignition_altitude:
         break
 
@@ -268,7 +270,7 @@ while True:
     vessel.control.throttle = throttle
     vessel.update_ap(-velocity, TARGET_ROLL)
 
-    print('    ALTITUDE:%.3f | THROTTLE:%.3f | ERROR:%.3f' % (position[0], throttle, horizontal_error))
+    print('\tALTITUDE:%.3f | THROTTLE:%.3f | ERROR:%.3f' % (position[0], throttle, horizontal_error))
 
     if altitude <= gfold_start_altitude and velocity[0] >= -GFOLD_START_VELOCITY:
         break
@@ -337,7 +339,7 @@ while not end:
         vessel.control.throttle = throttle
         target_direction = conic_clamp(array([1, 0, 0]), target_direction, MAX_TILT)
         vessel.update_ap(target_direction, TARGET_ROLL)
-        print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
+        print('\tTHROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
 
         if position[0] <= target_position[0]:
             if not has_legs(vessel):
@@ -371,7 +373,7 @@ while not end:
         vessel.update_ap(target_direction, TARGET_ROLL)
         vessel.control.throttle = throttle
 
-        print('    THROTTLE:%.3f | ERROR:%.3f | TIME:%.3f' % (throttle, norm(position[1:3]), time))
+        print('\tTHROTTLE:%.3f | ERROR:%.3f | TIME:%.3f' % (throttle, norm(position[1:3]), time))
 
         if LANDING_GEAR and position[0] <= 100:
             vessel.control.legs = True

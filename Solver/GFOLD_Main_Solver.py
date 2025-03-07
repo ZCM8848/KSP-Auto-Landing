@@ -278,9 +278,9 @@ class GFOLD:
                     cost.append(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1])
                 if tf < 10: tf = f'0{tf}'
                 print(
-                    f"    TIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)} ({progress}%)")
+                    f"\tTIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)} ({progress}%)")
             except Exception as ex:
-                print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex}) ({progress}%)")
+                print(f"\tTIME:{tf} | COST:inf (SOLVER FAILED:{ex}) ({progress}%)")
             finally:
                 iter_count += 1
 
@@ -298,11 +298,11 @@ class GFOLD:
                 self.generate_params(int(tf))
                 self.solve(self.N_tf, iterative=True)
                 print(
-                    f"    TIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)}")
+                    f"\tTIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)}")
                 cost.append(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1])
                 break
             except Exception as ex:
-                print(f"    TIME:{tf} | FALSE SOLUTION (SOLVER FAILED:{ex})")
+                print(f"\tTIME:{tf} | FALSE SOLUTION (SOLVER FAILED:{ex})")
 
         if len(cost) == 0:
             print('NO SOLUTION, USING LOW RESOLUTION SOLUTION INSTEAD')
