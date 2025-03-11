@@ -1,6 +1,8 @@
+# version: 0.1.2
 import krpc
 from collections import Counter
 from tqdm import trange
+from numpy import arctan2
 
 from Control import *
 from Solver import GFOLD
@@ -13,6 +15,7 @@ space_center = conn.space_center
 vessel = space_center.active_vessel
 body = vessel.orbit.body
 g = body.surface_gravity
+TARGET_ROLL = radians(TARGET_ROLL)
 
 # define reference frames
 vessel_reference_frame = vessel.reference_frame
@@ -128,6 +131,12 @@ def impact_point(reference_frame):
     estimated_landing_point = position + estimated_landing_time * velocity
     return estimated_landing_point
 
+def roll_controller(heading):
+    if heading > 180:
+        return radians(90 -heading + 360)
+    else:
+        return radians(90 + heading)
+
 # solver utilities
 def bundle_data(rocket):
     min_tf = int(sqrt(2 * rocket.position()[0] / g))
@@ -139,7 +148,7 @@ def bundle_data(rocket):
             'max_structural_Gs': 3,
             'specific_impulse': rocket.specific_impulse,
             'max_velocity': rocket.flight(target_reference_frame).speed, 'glide_slope_cone': 20,
-            'thrust_pointing_constraint': MAX_TILT,
+            'thrust_pointing_constraint': degrees(MAX_TILT),
             'planetary_angular_velocity': body.angular_velocity(vessel_surface_reference_frame),
             'initial_position': rocket.position(),
             'initial_velocity': rocket.velocity(),
@@ -157,6 +166,7 @@ vessel.control.sas = False
 # define extended vessel
 _vessel = vessel
 vessel = Rocket(space_center, vessel, target_reference_frame)
+activate_altitude = vessel.position()[0]
 
 # boosterback maneuver
 error = [float('inf')]
@@ -195,9 +205,9 @@ while not SKIP_BOOSTERBACK:
 # entry burn
 print("ENTRY BURN:")
 while vessel.flight(target_reference_frame).vertical_speed >= 0:
-    vessel.update_ap((1, 0, 0), TARGET_ROLL)
+    vessel.update_ap((1, 0, 0))
 while vessel.flight(target_reference_frame).surface_altitude >= body.atmosphere_depth:
-    vessel.update_ap((1, 0, 0), TARGET_ROLL)
+    vessel.update_ap((1, 0, 0))
 while not SKIP_ENTRYBURN:
     position = array(vessel.position())
     velocity = array(vessel.velocity())
@@ -207,7 +217,7 @@ while not SKIP_ENTRYBURN:
     target_direction = -(- velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]]))
     target_direction = normalize(target_direction) + normalize(position)
     target_direction = conic_clamp(-velocity, target_direction, 30)
-    vessel.update_ap(target_direction, TARGET_ROLL)
+    vessel.update_ap(target_direction)
     vessel.control.throttle = THROTTLE_LIMIT[1]
 
     print("\tERROR: %.3f" % (horizontal_error))
@@ -220,18 +230,18 @@ print('AERODYNAMIC GUIDANCE:')
 while not SKIP_AERODYNAMIC_GUIDANCE:
     position = array(vessel.position())
     velocity = array(vessel.velocity())
-    conpensation = 3000 * normalize(position)
-    conpensation = array([0, conpensation[1], conpensation[2]])
-    estimated_landing_point = impact_point(target_reference_frame) + conpensation
-    altitude = vessel.flight(target_reference_frame).surface_altitude
-    horizontal_error = norm(estimated_landing_point[1:3])
+    heading = vessel.flight(target_reference_frame).heading
     gfold_start_altitude = max(5 * horizontal_error, 3000)
     ignition_altitude = max(ignition_height(target_reference_frame, gfold_start_altitude), 5000)
+    estimated_landing_point = impact_point(target_reference_frame)
+    altitude = vessel.flight(target_reference_frame).surface_altitude
+    horizontal_error = norm(estimated_landing_point[1:3])
 
     target_direction = - velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]])
     target_direction = normalize(target_direction) + normalize(position)
     target_direction = conic_clamp(-velocity, target_direction, MAX_TILT)
-    vessel.update_ap(target_direction, TARGET_ROLL)
+    target_roll = roll_controller(heading)
+    vessel.update_ap(target_direction, target_roll)
     vessel.control.throttle = 0
     print('\tALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
 
