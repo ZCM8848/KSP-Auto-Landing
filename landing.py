@@ -1,13 +1,29 @@
-# version: 0.1.2
+# version: 0.2.0
 import krpc
 from collections import Counter
 from tqdm import trange
-from numpy import arctan2
 
 from Control import *
 from Solver import GFOLD
 from Internal import *
 
+# GUIDIANCE SETTINGS:
+SKIP_BOOSTERBACK = False
+SKIP_AERODYNAMIC_GUIDANCE = False
+SKIP_ENTRYBURN = True
+
+# GLOBAL SETTINGS:
+MAX_TILT = 30
+THROTTLE_LIMIT = [0.1, 1]
+TARGET_ROLL = 0
+
+# GFOLD PARAMS:
+GFOLD_START_VELOCITY = 140
+
+# OTHER SETTINGS:
+LAND_CONFIRM = True
+LANDING_GEAR = True
+FINAL_ALTITUDE = 0 # set to 0 to disable
 
 # define basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -78,6 +94,12 @@ def draw_trajectory(x, u, reference_frame):
 
 
 # control utilities
+def find_vessel_by_name(name):
+    for vessel in space_center.vessels:
+        if vessel.name == name:
+            return vessel
+    return None
+
 def get_half_rocket_length(rocket):
     part_distance = [norm(part.position(vessel_reference_frame)) for part in rocket.parts.all if
                      part.position(vessel_reference_frame)[1] < 0]
@@ -132,10 +154,14 @@ def impact_point(reference_frame):
     return estimated_landing_point
 
 def roll_controller(heading):
-    if heading > 180:
-        return radians(90 -heading + 360)
-    else:
+    if heading >= 0 and heading <= 90:
         return radians(90 + heading)
+    elif heading > 90 and heading <= 180:
+        return radians(90 - heading + 180)
+    elif heading > 180 and heading <= 270:
+        return radians(90 + heading - 180)
+    else:
+        return radians(90 - heading + 360)
 
 # solver utilities
 def bundle_data(rocket):
@@ -371,7 +397,7 @@ while not end:
 
         time = velocity[0] / (thrust / (mass * g) - g)
         prediction = position + velocity * time
-        if norm(position[1:3]) <= 10 and norm(velocity[1:3]) <= 5: prediction = position
+        if norm(position[1:3]) <= 2 and norm(velocity[1:3]) <= 5: prediction = position
         position = array([position[0], prediction[1], prediction[2]])
 
         acc_hor = - position[1:3] * 0.3 - velocity[1:3] * 0.5

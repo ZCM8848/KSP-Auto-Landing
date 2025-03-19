@@ -79,9 +79,6 @@ class Rocket:
         ctrl.pitch = 0.
         ctrl.yaw = 0.
 
-    def thrust(self, acc: float):
-        self.vessel.control.throttle = acc * self.vessel.mass / self.vessel.available_thrust
-
     def __getattribute__(self, name: str):
         try: attr = super().__getattribute__(name)
         except: attr = getattr(self.vessel, name)
