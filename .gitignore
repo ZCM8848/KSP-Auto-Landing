@@ -8,3 +8,5 @@ landing copy.py
 ./.vscode
 ./.idea
 /Solver/cyn
+/.vscode
+GUI_test.py
