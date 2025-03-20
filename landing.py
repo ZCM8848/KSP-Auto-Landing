@@ -1,3 +1,4 @@
+# version: 0.2.0
 import krpc
 from collections import Counter
 from tqdm import trange
@@ -6,6 +7,23 @@ from Control import *
 from Solver import GFOLD
 from Internal import *
 
+# GUIDIANCE SETTINGS:
+SKIP_BOOSTERBACK = False
+SKIP_AERODYNAMIC_GUIDANCE = False
+SKIP_ENTRYBURN = True
+
+# GLOBAL SETTINGS:
+MAX_TILT = 30
+THROTTLE_LIMIT = [0.1, 1]
+TARGET_ROLL = 0
+
+# GFOLD PARAMS:
+GFOLD_START_VELOCITY = 140
+
+# OTHER SETTINGS:
+LAND_CONFIRM = True
+LANDING_GEAR = True
+FINAL_ALTITUDE = 0 # set to 0 to disable
 
 # define basic KRPC things
 conn = krpc.connect(name='KAL')
@@ -13,6 +31,7 @@ space_center = conn.space_center
 vessel = space_center.active_vessel
 body = vessel.orbit.body
 g = body.surface_gravity
+TARGET_ROLL = radians(TARGET_ROLL)
 
 # define reference frames
 vessel_reference_frame = vessel.reference_frame
@@ -75,6 +94,12 @@ def draw_trajectory(x, u, reference_frame):
 
 
 # control utilities
+def find_vessel_by_name(name):
+    for vessel in space_center.vessels:
+        if vessel.name == name:
+            return vessel
+    return None
+
 def get_half_rocket_length(rocket):
     part_distance = [norm(part.position(vessel_reference_frame)) for part in rocket.parts.all if
                      part.position(vessel_reference_frame)[1] < 0]
@@ -128,6 +153,16 @@ def impact_point(reference_frame):
     estimated_landing_point = position + estimated_landing_time * velocity
     return estimated_landing_point
 
+def roll_controller(heading):
+    if heading >= 0 and heading <= 90:
+        return radians(90 + heading)
+    elif heading > 90 and heading <= 180:
+        return radians(90 - heading + 180)
+    elif heading > 180 and heading <= 270:
+        return radians(90 + heading - 180)
+    else:
+        return radians(90 - heading + 360)
+
 # solver utilities
 def bundle_data(rocket):
     min_tf = int(sqrt(2 * rocket.position()[0] / g))
@@ -139,7 +174,7 @@ def bundle_data(rocket):
             'max_structural_Gs': 3,
             'specific_impulse': rocket.specific_impulse,
             'max_velocity': rocket.flight(target_reference_frame).speed, 'glide_slope_cone': 20,
-            'thrust_pointing_constraint': MAX_TILT,
+            'thrust_pointing_constraint': degrees(MAX_TILT),
             'planetary_angular_velocity': body.angular_velocity(vessel_surface_reference_frame),
             'initial_position': rocket.position(),
             'initial_velocity': rocket.velocity(),
@@ -157,6 +192,7 @@ vessel.control.sas = False
 # define extended vessel
 _vessel = vessel
 vessel = Rocket(space_center, vessel, target_reference_frame)
+activate_altitude = vessel.position()[0]
 
 # boosterback maneuver
 error = [float('inf')]
@@ -184,7 +220,7 @@ while not SKIP_BOOSTERBACK:
         throttle = THROTTLE_LIMIT[0]
     # vessel.control.throttle = throttle if degrees(angle_between(target_direction, direction)) <= 5 else 0
     vessel.control.throttle = throttle
-    print("    ERROR:%.1f | TIME TO APOAPSOS:%.1f | THROTTLE:%.3f" % (horizontal_error, time_to_apoapsis, throttle))
+    print("\tERROR:%.1f | TIME TO APOAPSOS:%.1f | THROTTLE:%.3f" % (horizontal_error, time_to_apoapsis, throttle))
     if horizontal_error > min(error):
         vessel.control.throttle = 0
         vessel.control.brakes = True
@@ -195,9 +231,9 @@ while not SKIP_BOOSTERBACK:
 # entry burn
 print("ENTRY BURN:")
 while vessel.flight(target_reference_frame).vertical_speed >= 0:
-    vessel.update_ap((1, 0, 0), TARGET_ROLL)
+    vessel.update_ap((1, 0, 0))
 while vessel.flight(target_reference_frame).surface_altitude >= body.atmosphere_depth:
-    vessel.update_ap((1, 0, 0), TARGET_ROLL)
+    vessel.update_ap((1, 0, 0))
 while not SKIP_ENTRYBURN:
     position = array(vessel.position())
     velocity = array(vessel.velocity())
@@ -207,10 +243,10 @@ while not SKIP_ENTRYBURN:
     target_direction = -(- velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]]))
     target_direction = normalize(target_direction) + normalize(position)
     target_direction = conic_clamp(-velocity, target_direction, 30)
-    vessel.update_ap(target_direction, TARGET_ROLL)
+    vessel.update_ap(target_direction)
     vessel.control.throttle = THROTTLE_LIMIT[1]
 
-    print("    ERROR: %.3f" % (horizontal_error))
+    print("\tERROR: %.3f" % (horizontal_error))
 
     if norm(estimated_landing_point[1:3]) <= 500:
         break
@@ -220,18 +256,20 @@ print('AERODYNAMIC GUIDANCE:')
 while not SKIP_AERODYNAMIC_GUIDANCE:
     position = array(vessel.position())
     velocity = array(vessel.velocity())
+    heading = vessel.flight(target_reference_frame).heading
+    gfold_start_altitude = max(5 * horizontal_error, 3000)
+    ignition_altitude = max(ignition_height(target_reference_frame, gfold_start_altitude), 5000)
     estimated_landing_point = impact_point(target_reference_frame)
     altitude = vessel.flight(target_reference_frame).surface_altitude
     horizontal_error = norm(estimated_landing_point[1:3])
-    gfold_start_altitude = max(5 * horizontal_error, 3000)
-    ignition_altitude = max(ignition_height(target_reference_frame, gfold_start_altitude), 5000)
 
     target_direction = - velocity + array([0, estimated_landing_point[1], estimated_landing_point[2]])
     target_direction = normalize(target_direction) + normalize(position)
     target_direction = conic_clamp(-velocity, target_direction, MAX_TILT)
-    vessel.update_ap(target_direction, TARGET_ROLL)
+    target_roll = roll_controller(heading)
+    vessel.update_ap(target_direction, target_roll)
     vessel.control.throttle = 0
-    print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
+    print('\tALTITUDE:%.3f | IGNITION ALTITUDE:%.3f | ERROR:%.3f' % (altitude, ignition_altitude, horizontal_error))
 
     if altitude <= ignition_altitude:
         break
@@ -244,7 +282,7 @@ while SKIP_AERODYNAMIC_GUIDANCE:
     vessel.update_ap(target_direction, TARGET_ROLL)
     gfold_start_altitude = max(5 * horizontal_error, 3000)
     ignition_altitude = max(ignition_height(target_reference_frame, gfold_start_altitude), 5000)
-    print('    ALTITUDE:%.3f | IGNITION ALTITUDE:%.3f' % (altitude, ignition_altitude))
+    print('\tALTITUDE:%.3f | IGNITION ALTITUDE:%.3f' % (altitude, ignition_altitude))
     if altitude <= ignition_altitude:
         break
 
@@ -268,7 +306,7 @@ while True:
     vessel.control.throttle = throttle
     vessel.update_ap(-velocity, TARGET_ROLL)
 
-    print('    ALTITUDE:%.3f | THROTTLE:%.3f | ERROR:%.3f' % (position[0], throttle, horizontal_error))
+    print('\tALTITUDE:%.3f | THROTTLE:%.3f | ERROR:%.3f' % (position[0], throttle, horizontal_error))
 
     if altitude <= gfold_start_altitude and velocity[0] >= -GFOLD_START_VELOCITY:
         break
@@ -337,7 +375,7 @@ while not end:
         vessel.control.throttle = throttle
         target_direction = conic_clamp(array([1, 0, 0]), target_direction, MAX_TILT)
         vessel.update_ap(target_direction, TARGET_ROLL)
-        print('    THROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
+        print('\tTHROTTLE:%3f | COMPENSATION:%3f | INDEX:%i' % (throttle, compensation, min_index))
 
         if position[0] <= target_position[0]:
             if not has_legs(vessel):
@@ -359,7 +397,7 @@ while not end:
 
         time = velocity[0] / (thrust / (mass * g) - g)
         prediction = position + velocity * time
-        if norm(position[1:3]) <= 10 and norm(velocity[1:3]) <= 5: prediction = position
+        if norm(position[1:3]) <= 2 and norm(velocity[1:3]) <= 5: prediction = position
         position = array([position[0], prediction[1], prediction[2]])
 
         acc_hor = - position[1:3] * 0.3 - velocity[1:3] * 0.5
@@ -371,7 +409,7 @@ while not end:
         vessel.update_ap(target_direction, TARGET_ROLL)
         vessel.control.throttle = throttle
 
-        print('    THROTTLE:%.3f | ERROR:%.3f | TIME:%.3f' % (throttle, norm(position[1:3]), time))
+        print('\tTHROTTLE:%.3f | ERROR:%.3f | TIME:%.3f' % (throttle, norm(position[1:3]), time))
 
         if LANDING_GEAR and position[0] <= 100:
             vessel.control.legs = True

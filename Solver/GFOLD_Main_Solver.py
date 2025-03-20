@@ -277,15 +277,15 @@ class GFOLD:
                     time.append(tf)
                     cost.append(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1])
                 if tf < 10: tf = f'0{tf}'
-                print(
-                    f"    TIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)} ({progress}%)")
+                # print(f"\tTIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)} ({progress}%)")
             except Exception as ex:
-                print(f"    TIME:{tf} | COST:inf (SOLVER FAILED:{ex}) ({progress}%)")
+                pass
+                # print(f"\tTIME:{tf} | COST:inf (SOLVER FAILED:{ex}) ({progress}%)")
             finally:
                 iter_count += 1
 
         if len(cost) == 0 or len(time) == 0:
-            print('NO SOLUTION')
+            # print('NO SOLUTION')
             return None
 
         # a second check
@@ -297,18 +297,17 @@ class GFOLD:
             try:
                 self.generate_params(int(tf))
                 self.solve(self.N_tf, iterative=True)
-                print(
-                    f"    TIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)}")
+                # print(f"\tTIME:{tf} | COST:{round(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1], 5)}")
                 cost.append(np.log(self.dry_mass + self.fuel_mass) - self.solution['z'][-1, -1])
                 break
             except Exception as ex:
-                print(f"    TIME:{tf} | FALSE SOLUTION (SOLVER FAILED:{ex})")
+                # print(f"\tTIME:{tf} | FALSE SOLUTION (SOLVER FAILED:{ex})")
+                pass
 
         if len(cost) == 0:
-            print('NO SOLUTION, USING LOW RESOLUTION SOLUTION INSTEAD')
+            # print('NO SOLUTION, USING LOW RESOLUTION SOLUTION INSTEAD')
             return None
-        print(f"OPTIMAL TIME:{tf}")
-        if self.plot: plot_run3D(tf, self.solution['x'], self.solution['u'], self.solution['m'], self.solution['s'],
-                                 self.solution['z'], self.S, self.Sk)
+        # print(f"OPTIMAL TIME:{tf}")
+        if self.plot: plot_run3D(tf, self.solution['x'], self.solution['u'], self.solution['m'], self.solution['s'], self.solution['z'], self.S, self.Sk)
 
         return None
