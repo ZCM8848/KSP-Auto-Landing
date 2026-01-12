@@ -17,6 +17,7 @@ Finally, run the script:
 ---
 
 ### References:
+[GFOLD](https://github.com/samutoljamo/g-fold)  
 [G-FOLD-Python](https://github.com/jonnyhyman/G-FOLD-Python)  
 [G-FOLD](https://github.com/Wrg1t/G-FOLD)  
 [GFOLD_KSP](https://github.com/xdedss/GFOLD_KSP)  
