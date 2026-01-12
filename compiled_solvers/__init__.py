@@ -1,1 +1,0 @@
-# GFOLD Compiled Solvers Package

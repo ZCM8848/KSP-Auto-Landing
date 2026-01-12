@@ -1,0 +1,10 @@
+^C:\USERS\CASEY\DOCUMENTS\PYTHON\KSP-AUTO-LANDING\SOLVER\GFOLD\COMPILED_SOLVERS\TOWER_CATCH\C\BUILD\CMAKEFILES\EF6E896F85B0D43D1BFE30FE273D20C5\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/cvxpygen.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

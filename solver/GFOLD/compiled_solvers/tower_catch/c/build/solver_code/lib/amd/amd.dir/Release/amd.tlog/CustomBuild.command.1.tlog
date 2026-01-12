@@ -1,0 +1,10 @@
+^C:\USERS\CASEY\DOCUMENTS\PYTHON\KSP-AUTO-LANDING\SOLVER\GFOLD\COMPILED_SOLVERS\TOWER_CATCH\C\SOLVER_CODE\LIB\AMD\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/amd/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

@@ -1,7 +1,8 @@
 from math import log, sin
 from random import uniform
-from compiled_solvers.tower_catch.cpg_solver import cpg_solve
-from solver import GFoldSolver, config, visualization
+# from compiled_solvers.tower_catch.cpg_solver import cpg_solve
+from solver.GFOLD.compiled_solvers.normal_landing.cpg_solver import cpg_solve
+from solver.GFOLD import GFoldSolver, config, visualization
 from numpy import array
 import time
 
