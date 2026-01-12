@@ -1,0 +1,10 @@
+# CMake generation dependency list for this directory.
+C:/Program Files/CMake/share/cmake-4.2/Modules/BasicConfigVersion-SameMajorVersion.cmake.in
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeDependentOption.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakePackageConfigHelpers.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/GNUInstallDirs.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/WriteBasicConfigVersionFile.cmake
+C:/Users/caseY/Documents/KAL_refreshed/normal_landing/c/solver_code/lib/qdldl/CMakeLists.txt
+C:/Users/caseY/Documents/KAL_refreshed/normal_landing/c/solver_code/lib/qdldl/configure/cmake/cmake_uninstall.cmake.in
+C:/Users/caseY/Documents/KAL_refreshed/normal_landing/c/solver_code/lib/qdldl/configure/qdldl_types.h.in
+C:/Users/caseY/Documents/KAL_refreshed/normal_landing/c/solver_code/lib/qdldl/configure/qdldl_version.h.in

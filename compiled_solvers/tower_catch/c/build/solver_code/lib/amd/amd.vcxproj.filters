@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_aat.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_control.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_defaults.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_dump.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_info.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_order.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_post_tree.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_postorder.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_preprocess.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_valid.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_version.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\SuiteSparse_config.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\amd_internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\SuiteSparse_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\amd\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{B689BF79-A711-3A5E-BD63-5C5A1EA4E983}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{CF9CD389-4CF1-3BC2-8523-1E1584D028FF}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

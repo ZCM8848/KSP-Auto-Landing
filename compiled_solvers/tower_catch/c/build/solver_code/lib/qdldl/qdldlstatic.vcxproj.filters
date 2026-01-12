@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\src\qdldl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl_version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{B689BF79-A711-3A5E-BD63-5C5A1EA4E983}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{CF9CD389-4CF1-3BC2-8523-1E1584D028FF}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

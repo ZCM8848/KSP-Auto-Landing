@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\caseY\Documents\KAL_refreshed\compiled_solvers\tower_catch\c\build\CMakeFiles\99d122562e31df6c0dc045e22b580264\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{DA639931-363C-3995-A842-A6661F837E71}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

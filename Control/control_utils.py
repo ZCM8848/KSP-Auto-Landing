@@ -7,10 +7,8 @@ from numpy.linalg import norm
 def lerp(vec1, vec2, t):
     return t * vec2 + (1 - t) * vec1
 
-
 def clamp(num, limit1, limit2):
     return max(min(num, max(limit1, limit2)), min(limit1, limit2))
-
 
 def sgn(f):
     if f > 0:
@@ -39,7 +37,6 @@ def q(axis, angle):
     axis /= norm(axis)
     return s * axis[0], s * axis[1], s * axis[2], c
 
-
 def rotation_mat(q):
     x, y, z, w = q[0], q[1], q[2], q[3]
     return asmatrix([
@@ -48,11 +45,9 @@ def rotation_mat(q):
         [2 * x * z + 2 * w * y, 2 * y * z - 2 * w * x, 1 - 2 * x ** 2 - 2 * y ** 2]
     ])
 
-
 def transform(vec, matrix):
     res = asmatrix(vec) * matrix
     return array([res[0, 0], res[0, 1], res[0, 2]])
-
 
 def angle_around_axis(v1, v2, axis):
     """The angle between v1 and v2, return in radians"""

@@ -1,0 +1,10 @@
+^C:\USERS\CASEY\DOCUMENTS\KAL_REFRESHED\COMPILED_SOLVERS\NORMAL_LANDING\C\SOLVER_CODE\LIB\QDLDL\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/KAL_refreshed/compiled_solvers/normal_landing/c -BC:/Users/caseY/Documents/KAL_refreshed/compiled_solvers/normal_landing/c/build --check-stamp-file C:/Users/caseY/Documents/KAL_refreshed/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
