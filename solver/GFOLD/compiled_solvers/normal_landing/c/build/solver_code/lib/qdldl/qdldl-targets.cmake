@@ -7,7 +7,7 @@ if(CMAKE_VERSION VERSION_LESS "2.8.3")
    message(FATAL_ERROR "CMake >= 2.8.3 required")
 endif()
 cmake_policy(PUSH)
-cmake_policy(VERSION 2.8.3...4.0)
+cmake_policy(VERSION 2.8.3...3.31)
 #----------------------------------------------------------------
 # Generated CMake target import file.
 #----------------------------------------------------------------
@@ -50,7 +50,7 @@ unset(_cmake_expected_targets)
 add_library(qdldl::qdldlstatic STATIC IMPORTED)
 
 set_target_properties(qdldl::qdldlstatic PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/lib/qdldl/include;C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/include"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/lib/qdldl/include;D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/include"
 )
 
 # Create imported target qdldl::qdldl
@@ -58,63 +58,63 @@ add_library(qdldl::qdldl SHARED IMPORTED)
 
 set_target_properties(qdldl::qdldl PROPERTIES
   INTERFACE_COMPILE_DEFINITIONS "QDLDL_SHARED_LIB"
-  INTERFACE_INCLUDE_DIRECTORIES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/lib/qdldl/include;C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/include"
+  INTERFACE_INCLUDE_DIRECTORIES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/lib/qdldl/include;D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/include"
 )
 
 # Import target "qdldl::qdldlstatic" for configuration "Debug"
 set_property(TARGET qdldl::qdldlstatic APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
 set_target_properties(qdldl::qdldlstatic PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_DEBUG "C"
-  IMPORTED_LOCATION_DEBUG "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Debug/qdldl.lib"
+  IMPORTED_LOCATION_DEBUG "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Debug/qdldl.lib"
   )
 
 # Import target "qdldl::qdldl" for configuration "Debug"
 set_property(TARGET qdldl::qdldl APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
 set_target_properties(qdldl::qdldl PROPERTIES
-  IMPORTED_IMPLIB_DEBUG "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Debug/qdldl.lib"
-  IMPORTED_LOCATION_DEBUG "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Debug/qdldl.dll"
+  IMPORTED_IMPLIB_DEBUG "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Debug/qdldl.lib"
+  IMPORTED_LOCATION_DEBUG "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Debug/qdldl.dll"
   )
 
 # Import target "qdldl::qdldlstatic" for configuration "Release"
 set_property(TARGET qdldl::qdldlstatic APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(qdldl::qdldlstatic PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
-  IMPORTED_LOCATION_RELEASE "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Release/qdldl.lib"
+  IMPORTED_LOCATION_RELEASE "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Release/qdldl.lib"
   )
 
 # Import target "qdldl::qdldl" for configuration "Release"
 set_property(TARGET qdldl::qdldl APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(qdldl::qdldl PROPERTIES
-  IMPORTED_IMPLIB_RELEASE "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Release/qdldl.lib"
-  IMPORTED_LOCATION_RELEASE "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Release/qdldl.dll"
+  IMPORTED_IMPLIB_RELEASE "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Release/qdldl.lib"
+  IMPORTED_LOCATION_RELEASE "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/Release/qdldl.dll"
   )
 
 # Import target "qdldl::qdldlstatic" for configuration "MinSizeRel"
 set_property(TARGET qdldl::qdldlstatic APPEND PROPERTY IMPORTED_CONFIGURATIONS MINSIZEREL)
 set_target_properties(qdldl::qdldlstatic PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_MINSIZEREL "C"
-  IMPORTED_LOCATION_MINSIZEREL "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.lib"
+  IMPORTED_LOCATION_MINSIZEREL "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.lib"
   )
 
 # Import target "qdldl::qdldl" for configuration "MinSizeRel"
 set_property(TARGET qdldl::qdldl APPEND PROPERTY IMPORTED_CONFIGURATIONS MINSIZEREL)
 set_target_properties(qdldl::qdldl PROPERTIES
-  IMPORTED_IMPLIB_MINSIZEREL "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.lib"
-  IMPORTED_LOCATION_MINSIZEREL "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.dll"
+  IMPORTED_IMPLIB_MINSIZEREL "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.lib"
+  IMPORTED_LOCATION_MINSIZEREL "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.dll"
   )
 
 # Import target "qdldl::qdldlstatic" for configuration "RelWithDebInfo"
 set_property(TARGET qdldl::qdldlstatic APPEND PROPERTY IMPORTED_CONFIGURATIONS RELWITHDEBINFO)
 set_target_properties(qdldl::qdldlstatic PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELWITHDEBINFO "C"
-  IMPORTED_LOCATION_RELWITHDEBINFO "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.lib"
+  IMPORTED_LOCATION_RELWITHDEBINFO "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.lib"
   )
 
 # Import target "qdldl::qdldl" for configuration "RelWithDebInfo"
 set_property(TARGET qdldl::qdldl APPEND PROPERTY IMPORTED_CONFIGURATIONS RELWITHDEBINFO)
 set_target_properties(qdldl::qdldl PROPERTIES
-  IMPORTED_IMPLIB_RELWITHDEBINFO "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.lib"
-  IMPORTED_LOCATION_RELWITHDEBINFO "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.dll"
+  IMPORTED_IMPLIB_RELWITHDEBINFO "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.lib"
+  IMPORTED_LOCATION_RELWITHDEBINFO "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.dll"
   )
 
 # This file does not depend on other imported targets which have

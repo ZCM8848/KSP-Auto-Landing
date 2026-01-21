@@ -7,8 +7,8 @@ from math import log, nan, sin
 from control.extension import Rocket
 from internal.utils import *
 from internal.targets import *
-from compiled_solvers.normal_landing.cpg_solver import cpg_solve
-from solver import GFoldSolver, GFoldConfig
+from solver.GFOLD.compiled_solvers.tower_catch.cpg_solver import cpg_solve
+from solver.GFOLD import GFoldSolver, GFoldConfig
 from control import conic_clamp, angle_between
 from control.PID import PID
 
@@ -78,7 +78,7 @@ need_retry = True
 draw = True
 use_upsample = True
 last_retry_time = space_center.ut
-target_direction = array([0,0,1])
+target_direction = array([1,0,0])
 while True:
     t_s = space_center.ut
     mass = vessel.vessel.mass

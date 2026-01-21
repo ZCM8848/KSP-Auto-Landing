@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code
+# Install script for directory: D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -34,71 +34,71 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/cmake_install.cmake")
+  include("D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/amd/cmake_install.cmake")
+  include("D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/amd/cmake_install.cmake")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   if(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Dd][Ee][Bb][Uu][Gg])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Debug/qocostatic.lib")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Debug/qocostatic.lib")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Release/qocostatic.lib")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Release/qocostatic.lib")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Mm][Ii][Nn][Ss][Ii][Zz][Ee][Rr][Ee][Ll])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/MinSizeRel/qocostatic.lib")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/MinSizeRel/qocostatic.lib")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Rr][Ee][Ll][Ww][Ii][Tt][Hh][Dd][Ee][Bb][Ii][Nn][Ff][Oo])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/RelWithDebInfo/qocostatic.lib")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/RelWithDebInfo/qocostatic.lib")
   endif()
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   if(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Dd][Ee][Bb][Uu][Gg])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Debug/qoco.lib")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Debug/qoco.lib")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Release/qoco.lib")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Release/qoco.lib")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Mm][Ii][Nn][Ss][Ii][Zz][Ee][Rr][Ee][Ll])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/MinSizeRel/qoco.lib")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/MinSizeRel/qoco.lib")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Rr][Ee][Ll][Ww][Ii][Tt][Hh][Dd][Ee][Bb][Ii][Nn][Ff][Oo])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/RelWithDebInfo/qoco.lib")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/RelWithDebInfo/qoco.lib")
   endif()
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   if(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Dd][Ee][Bb][Uu][Gg])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Debug/qoco.dll")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Debug/qoco.dll")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Release/qoco.dll")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/Release/qoco.dll")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Mm][Ii][Nn][Ss][Ii][Zz][Ee][Rr][Ee][Ll])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/MinSizeRel/qoco.dll")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/MinSizeRel/qoco.dll")
   elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES "^([Rr][Ee][Ll][Ww][Ii][Tt][Hh][Dd][Ee][Bb][Ii][Nn][Ff][Oo])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/RelWithDebInfo/qoco.dll")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/out/RelWithDebInfo/qoco.dll")
   endif()
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/qoco" TYPE FILE FILES
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco_api.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/input_validation.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco_linalg.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/kkt.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/cone.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco_status.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/equilibration.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/enums.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/definitions.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/structs.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/timer.h"
-    "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco_utils.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco_api.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/input_validation.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco_linalg.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/kkt.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/cone.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco_status.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/equilibration.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/enums.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/definitions.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/structs.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/timer.h"
+    "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/solver_code/include/qoco_utils.h"
     )
 endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/install_local_manifest.txt"
+  file(WRITE "D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()

@@ -1,96 +1,96 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\src\cpg_workspace.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\src\cpg_workspace.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\src\cpg_solve.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\src\cpg_solve.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\cone.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\cone.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\equilibration.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\equilibration.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\input_validation.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\input_validation.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\kkt.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\kkt.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_api.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_api.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_linalg.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_linalg.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_status.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_status.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_utils.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\timer_windows.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\timer_windows.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\include\cpg_workspace.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\include\cpg_workspace.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\include\cpg_solve.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\include\cpg_solve.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\cone.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\cone.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\definitions.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\definitions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\enums.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\enums.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\equilibration.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\equilibration.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\input_validation.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\input_validation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\kkt.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\kkt.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco_api.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco_api.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco_linalg.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco_linalg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco_status.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco_status.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco_utils.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\qoco_utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\structs.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\structs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\timer.h">
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\include\timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\CMakeLists.txt" />
+    <CustomBuild Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{A7FFBA61-5CE0-34C2-A801-4C2B85F3F9CF}</UniqueIdentifier>
+      <UniqueIdentifier>{8BEB4D24-42E4-3443-88EA-1DDD0C837BF1}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{FBBE02D3-2011-3098-8C39-DF28E614F76F}</UniqueIdentifier>
+      <UniqueIdentifier>{4450C48F-F9BE-3162-8933-A92CD7E8FBC6}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

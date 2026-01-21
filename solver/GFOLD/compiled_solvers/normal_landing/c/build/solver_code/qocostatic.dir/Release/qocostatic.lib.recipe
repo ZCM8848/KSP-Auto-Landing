@@ -2,7 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\x64\Release\ZERO_CHECK</FullPath>
+      <FullPath>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\x64\Release\ZERO_CHECK</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />

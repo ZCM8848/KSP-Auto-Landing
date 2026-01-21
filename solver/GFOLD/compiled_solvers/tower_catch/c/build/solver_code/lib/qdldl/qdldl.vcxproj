@@ -22,7 +22,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{0BC93165-1FCA-3ABA-8967-19627E32EDEE}</ProjectGuid>
+    <ProjectGuid>{AB02629B-F5E6-39B5-9E85-6C97492DEEBE}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <Platform>x64</Platform>
@@ -59,25 +59,25 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\out\Debug\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\out\Debug\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">qdldl.dir\Debug\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">qdldl</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\out\Release\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\out\Release\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">qdldl.dir\Release\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">qdldl</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\out\MinSizeRel\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\out\MinSizeRel\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">qdldl.dir\MinSizeRel\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">qdldl</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\out\RelWithDebInfo\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\out\RelWithDebInfo\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">qdldl.dir\RelWithDebInfo\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">qdldl</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
@@ -87,16 +87,13 @@
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) -O3</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <BufferSecurityCheck></BufferSecurityCheck>
-      <CallingConvention></CallingConvention>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>
       </ExceptionHandling>
-      <FloatingPointModel></FloatingPointModel>
       <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <MinimalRebuild></MinimalRebuild>
@@ -114,10 +111,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;BUILDING_QDLDL;QDLDL_SHARED_LIB;CMAKE_INTDIR=\"Debug\";qdldl_EXPORTS</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -132,9 +129,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
-      <ImportLibrary>C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/Debug/qdldl.lib</ImportLibrary>
+      <ImportLibrary>D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/Debug/qdldl.lib</ImportLibrary>
       <LinkErrorReporting></LinkErrorReporting>
-      <ProgramDataBaseFile>C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/Debug/qdldl.pdb</ProgramDataBaseFile>
+      <ProgramDataBaseFile>D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/Debug/qdldl.pdb</ProgramDataBaseFile>
       <RandomizedBaseAddress></RandomizedBaseAddress>
       <SubSystem></SubSystem>
     </Link>
@@ -144,15 +141,12 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) -O3</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <BufferSecurityCheck></BufferSecurityCheck>
-      <CallingConvention></CallingConvention>
       <ExceptionHandling>
       </ExceptionHandling>
-      <FloatingPointModel></FloatingPointModel>
       <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <MinimalRebuild></MinimalRebuild>
@@ -172,10 +166,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;NDEBUG;BUILDING_QDLDL;QDLDL_SHARED_LIB;CMAKE_INTDIR=\"Release\";qdldl_EXPORTS</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -190,9 +184,9 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
-      <ImportLibrary>C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/Release/qdldl.lib</ImportLibrary>
+      <ImportLibrary>D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/Release/qdldl.lib</ImportLibrary>
       <LinkErrorReporting></LinkErrorReporting>
-      <ProgramDataBaseFile>C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/Release/qdldl.pdb</ProgramDataBaseFile>
+      <ProgramDataBaseFile>D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/Release/qdldl.pdb</ProgramDataBaseFile>
       <RandomizedBaseAddress></RandomizedBaseAddress>
       <SubSystem></SubSystem>
     </Link>
@@ -202,15 +196,12 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) -O3</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <BufferSecurityCheck></BufferSecurityCheck>
-      <CallingConvention></CallingConvention>
       <ExceptionHandling>
       </ExceptionHandling>
-      <FloatingPointModel></FloatingPointModel>
       <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <MinimalRebuild></MinimalRebuild>
@@ -230,10 +221,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;NDEBUG;BUILDING_QDLDL;QDLDL_SHARED_LIB;CMAKE_INTDIR=\"MinSizeRel\";qdldl_EXPORTS</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -248,9 +239,9 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
-      <ImportLibrary>C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.lib</ImportLibrary>
+      <ImportLibrary>D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.lib</ImportLibrary>
       <LinkErrorReporting></LinkErrorReporting>
-      <ProgramDataBaseFile>C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.pdb</ProgramDataBaseFile>
+      <ProgramDataBaseFile>D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/MinSizeRel/qdldl.pdb</ProgramDataBaseFile>
       <RandomizedBaseAddress></RandomizedBaseAddress>
       <SubSystem></SubSystem>
     </Link>
@@ -260,16 +251,13 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) -O3</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <BufferSecurityCheck></BufferSecurityCheck>
-      <CallingConvention></CallingConvention>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>
       </ExceptionHandling>
-      <FloatingPointModel></FloatingPointModel>
       <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <MinimalRebuild></MinimalRebuild>
@@ -287,10 +275,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;NDEBUG;BUILDING_QDLDL;QDLDL_SHARED_LIB;CMAKE_INTDIR=\"RelWithDebInfo\";qdldl_EXPORTS</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -305,9 +293,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
-      <ImportLibrary>C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.lib</ImportLibrary>
+      <ImportLibrary>D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.lib</ImportLibrary>
       <LinkErrorReporting></LinkErrorReporting>
-      <ProgramDataBaseFile>C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.pdb</ProgramDataBaseFile>
+      <ProgramDataBaseFile>D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/out/RelWithDebInfo/qdldl.pdb</ProgramDataBaseFile>
       <RandomizedBaseAddress></RandomizedBaseAddress>
       <SubSystem></SubSystem>
     </Link>
@@ -316,11 +304,11 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\CMakeLists.txt">
+    <CustomBuild Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\CMakeLists.txt">
       <UseUtf8Encoding>Always</UseUtf8Encoding>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -328,12 +316,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-4.2\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakePackageConfigHelpers.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\GNUInstallDirs.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\Program Files\CMake\share\cmake-4.1\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakePackageConfigHelpers.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\GNUInstallDirs.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\WriteBasicConfigVersionFile.cmake;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -341,12 +329,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Program Files\CMake\share\cmake-4.2\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakePackageConfigHelpers.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\GNUInstallDirs.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\Program Files\CMake\share\cmake-4.1\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakePackageConfigHelpers.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\GNUInstallDirs.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\WriteBasicConfigVersionFile.cmake;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -354,12 +342,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Program Files\CMake\share\cmake-4.2\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakePackageConfigHelpers.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\GNUInstallDirs.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\Program Files\CMake\share\cmake-4.1\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakePackageConfigHelpers.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\GNUInstallDirs.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\WriteBasicConfigVersionFile.cmake;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -367,21 +355,21 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Program Files\CMake\share\cmake-4.2\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakePackageConfigHelpers.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\GNUInstallDirs.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\Program Files\CMake\share\cmake-4.1\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakePackageConfigHelpers.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\GNUInstallDirs.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\WriteBasicConfigVersionFile.cmake;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\src\qdldl.c" />
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl.h" />
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl_types.h" />
-    <ClInclude Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl_version.h" />
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\src\qdldl.c" />
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl.h" />
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl_types.h" />
+    <ClInclude Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\include\qdldl_version.h" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
-    <ProjectReference Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\ZERO_CHECK.vcxproj">
-      <Project>{FD60EC36-0C22-3207-AEEC-C1F1AFB89142}</Project>
+    <ProjectReference Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\ZERO_CHECK.vcxproj">
+      <Project>{2640D789-98D8-39E9-8047-F9B3E48C2FAF}</Project>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>

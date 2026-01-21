@@ -22,7 +22,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{E526E042-8ABB-3835-93E3-9B6700F2125A}</ProjectGuid>
+    <ProjectGuid>{8FA53035-2C82-30FB-8CB2-69B2B06FAE18}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <Platform>x64</Platform>
@@ -105,10 +105,10 @@
     </Midl>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\CMakeFiles\40dea638a8af4337efbfeb5f2eb007f4\uninstall.rule">
+    <CustomBuild Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\CMakeFiles\c7d10ea46335e85cba89e364c0193e41\uninstall.rule">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -P C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/cmake_uninstall.cmake
+"D:\Program Files\CMake\bin\cmake.exe" -P D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/cmake_uninstall.cmake
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -117,12 +117,12 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
       <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</VerifyInputsAndOutputsExist>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'"></Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -P C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/cmake_uninstall.cmake
+"D:\Program Files\CMake\bin\cmake.exe" -P D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/cmake_uninstall.cmake
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -131,12 +131,12 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
       <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</VerifyInputsAndOutputsExist>
       <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'"></Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -P C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/cmake_uninstall.cmake
+"D:\Program Files\CMake\bin\cmake.exe" -P D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/cmake_uninstall.cmake
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -145,12 +145,12 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
       <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</VerifyInputsAndOutputsExist>
       <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'"></Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -P C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/cmake_uninstall.cmake
+"D:\Program Files\CMake\bin\cmake.exe" -P D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/cmake_uninstall.cmake
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -159,17 +159,17 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
       <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</VerifyInputsAndOutputsExist>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\CMakeLists.txt">
+    <CustomBuild Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\CMakeLists.txt">
       <UseUtf8Encoding>Always</UseUtf8Encoding>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -177,12 +177,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-4.2\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakePackageConfigHelpers.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\GNUInstallDirs.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\Program Files\CMake\share\cmake-4.1\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakePackageConfigHelpers.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\GNUInstallDirs.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\WriteBasicConfigVersionFile.cmake;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -190,12 +190,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Program Files\CMake\share\cmake-4.2\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakePackageConfigHelpers.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\GNUInstallDirs.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\Program Files\CMake\share\cmake-4.1\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakePackageConfigHelpers.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\GNUInstallDirs.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\WriteBasicConfigVersionFile.cmake;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -203,12 +203,12 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Program Files\CMake\share\cmake-4.2\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakePackageConfigHelpers.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\GNUInstallDirs.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\Program Files\CMake\share\cmake-4.1\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakePackageConfigHelpers.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\GNUInstallDirs.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\WriteBasicConfigVersionFile.cmake;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/solver_code/lib/qdldl/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/tower_catch/c/build/solver_code/lib/qdldl/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -216,19 +216,19 @@ endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Program Files\CMake\share\cmake-4.2\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakeDependentOption.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\CMakePackageConfigHelpers.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\GNUInstallDirs.cmake;C:\Program Files\CMake\share\cmake-4.2\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\Program Files\CMake\share\cmake-4.1\Modules\BasicConfigVersion-SameMajorVersion.cmake.in;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakeDependentOption.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\CMakePackageConfigHelpers.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\GNUInstallDirs.cmake;D:\Program Files\CMake\share\cmake-4.1\Modules\WriteBasicConfigVersionFile.cmake;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\cmake\cmake_uninstall.cmake.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_types.h.in;D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\solver_code\lib\qdldl\configure\qdldl_version.h.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <None Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall">
+    <None Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\qdldl\CMakeFiles\uninstall">
     </None>
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
-    <ProjectReference Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\ZERO_CHECK.vcxproj">
-      <Project>{FD60EC36-0C22-3207-AEEC-C1F1AFB89142}</Project>
+    <ProjectReference Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\ZERO_CHECK.vcxproj">
+      <Project>{2640D789-98D8-39E9-8047-F9B3E48C2FAF}</Project>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>

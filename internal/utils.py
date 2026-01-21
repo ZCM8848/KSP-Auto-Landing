@@ -1,4 +1,5 @@
 import krpc
+import numpy as np
 from tqdm import trange
 from numpy import linspace, ndarray, arange
 import math
@@ -131,11 +132,12 @@ def descent_throttle(rocket, target_height=0, vt=0):
     position = rocket.position()[0]
     velocity = rocket.velocity()[0]
     g = body.surface_gravity
-    aero_force = rocket.flight(vessel_reference_frame).aerodynamic_force[0]
+    # aero_force = rocket.flight(vessel_reference_frame).aerodynamic_force[0]
     mass = rocket.mass
     available_thrust = rocket.available_thrust
 
-    acc = (vt**2 + velocity**2) / (2 * (position - target_height)) + g + aero_force / (mass * g)
+    # acc = (vt**2 + velocity**2) / (2 * (position - target_height)) + g + aero_force / (mass * g)
+    acc = (vt**2 + velocity**2) / (2 * (position - target_height)) + g  / (mass * g)
     return mass * acc / available_thrust
 
 def impact_point(rocket, reference_frame):
@@ -219,9 +221,10 @@ def generate_cubic_with_vertical_end(start_pos, start_vel, target_pos, target_ve
     """
     三次样条轨迹，末端平滑过渡到竖直向上（a=0）
     blend_ratio: 末端多少比例段参与过渡（默认 10%）
+    输出格式: x形状为(N,6), u形状为(N,3)，适配调用代码的接口
     """
     t = linspace(0, duration, N)
-    g_vec = array([g, 0, 0])
+    g_vec = array([-g, 0, 0])
 
     # 原始三次样条
     spline_x = CubicSpline([0, duration], [start_pos[0], target_pos[0]],
@@ -231,21 +234,20 @@ def generate_cubic_with_vertical_end(start_pos, start_vel, target_pos, target_ve
     spline_z = CubicSpline([0, duration], [start_pos[2], target_pos[2]],
                            bc_type=((1, start_vel[2]), (1, target_vel[2])))
 
+    # 计算轨迹
     x = spline_x(t)
     y = spline_y(t)
     z = spline_z(t)
     vx = spline_x(t, 1)
     vy = spline_y(t, 1)
     vz = spline_z(t, 1)
-
-    # 原始加速度
     ax_raw = spline_x(t, 2)
     ay_raw = spline_y(t, 2)
     az_raw = spline_z(t, 2)
 
     # 平滑过渡末端加速度 → 0
     k = max(2, int(N * (1 - blend_ratio)))
-    alpha = linspace(1, 0, N - k)  # 从1降到0
+    alpha = linspace(1, 0, N - k)
     ax = ax_raw.copy()
     ay = ay_raw.copy()
     az = az_raw.copy()
@@ -253,11 +255,13 @@ def generate_cubic_with_vertical_end(start_pos, start_vel, target_pos, target_ve
     ay[k:] = alpha * ay_raw[k:] + (1 - alpha) * 0
     az[k:] = alpha * az_raw[k:] + (1 - alpha) * 0
 
-    # 构造输出
-    x_full = array([x, y, z, vx, vy, vz])
-    g_vec = array(g_vec).reshape(3, 1)
-    u_full = array([ax, ay, az]) + g_vec
-
+    # 构造输出 - 关键修改：转置数组以匹配接口形状要求
+    # x_full: (N, 6) - 每行是一个时间步的状态 [x, y, z, vx, vy, vz]
+    x_full = array([x, y, z, vx, vy, vz]).T
+    
+    # u_full: (N, 3) - 每行是一个时间步的加速度指令 [ax, ay, az] (已含重力补偿)
+    u_full = array([ax, ay, az]).T + g_vec
+    
     return {'x': x_full, 'u': u_full}
 
 def estimate_duration(pos, vel, target_pos, target_vel):
@@ -282,3 +286,88 @@ def find_key_by_shape(data_dict: dict[str, any], target_shape: tuple[int, ...]):
             if value.shape == target_shape:
                 return key
     return None
+
+def R_y(theta):
+    return array([[cos(radians(theta)), 0, sin(radians(theta))],
+                  [0, 1, 0],
+                  [-sin(radians(theta)), 0, cos(radians(theta))]])
+
+def R_z(theta):
+    return array([[cos(radians(theta)), -sin(radians(theta)), 0],
+                  [sin(radians(theta)), cos(radians(theta)), 0],
+                  [0, 0, 1]])
+
+def transform_to_target_frame(
+    body_ip: np.ndarray,    # 天体参考系下的位置/速度向量 (3,)
+    target_origin: np.ndarray,  # 目标参考系原点在天体参考系下的位置 (3,)
+    target_lon: float,      # 目标经度（度）
+    target_lat: float,      # 目标纬度（度）
+    is_velocity: bool = False  # 新增：是否为速度向量（默认False，即位置）
+) -> np.ndarray:
+    """
+    纯NumPy实现的坐标系变换：天体参考系 → 目标参考系（兼容位置/速度）
+    :param body_ip: 待变换的位置/速度（天体参考系，3维向量）
+    :param target_origin: 目标参考系原点（天体参考系，3维向量）
+    :param target_lon: 目标经度（度）
+    :param target_lat: 目标纬度（度）
+    :param is_velocity: 是否为速度向量（速度仅旋转，无平移；位置先平移再旋转）
+    :return: 变换后的位置/速度（目标参考系，3维向量）
+    """
+    # 1. 计算总旋转矩阵（先绕Y轴转经度，再绕Z轴转-纬度）
+    ry_matrix = R_y(target_lon)
+    rz_matrix = R_z(-target_lat)
+    total_rotation = np.dot(rz_matrix, ry_matrix)  # 矩阵乘法，顺序不可乱
+    
+    # 2. 区分位置/速度的预处理逻辑
+    if is_velocity:
+        # 速度：无平移，直接用原始向量旋转
+        vec_to_rotate = body_ip.reshape(3, 1)  # (3,1)列向量
+    else:
+        # 位置：先计算相对位置（天体参考系下），再旋转
+        relative_pos = body_ip - target_origin  # (3,)
+        vec_to_rotate = relative_pos.reshape(3, 1)  # (3,1)列向量
+    
+    # 3. 旋转变换（核心：矩阵×列向量）
+    transformed_col = np.dot(total_rotation, vec_to_rotate)  # (3,1)
+    
+    # 4. 转回1维数组
+    transformed_vec = transformed_col.flatten()  # (3,)
+    
+    return transformed_vec
+
+def transform_to_body_frame(
+    target_ip: np.ndarray,     # 目标参考系下的位置/速度向量 (3,)
+    target_origin: np.ndarray, # 目标参考系原点在天体系下的位置 (3,)
+    target_lon: float,         # 目标经度（度）
+    target_lat: float,         # 目标纬度（度）
+    is_velocity: bool = False  # 是否是速度（速度无平移，仅旋转）
+) -> np.ndarray:
+    """
+    纯NumPy实现的坐标系反向变换：目标参考系 → 天体参考系（无KRPC依赖）
+    :param target_ip: 待变换的位置/速度（目标参考系，3维向量）
+    :param target_origin: 目标参考系原点（天体参考系，3维向量）
+    :param target_lon: 目标经度（度）
+    :param target_lat: 目标纬度（度）
+    :param is_velocity: 是否为速度向量（速度仅旋转，无平移）
+    :return: 变换后的位置/速度（天体参考系，3维向量）
+    """
+    # 1. 计算「天体系→目标系」的总旋转矩阵（和之前一致）
+    ry_matrix = R_y(target_lon)
+    rz_matrix = R_z(-target_lat)
+    rot_target_from_body = np.dot(rz_matrix, ry_matrix)
+    
+    # 2. 计算逆旋转矩阵（正交矩阵的逆 = 转置）
+    rot_body_from_target = rot_target_from_body.T  # 核心！转置即逆矩阵
+    
+    # 3. 对目标系向量做逆旋转
+    target_ip_col = target_ip.reshape(3, 1)  # (3,1)列向量
+    rotated_col = np.dot(rot_body_from_target, target_ip_col)  # 逆旋转
+    rotated_vec = rotated_col.flatten()  # (3,)一维数组
+    
+    # 4. 位置需要加平移，速度不需要
+    if is_velocity:
+        body_ip = rotated_vec
+    else:
+        body_ip = rotated_vec + target_origin  # 加目标原点的平移
+    
+    return body_ip

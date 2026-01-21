@@ -1,13 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CustomBuild Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\CMakeFiles\78ddbb35f4462ec8ed991225591f4368\INSTALL_force.rule">
+    <CustomBuild Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\CMakeFiles\f259e21ff285d8368551471337f0499d\INSTALL_force.rule">
       <Filter>CMake Rules</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="CMake Rules">
-      <UniqueIdentifier>{A748047A-4B77-30AC-ABFD-81E0EE4DEA02}</UniqueIdentifier>
+      <UniqueIdentifier>{7E4FED90-736B-3D90-86AF-91B83B39B4C4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

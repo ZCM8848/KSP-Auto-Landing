@@ -5,8 +5,6 @@ import math
 from scipy.integrate import solve_ivp
 from typing import Callable
 from math import sqrt
-from numba import njit
-import pyautogui
 
 from internal.utils import roll_controller, ignition_height, descent_throttle, get_half_rocket_length, landed
 from control import normalize, norm, array, conic_clamp
@@ -52,7 +50,6 @@ def factory(vessel: Rocket, target: Targets_JNSQ|Targets) -> tuple[Callable, Cal
         target_reference_frame_height = body.equatorial_radius
     else:
         target_reference_frame_height = body.equatorial_radius + body.surface_height(target_lat, target_lon)
-    @njit
     def dynamics(t, X):
         r = X[0:3]
         v = X[3:6]
@@ -102,7 +99,6 @@ while True:
     print("ERROR: %.3f" % (horizontal_error))
     if norm(estimated_landing_point[1:3]) <= 5000 and norm(estimated_landing_point[1:3]) > min(error):
         vessel.vessel.control.throttle = 0
-        pyautogui.press('x')
         break
     else:
         error.append(norm(estimated_landing_point[1:3]))

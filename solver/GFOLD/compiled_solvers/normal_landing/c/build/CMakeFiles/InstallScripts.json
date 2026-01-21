@@ -1,10 +1,10 @@
 {
 	"InstallScripts" : 
 	[
-		"C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/cmake_install.cmake",
-		"C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/cmake_install.cmake",
-		"C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/cmake_install.cmake",
-		"C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/amd/cmake_install.cmake"
+		"D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/cmake_install.cmake",
+		"D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/cmake_install.cmake",
+		"D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/qdldl/cmake_install.cmake",
+		"D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/lib/amd/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

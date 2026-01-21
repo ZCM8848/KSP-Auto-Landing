@@ -3,7 +3,6 @@ from threading import Lock
 
 from control import *
 from .utils import *
-from .aero import simulate
 
 class KAL:
     def __init__(self, name:str, target, params:dict, lock:Lock):

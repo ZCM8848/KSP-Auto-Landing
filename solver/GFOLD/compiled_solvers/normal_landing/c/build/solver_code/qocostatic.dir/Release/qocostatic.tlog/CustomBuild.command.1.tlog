@@ -1,6 +1,6 @@
-^C:\USERS\CASEY\DOCUMENTS\PYTHON\KSP-AUTO-LANDING\SOLVER\GFOLD\COMPILED_SOLVERS\NORMAL_LANDING\C\SOLVER_CODE\CMAKELISTS.TXT
+^D:\PROJECTS\KSP-AUTO-LANDING\SOLVER\GFOLD\COMPILED_SOLVERS\NORMAL_LANDING\C\SOLVER_CODE\CMAKELISTS.TXT
 setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c -BC:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build --check-stamp-file C:/Users/caseY/Documents/python/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/CMakeFiles/generate.stamp
+"D:\Program Files\CMake\bin\cmake.exe" -SD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c -BD:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build --check-stamp-file D:/projects/KSP-Auto-Landing/solver/GFOLD/compiled_solvers/normal_landing/c/build/solver_code/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone

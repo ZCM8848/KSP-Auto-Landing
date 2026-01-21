@@ -1,87 +1,87 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_api.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_api.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\input_validation.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\input_validation.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_linalg.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_linalg.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\kkt.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\kkt.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\cone.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\cone.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_status.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_status.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\equilibration.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\equilibration.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_utils.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\qoco_utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\timer_windows.c">
+    <ClCompile Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\src\timer_windows.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\CMakeLists.txt" />
+    <CustomBuild Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\solver_code\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_1.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_1.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_2.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_2.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_aat.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_aat.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_control.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_control.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_defaults.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_defaults.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_dump.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_dump.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_info.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_info.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_order.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_order.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_post_tree.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_post_tree.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_postorder.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_postorder.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_preprocess.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_preprocess.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_valid.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_valid.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_version.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\amd_version.obj">
       <Filter>Object Libraries</Filter>
     </Object>
-    <Object Include="C:\Users\caseY\Documents\python\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\SuiteSparse_config.obj">
+    <Object Include="D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\normal_landing\c\build\solver_code\lib\amd\amd.dir\$(Configuration)\SuiteSparse_config.obj">
       <Filter>Object Libraries</Filter>
     </Object>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Object Libraries">
-      <UniqueIdentifier>{3A14FD6A-E9BE-3E58-B2B2-CBAB55DA8C9B}</UniqueIdentifier>
+      <UniqueIdentifier>{CE5D4C53-327D-3304-B09F-D25C38030A7A}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{FBBE02D3-2011-3098-8C39-DF28E614F76F}</UniqueIdentifier>
+      <UniqueIdentifier>{4450C48F-F9BE-3162-8933-A92CD7E8FBC6}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
