@@ -75,7 +75,7 @@ while True:
 terminal = False
 need_retry = True
 draw = True
-use_upsample = False
+use_upsample = True
 last_retry_time = space_center.ut
 target_direction = array([1,0,0])
 while True:
@@ -86,7 +86,7 @@ while True:
     vessel.update_ap(target_direction)
     half_rocket_length = get_half_rocket_length(vessel.vessel)
 
-    if need_retry:
+    while need_retry:
         print(position, velocity)
         t0 = time.time()
         last_retry_time = space_center.ut
@@ -94,25 +94,27 @@ while True:
         status = solution['status']
         if all(ch not in status for ch in ("0", "3", "4")):
             print("All constraints satisfied")
+            need_retry = False
         else:
-            print("Some constraints not satisfied, using cubic instead")
-            solution = generate_cubic_with_vertical_end(
-                start_pos=position,
-                start_vel=velocity,
-                target_pos=array([half_rocket_length,0,0]),
-                target_vel=array([0,0,0]),
-                duration=estimate_duration(position, velocity, (half_rocket_length, 0, 0), (0, 0, 0))
-            )
-            trajectory_position = solution['x'][:, :3]
-            trajectory_velocity = solution['x'][:, 3:6]
-            trajectory_acceleration = solution['u']
+            print("Some constraints not satisfied")
+            vessel.update_ap(target_direction)
+            #solution = generate_cubic_with_vertical_end(
+            #    start_pos=position,
+            #    start_vel=velocity,
+            #    target_pos=array([half_rocket_length,0,0]),
+            #    target_vel=array([0,0,0]),
+            #    duration=estimate_duration(position, velocity, (half_rocket_length, 0, 0), (0, 0, 0))
+            #)
+            #trajectory_position = solution['x'][:, :3]
+            #trajectory_velocity = solution['x'][:, 3:6]
+            #trajectory_acceleration = solution['u']
         print(f"Time cost: {time.time() - t0}")
-        need_retry = False
+        # need_retry = False
         # draw = True
 
 
     if use_upsample:
-        trajectory_position = upsample_traj()
+        trajectory_position = upsample_traj(solution['x'][:, 0:3])
         trajectory_velocity = upsample_traj(solution['x'][:, 3:6])
         trajectory_acceleration = upsample_traj(solution['u'])
     else:
@@ -135,6 +137,9 @@ while True:
     position_waypoint = array(trajectory_position[min_index])
     velocity_waypoint = array(trajectory_velocity[min_index])
     acceleration_waypoint = array(trajectory_acceleration[min_index])
+
+    while acceleration_waypoint[0] <= 0:
+        acceleration_waypoint += array([g, 0, 0])
 
     # define errors
     velocity_error = velocity_waypoint - velocity

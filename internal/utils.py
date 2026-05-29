@@ -371,3 +371,12 @@ def transform_to_body_frame(
         body_ip = rotated_vec + target_origin  # 加目标原点的平移
     
     return body_ip
+
+def get_density_info(rocket, reference_frame):
+    density = list()
+    position = list()
+    for altitude in trange(0, rocket.orbit.body.atmosphere_depth, step=100,  desc='sampling atmosphere'):
+        pos = (altitude, 0, 0)
+        position.append(pos)
+        density.append(rocket.vessel.orbit.body.atmospheric_density_at_position(pos, reference_frame))
+    

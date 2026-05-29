@@ -10,3 +10,5 @@ landing copy.py
 /Solver/cyn
 /.vscode
 GUI_test.py
+/solver/landing/__pycache__
+/solver/RTLS/__pycache__

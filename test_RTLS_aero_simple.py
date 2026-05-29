@@ -19,7 +19,7 @@ STT = array([
     [0, 1, 0]])
 conn = krpc.connect("RTLS")
 # tgt = (conn.space_center.target_vessel.flight().longitude, conn.space_center.target_vessel.flight().latitude)
-tgt = Targets_JNSQ.landing_zone_1
+tgt = Targets_JNSQ.landing_zone_2
 trf = create_target_reference_frame(conn, tgt)
 space_center = conn.space_center
 vessel = Rocket(space_center, space_center.active_vessel, trf)
@@ -161,63 +161,9 @@ IPS = ImapctPointSolver(
     body.angular_velocity(bnrf),
     (body.equatorial_radius + get_half_rocket_length(vessel) + body.bedrock_height(tgt[1], tgt[0]), 0, 0),
 )
-
-error = [np.inf]
-t_e = space_center.ut
-while True:
-    if space_center.ut - t_e <= 0.019:
-        continue
-    t_e = space_center.ut
-    position = vessel.position()
-    velocity = vessel.velocity()
-    body_ip = IPS.predict_impact_point()['event_X'][0][0:3]
-    targ_ip = transform_to_target_frame(body_ip, target_origion, tgt[0], tgt[1])
-    # targ_ip = space_center.transform_position(tuple(body_ip), brf, trf)
-    estimated_landing_point = targ_ip
-    horizontal_error = norm(estimated_landing_point[1:3])
-    # t_c = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g0 * position[0])) / g0, (velocity[0] + sqrt(velocity[0]**2 + 2 * g0 * position[0])) / g0)
-
-    # target_direction = (0, -(position + t_c * velocity)[1], -(position + t_c * velocity)[2])
-    target_direction = - normalize(estimated_landing_point)
-    vessel.update_ap(target_direction)
-    vessel.vessel.control.throttle = 1
-    IPS.mass = vessel.vessel.mass
-    IPS.position = transform_to_body_frame(position, target_origion, tgt[0], tgt[1])
-    IPS.velocity = transform_to_body_frame(velocity, target_origion, tgt[0], tgt[1], is_velocity=True)
-    # IPS.k = norm(vessel.vessel.flight(brf).aerodynamic_force) / norm(vessel.vessel.velocity(brf))**2
-    print("ERROR: %.3f" % (horizontal_error))
-    if norm(estimated_landing_point[1:3]) <= 5000 and norm(estimated_landing_point[1:3]) > min(error):
-        vessel.vessel.control.throttle = 0
-        break
-    else:
-        error.append(norm(estimated_landing_point[1:3]))
-
-while vessel.velocity()[0] > 0:
-    vessel.update_ap((1, 0, 0))
-t_e = space_center.ut
-# while vessel.velocity()[0] < 0:
-#     if space_center.ut - t_e <= 0.019:
-#         continue
-#     t_e = space_center.ut
-#     position = vessel.position()
-#     velocity = vessel.velocity()
-#     IPS.mass = vessel.vessel.mass
-#     IPS.position = transform_to_body_frame(position, target_origion, tgt[0], tgt[1])
-#     IPS.velocity = transform_to_body_frame(velocity, target_origion, tgt[0], tgt[1], is_velocity=True)
-#     body_ip = IPS.predict_impact_point()['event_X'][0, :3]
-#     targ_ip = transform_to_target_frame(body_ip, target_origion, tgt[0], tgt[1])
-#     if vessel.position()[0] <= 70000 and norm(targ_ip[1:3]) >= 1000:
-#         target_direction = - normalize(targ_ip)
-#         target_direction = conic_clamp(-velocity, target_direction, 5)
-#         vessel.update_ap(target_direction)
-#         vessel.vessel.control.throttle = 1
-#         print(targ_ip[1:3])
-#         if norm(targ_ip[1:3]) < 1000:
-#             break
-
 print('AERODYNAMIC GUIDANCE:')
 atd = body.atmosphere_depth
-last_ip = estimated_landing_point
+targ_ip = np.zeros(3)
 t_e = space_center.ut
 intergral_error = np.zeros(2)
 while True: 
@@ -228,8 +174,8 @@ while True:
     position = vessel.position()
     velocity = vessel.velocity()
     body_ip = IPS.predict_impact_point()['event_X'][0, :3]
-    last_ip = targ_ip
     targ_ip = transform_to_target_frame(body_ip, target_origion, tgt[0], tgt[1])
+    last_ip = targ_ip
     dt = space_center.ut - t0
     ip_vel = (targ_ip-last_ip) / dt
     estimated_landing_point = targ_ip
@@ -249,7 +195,7 @@ while True:
     IPS.mass = vessel.vessel.mass
     IPS.position = transform_to_body_frame(position, target_origion, tgt[0], tgt[1])
     IPS.velocity = transform_to_body_frame(velocity, target_origion, tgt[0], tgt[1], is_velocity=True)
-    if position[0] <= min(ignition_height(vessel, trf, 0, 0), 10000):
+    if position[0] <= min(ignition_height(vessel, trf, 0, 0), 10000) and norm(estimated_landing_point[1:3]) <= 20:
         vessel.vessel.control.throttle = 1
         break
 
@@ -280,21 +226,15 @@ while True:
     else:
         time_to_land = sqrt(2*position[0]/g0) if position[0] > 0 else 0
     estimated_landing_point = position + velocity*time_to_land
-    damping_factor = 2.0
-    target_direction = -estimated_landing_point - velocity * damping_factor
-    target_direction = normalize(target_direction)
-    lift = calculate_horizontal_lift(position,
-                                     velocity,
-                                     target_direction,
-                                     diameter,
-                                     length,
-                                     vessel.vessel.flight(trf).atmosphere_density,
-                                     vessel.vessel.flight(trf).lift_coefficient)
-    lift_to_thrust_ratio = lift[1] / (thrust)
+    v_imp = -sqrt(velocity[0]**2 + a_eff * 2 * position[0])
     target_direction = -velocity
     vessel.update_ap(target_direction)
-    vessel.vessel.control.throttle = descent_throttle(vessel, hrl, 0)
-    print("%.2f\t%.2f" % (thrust*sin(angle_between(-velocity, target_direction)), lift_to_thrust_ratio))
+    if v_imp < 0:
+        throttle = descent_throttle(vessel, hrl, 0) + 0.05
+    else:
+        throttle = descent_throttle(vessel, hrl, 0) - 0.05
+    vessel.vessel.control.throttle = throttle
+    print(v_imp)
     if velocity[0] >= 0:
         vessel.vessel.control.throttle = 0
         break

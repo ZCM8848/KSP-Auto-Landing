@@ -1,4 +1,5 @@
 import krpc
+import time
 from solver.RTLS.solver_simple import ImapctPointSolver
 from typing import List, Tuple
 import numpy as np
@@ -6,11 +7,13 @@ from tqdm import trange
 from math import sqrt, sin, radians
 from control import PID
 from typing import Optional
+from solver.GFOLD import GFoldConfig, GFoldSolver
+from solver.GFOLD.compiled_solvers.normal_landing.cpg_solver import cpg_solve
 
 from internal.utils import ignition_height, descent_throttle, get_half_rocket_length, landed, transform_to_target_frame, transform_to_body_frame
 from control import normalize, norm, array, conic_clamp, angle_between
 from control import Rocket, clamp
-from internal.behaviors import create_target_reference_frame
+from internal.behaviors import create_target_reference_frame, create_solver_reference_frame, upsample_traj, draw_trajectory
 from internal.targets import *
 
 STT = array([
@@ -19,8 +22,9 @@ STT = array([
     [0, 1, 0]])
 conn = krpc.connect("RTLS")
 # tgt = (conn.space_center.target_vessel.flight().longitude, conn.space_center.target_vessel.flight().latitude)
-tgt = Targets_JNSQ.landing_zone_1
+tgt = Targets_JNSQ.landing_zone_2
 trf = create_target_reference_frame(conn, tgt)
+srf = create_solver_reference_frame(conn, trf)
 space_center = conn.space_center
 vessel = Rocket(space_center, space_center.active_vessel, trf)
 # vessel.vessel.control.input_mode = space_center.ControlInputMode.override
@@ -153,6 +157,41 @@ def get_density_data(vessel, trf, atd: float) -> List[Tuple[float, float]]:
 
     return list(zip(altitude.tolist(), density.tolist()))
 
+def has_nan(a):
+    return bool(np.isnan(a).any())
+
+
+def solve_gfold(vessel):
+    params = GFoldConfig()
+    params.spacecraft.initial_position = array(vessel.vessel.position(srf))
+    params.spacecraft.initial_velocity = array(vessel.vessel.velocity(srf))
+    params.spacecraft.target_velocity = array([0, 0, 0])
+    params.spacecraft.target_position = array([0, 0, 0])
+    params.spacecraft.wet_mass = vessel.vessel.mass
+    params.spacecraft.fuel = vessel.vessel.mass - vessel.vessel.dry_mass
+    params.spacecraft.real_max_thrust = vessel.vessel.available_thrust
+    params.spacecraft.fuel_consumption = 1 / (g0*vessel.vessel.specific_impulse)
+    params.spacecraft.min_thrust_pct = 0.4
+    params.spacecraft.max_thrust_pct = 1
+    params.environment.max_angle = 10
+    params.environment.gravity = array([0, 0, -g0])
+    params.environment.glide_slope_angle = 45
+    params.solver.n = 100
+    solver = GFoldSolver(params)
+    solver.problem.register_solve('CPG', cpg_solve)
+    solver.problem.solve(method='CPG')
+    result = dict()
+    result['status'] = solver.problem.status
+    result['x'] = solver.variables['x'].value
+    result['u'] = solver.variables['u'].value
+    if has_nan(result['u']) or has_nan(result['x']):
+        result['status'] = "4"
+    for u in result['u']:
+        if u[2] < 0:
+            result['status'] = "4"
+            break
+    return result
+
 IPS = ImapctPointSolver(
     vessel.vessel.mass,
     vessel.vessel.position(brf),
@@ -162,62 +201,9 @@ IPS = ImapctPointSolver(
     (body.equatorial_radius + get_half_rocket_length(vessel) + body.bedrock_height(tgt[1], tgt[0]), 0, 0),
 )
 
-error = [np.inf]
-t_e = space_center.ut
-while True:
-    if space_center.ut - t_e <= 0.019:
-        continue
-    t_e = space_center.ut
-    position = vessel.position()
-    velocity = vessel.velocity()
-    body_ip = IPS.predict_impact_point()['event_X'][0][0:3]
-    targ_ip = transform_to_target_frame(body_ip, target_origion, tgt[0], tgt[1])
-    # targ_ip = space_center.transform_position(tuple(body_ip), brf, trf)
-    estimated_landing_point = targ_ip
-    horizontal_error = norm(estimated_landing_point[1:3])
-    # t_c = max((velocity[0] - sqrt(velocity[0]**2 + 2 * g0 * position[0])) / g0, (velocity[0] + sqrt(velocity[0]**2 + 2 * g0 * position[0])) / g0)
-
-    # target_direction = (0, -(position + t_c * velocity)[1], -(position + t_c * velocity)[2])
-    target_direction = - normalize(estimated_landing_point)
-    vessel.update_ap(target_direction)
-    vessel.vessel.control.throttle = 1
-    IPS.mass = vessel.vessel.mass
-    IPS.position = transform_to_body_frame(position, target_origion, tgt[0], tgt[1])
-    IPS.velocity = transform_to_body_frame(velocity, target_origion, tgt[0], tgt[1], is_velocity=True)
-    # IPS.k = norm(vessel.vessel.flight(brf).aerodynamic_force) / norm(vessel.vessel.velocity(brf))**2
-    print("ERROR: %.3f" % (horizontal_error))
-    if norm(estimated_landing_point[1:3]) <= 5000 and norm(estimated_landing_point[1:3]) > min(error):
-        vessel.vessel.control.throttle = 0
-        break
-    else:
-        error.append(norm(estimated_landing_point[1:3]))
-
-while vessel.velocity()[0] > 0:
-    vessel.update_ap((1, 0, 0))
-t_e = space_center.ut
-# while vessel.velocity()[0] < 0:
-#     if space_center.ut - t_e <= 0.019:
-#         continue
-#     t_e = space_center.ut
-#     position = vessel.position()
-#     velocity = vessel.velocity()
-#     IPS.mass = vessel.vessel.mass
-#     IPS.position = transform_to_body_frame(position, target_origion, tgt[0], tgt[1])
-#     IPS.velocity = transform_to_body_frame(velocity, target_origion, tgt[0], tgt[1], is_velocity=True)
-#     body_ip = IPS.predict_impact_point()['event_X'][0, :3]
-#     targ_ip = transform_to_target_frame(body_ip, target_origion, tgt[0], tgt[1])
-#     if vessel.position()[0] <= 70000 and norm(targ_ip[1:3]) >= 1000:
-#         target_direction = - normalize(targ_ip)
-#         target_direction = conic_clamp(-velocity, target_direction, 5)
-#         vessel.update_ap(target_direction)
-#         vessel.vessel.control.throttle = 1
-#         print(targ_ip[1:3])
-#         if norm(targ_ip[1:3]) < 1000:
-#             break
-
 print('AERODYNAMIC GUIDANCE:')
 atd = body.atmosphere_depth
-last_ip = estimated_landing_point
+targ_ip = np.zeros(3)
 t_e = space_center.ut
 intergral_error = np.zeros(2)
 while True: 
@@ -250,53 +236,97 @@ while True:
     IPS.position = transform_to_body_frame(position, target_origion, tgt[0], tgt[1])
     IPS.velocity = transform_to_body_frame(velocity, target_origion, tgt[0], tgt[1], is_velocity=True)
     if position[0] <= min(ignition_height(vessel, trf, 0, 0), 10000):
-        vessel.vessel.control.throttle = 1
+        # vessel.vessel.control.throttle = 1
+        vessel.update_ap(-velocity)
         break
-
-pid_throttle = PID()
-pid_throttle.kp = 0.05
-pid_throttle.ki = 0.01
-pid_throttle.kd = 0.02
-hrl = get_half_rocket_length(vessel)
-t_e = space_center.ut
-length = 2*get_half_rocket_length(vessel)
-diameter = get_rocket_diameter(vessel)
-C_l = vessel.vessel.flight(trf).lift_coefficient
-AoA = 5
-
+throttle_pid = PID()
+throttle_pid.kp = 0.1
+throttle_pid.ki = 0
+throttle_pid.kd = 0.5
+terminal = False
+need_retry = True
+draw = True
+use_upsample = True
+last_retry_time = space_center.ut
+target_direction = array([0,0,1])
 while True:
-    if space_center.ut - t_e <= 0.019:
-        continue
-    t_e = space_center.ut
-    # t0 = space_center.ut
+    t_s = space_center.ut
+    mass = vessel.vessel.mass
+    available_thrust = vessel.vessel.available_thrust
     position = vessel.position()
     velocity = vessel.velocity()
-    mass = vessel.vessel.mass
-    thrust = vessel.vessel.thrust
-    a_eff = (thrust / mass) - g0
-    if a_eff > 0.1:
-        # 解析解考虑速度
-        time_to_land = (velocity[0] + sqrt(velocity[0]**2 + 2*a_eff*position[0])) / a_eff
-    else:
-        time_to_land = sqrt(2*position[0]/g0) if position[0] > 0 else 0
-    estimated_landing_point = position + velocity*time_to_land
-    damping_factor = 2.0
-    target_direction = -estimated_landing_point - velocity * damping_factor
-    target_direction = normalize(target_direction)
-    lift = calculate_horizontal_lift(position,
-                                     velocity,
-                                     target_direction,
-                                     diameter,
-                                     length,
-                                     vessel.vessel.flight(trf).atmosphere_density,
-                                     vessel.vessel.flight(trf).lift_coefficient)
-    lift_to_thrust_ratio = lift[1] / (thrust)
-    target_direction = -velocity
     vessel.update_ap(target_direction)
-    vessel.vessel.control.throttle = descent_throttle(vessel, hrl, 0)
-    print("%.2f\t%.2f" % (thrust*sin(angle_between(-velocity, target_direction)), lift_to_thrust_ratio))
-    if velocity[0] >= 0:
+    half_rocket_length = get_half_rocket_length(vessel.vessel)
+
+    if need_retry:
+        while True:
+            print(position, velocity)
+            t0 = time.time()
+            last_retry_time = space_center.ut
+            solution = solve_gfold(vessel)
+            status = solution['status']
+            if all(ch not in status for ch in ("0", "3", "4")):
+                print("All constraints satisfied")
+                print(f"Time cost: {time.time() - t0}")
+                break
+            else:
+                print("Some constraints not satisfied, ignored")
+                print(f"Time cost: {time.time() - t0}")
+        need_retry = False
+        # draw = True
+
+
+    if use_upsample:
+        trajectory_position = upsample_traj(solution['x'][:, :3])
+        trajectory_velocity = upsample_traj(solution['x'][:, 3:6])
+        trajectory_acceleration = upsample_traj(solution['u'])
+    else:
+        trajectory_position = solution['x'][:, :3]
+        trajectory_velocity = solution['x'][:, 3:6]
+        trajectory_acceleration = solution['u']
+
+    if 0: 
+        conn.krpc.paused = True
+        draw_trajectory(conn, trajectory_position, trajectory_acceleration, trf)
+        conn.krpc.paused = False
+        draw = False
+
+    results_position = []
+    for point in trajectory_position:
+        results_position.append(norm(point - position))
+    min_index = results_position.index(min(results_position))
+
+    # define waypoints
+    position_waypoint = array(trajectory_position[min_index])
+    velocity_waypoint = array(trajectory_velocity[min_index])
+    acceleration_waypoint = array(trajectory_acceleration[min_index])
+
+    # define errors
+    velocity_error = velocity_waypoint - velocity
+    position_error = position_waypoint - position
+
+    # main control
+    target_direction = acceleration_waypoint + velocity_error * 0.3 + position_error * 0.1
+    # throttle = clamp(throttle, THROTTLE_LIMIT[0], THROTTLE_LIMIT[1])
+    landing_time = norm(position) / norm(velocity)
+    estimated_impact_speed = velocity[2] + vessel.vessel.thrust / mass * landing_time
+    compensation = throttle_pid.update(-0.01*estimated_impact_speed, space_center.ut-t_s)
+    compensation = compensation if compensation > 0 else 0
+    throttle = (norm(target_direction) * mass / available_thrust) 
+    # if terminal: throttle = max(descent_throttle(vessel, half_rocket_length), throttle)
+    # target_direction = conic_clamp(array([0,0,1]), target_direction, 10)
+    vessel.update_ap(target_direction)
+    print(f"throttle: {throttle}, landing time: {landing_time}, estimated impact speed: {estimated_impact_speed}")
+
+    if not terminal and angle_between(target_direction, array([0,0,1])) > radians(10) and space_center.ut - last_retry_time > 5:
+        print('retry')
+        need_retry = True
+    else:
+        vessel.vessel.control.throttle = throttle if velocity[2] < -2 else mass * g0 / available_thrust
+    
+    if landing_time < 5:
+        terminal = True
+
+    if velocity[2] >= 0:
         vessel.vessel.control.throttle = 0
         break
-    if position[0] <= 1000:
-        vessel.vessel.control.gear = True
