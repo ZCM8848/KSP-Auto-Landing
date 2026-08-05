@@ -22,12 +22,11 @@ def create_target_reference_frame(conn:krpc.client.Client, target):
     else:
         target_reference_frame_height = body.equatorial_radius + body.surface_height(target_lat, target_lon)
     reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, position=(target_reference_frame_height, 0., 0.))
+    # spin around y-axis by 90 degrees
+    temp_reference_frame = space_center.ReferenceFrame.create_relative(reference_frame, rotation=(0., sin(radians(45)), 0., cos(radians(45))))
+    # spin around z-axis by 90 degrees
+    reference_frame = space_center.ReferenceFrame.create_relative(temp_reference_frame, rotation=(0., 0., sin(radians(45)), cos(radians(45))))
     return reference_frame
-
-def create_solver_reference_frame(conn:krpc.client.Client, target_reference_frame):
-    temp_reference_frame = conn.space_center.ReferenceFrame.create_relative(target_reference_frame, rotation=(0., sin(radians(45)), 0., cos(radians(45))))
-    temp_reference_frame = conn.space_center.ReferenceFrame.create_relative(temp_reference_frame, rotation=(0., 0., sin(radians(45)), cos(radians(45))))
-    return temp_reference_frame
 
 
 # debug
