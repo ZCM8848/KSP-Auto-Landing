@@ -12,7 +12,6 @@ from tests.fakes import FakeClient, FakeVessel
 def _pump(client: FakeClient, predicate: Callable[[], Any], timeout: float = 3.0) -> Any:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        client._pending.set()
         result = predicate()
         if result is not None:
             return result

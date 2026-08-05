@@ -23,6 +23,6 @@ with ConnectionManager(address="127.0.0.1") as km:
     for i in range(100):
         time.sleep(0.1)
         s = km.snapshot("booster-01")
-        if s is not None:
-            print(s.mass)
+        # if s is not None:
+        print(s.mass)
     km.abort_all()                           # 全船急停：油门归零 + AutoPilot 解除

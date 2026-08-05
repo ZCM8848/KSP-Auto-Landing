@@ -16,3 +16,6 @@ GUI_test.py
 .ruff_cache/
 .mypy_cache/
 src/*.egg-info/
+build/
+dist/
+.eggs/

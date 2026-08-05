@@ -19,14 +19,12 @@ class Telemetry:
         frame: Any,
         telemetry_hz: float = 20.0,
         isp_refresh_hz: float = 2.0,
-        wait_timeout: float = 0.1,
     ) -> None:
         self._client = client
         self._vessel = vessel
         self._frame = frame
         self._telemetry_interval = 1.0 / telemetry_hz
         self._isp_interval = 1.0 / isp_refresh_hz
-        self._wait_timeout = wait_timeout
         self._streams: list[tuple[str, Any]] = []
         self._snapshot: FlightState | None = None
         self._isp = 0.0
@@ -44,7 +42,7 @@ class Telemetry:
     def stop(self) -> None:
         self._stop.set()
         if self._thread is not None:
-            self._thread.join(timeout=self._wait_timeout + 1.0)
+            self._thread.join(timeout=2.0)
             self._thread = None
         for _, stream in self._streams:
             stream.remove()
@@ -87,21 +85,18 @@ class Telemetry:
         add("packed", getattr, vessel, "packed")
 
     def _run(self) -> None:
-        condition = self._client.stream_update_condition
-        with condition:
-            while not self._stop.is_set():
-                if not self._client.wait_for_stream_update(timeout=self._wait_timeout):
-                    continue
-                now = time.monotonic()
-                if now - self._last_snapshot_t < self._telemetry_interval:
-                    continue
-                self._last_snapshot_t = now
-                if now - self._last_isp_t >= self._isp_interval:
-                    self._last_isp_t = now
-                    self._refresh_isp()
-                snapshot = self._build_snapshot()
-                with self._lock:
-                    self._snapshot = snapshot
+        while not self._stop.is_set():
+            time.sleep(self._telemetry_interval)
+            if self._stop.is_set():
+                break
+            now = time.monotonic()
+            self._last_snapshot_t = now
+            if now - self._last_isp_t >= self._isp_interval:
+                self._last_isp_t = now
+                self._refresh_isp()
+            snapshot = self._build_snapshot()
+            with self._lock:
+                self._snapshot = snapshot
 
     def _refresh_isp(self) -> None:
         try:
