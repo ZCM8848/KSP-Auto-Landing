@@ -12,3 +12,7 @@ landing copy.py
 GUI_test.py
 /solver/landing/__pycache__
 /solver/RTLS/__pycache__
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+src/*.egg-info/
