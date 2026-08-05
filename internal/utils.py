@@ -3,7 +3,7 @@ from tqdm import trange
 from numpy.linalg import norm
 from collections import Counter
 
-from math import sin, cos, radians, sqrt
+from math import sin, cos, radians
 from .targets import Targets, Targets_JNSQ
 
 # define target reference frame

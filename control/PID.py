@@ -1,5 +1,9 @@
-from .control_utils import lerp, clamp
+def lerp(vec1, vec2, t):
+    return t * vec2 + (1 - t) * vec1
 
+
+def clamp(num, limit1, limit2):
+    return max(min(num, max(limit1, limit2)), min(limit1, limit2))
 
 class PID:
     def __init__(self):
