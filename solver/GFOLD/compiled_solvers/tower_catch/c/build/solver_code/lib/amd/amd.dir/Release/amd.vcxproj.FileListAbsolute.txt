@@ -1,1 +1,0 @@
-D:\projects\KSP-Auto-Landing\solver\GFOLD\compiled_solvers\tower_catch\c\build\solver_code\lib\amd\amd.dir\Release\amd.lib
