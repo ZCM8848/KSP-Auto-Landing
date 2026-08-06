@@ -77,18 +77,7 @@ def main():
         frame = km.frame("aero", "target")
 
         # build predictor
-        omega = tuple(np.array(body.direction(frame)) * body.rotational_speed)
-        body_center = tuple(np.array(body.position(frame)))
-        body_radius = float(
-            body.equatorial_radius
-            + body.surface_height(LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
-        )
-        predictor = LandingPredictor(
-            mu=body.gravitational_parameter,
-            omega=omega,
-            body_center=body_center,
-            body_radius=body_radius,
-        )
+        predictor = LandingPredictor.from_body(body, frame, LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
 
         # debug: target frame axes + vessel frame
         b.debug.reference_frame(frame_name="target", length=10)
@@ -108,10 +97,9 @@ def main():
                 continue
 
             elapsed = time.monotonic() - start
-            pos = np.array([s.position[0], s.position[1], s.position[2]])
             vel = np.array([s.velocity[0], s.velocity[1], s.velocity[2]])
 
-            result = predictor.predict(pos, vel)
+            result = predictor.predict_from(s)
             if result is None:
                 print(f"{elapsed:6.1f}  no impact predicted")
                 s = float(np.linalg.norm(vel))

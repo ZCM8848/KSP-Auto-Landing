@@ -8,8 +8,10 @@ crosses the surface sphere.  The dynamics include:
 * Coriolis acceleration  (-2 * omega x v)
 * centrifugal acceleration  (-omega x (omega x r))
 
-All parameters are obtained from kRPC ``CelestialBody`` properties;
-the caller is responsible for converting them to the target frame.
+The recommended constructor is :meth:`LandingPredictor.from_body`, which
+derives all planetary constants from a kRPC ``CelestialBody``; callers can
+then use :meth:`predict` with :class:`Vector3` values or
+:meth:`predict_from` with a :class:`FlightState` snapshot.
 """
 
 from __future__ import annotations
@@ -17,10 +19,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from math import sqrt
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.integrate import solve_ivp
+
+from ..ksp.types import FlightState, Vector3
 
 Vec3 = tuple[float, float, float]
 
@@ -41,12 +46,9 @@ class LandingPredictor:
 
     Keyword Args:
         mu: Standard gravitational parameter (m^3/s^2).
-        omega: Planet rotation vector in the target frame (rad/s),
-            typically ``body.direction(target_frame) * body.rotational_speed``.
-        body_center: Position of the body centre in the target frame (m),
-            typically ``body.position(target_frame)``.
-        body_radius: Surface radius at the target (m), typically
-            ``body.equatorial_radius + body.surface_height(lat, lon)``.
+        omega: Planet rotation vector in the target frame (rad/s).
+        body_center: Position of the body centre in the target frame (m).
+        body_radius: Surface radius at the target (m).
     """
 
     def __init__(
@@ -62,11 +64,39 @@ class LandingPredictor:
         self._center = np.asarray(body_center, dtype=float)
         self._radius = float(body_radius)
 
+    @classmethod
+    def from_body(
+        cls,
+        body: Any,
+        target_frame: Any,
+        lat: float,
+        lon: float,
+    ) -> LandingPredictor:
+        """Construct a predictor from a kRPC ``CelestialBody``.
+
+        Queries the body for gravitational parameter, rotation vector,
+        surface radius, and body-centre position — all expressed in
+        *target_frame*.
+        """
+        omega = tuple(
+            np.array(body.direction(target_frame)) * body.rotational_speed
+        )
+        center = tuple(np.array(body.position(target_frame)))
+        radius = float(
+            body.equatorial_radius + body.surface_height(lat, lon)
+        )
+        return cls(
+            mu=float(body.gravitational_parameter),
+            omega=omega,
+            body_center=center,
+            body_radius=radius,
+        )
+
     def predict(
         self,
-        position: Sequence[float],
-        velocity: Sequence[float],
         *,
+        position: Vector3 | Sequence[float],
+        velocity: Vector3 | Sequence[float],
         t_max: float = 600.0,
         rtol: float = 1e-9,
         atol: float = 1e-9,
@@ -104,6 +134,25 @@ class LandingPredictor:
         return ImpactResult(
             position=(float(r_impact[0]), float(r_impact[1]), float(r_impact[2])),
             time=t_impact,
+        )
+
+    def predict_from(
+        self,
+        state: FlightState,
+        *,
+        t_max: float = 600.0,
+        rtol: float = 1e-9,
+        atol: float = 1e-9,
+    ) -> ImpactResult | None:
+        """Equivalent of :meth:`predict` reading position and velocity
+        directly from a :class:`FlightState` snapshot.
+        """
+        return self.predict(
+            position=state.position,
+            velocity=state.velocity,
+            t_max=t_max,
+            rtol=rtol,
+            atol=atol,
         )
 
     # -- internal -----------------------------------------------------------
