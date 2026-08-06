@@ -29,6 +29,13 @@ def _points(positions: Sequence[Any]) -> list[Vec3]:
 
 
 class DebugConnection:
+    """A dedicated kRPC connection used exclusively for debug drawing.
+
+    All vessels' ``DebugProxy`` instances share a single
+    ``DebugConnection`` so that drawing RPCs never contend with the
+    control connections.  Created by ``ConnectionManager.enable_debug()``.
+    """
+
     def __init__(self, *, name: str, address: str, rpc_port: int, stream_port: int) -> None:
         self._client = krpc.connect(
             name=name, address=address, rpc_port=rpc_port, stream_port=stream_port
@@ -37,13 +44,18 @@ class DebugConnection:
 
     @property
     def client(self) -> Any:
+        """The underlying kRPC ``Client`` for this debug session."""
         return self._client
 
     @property
     def closed(self) -> bool:
+        """Whether this connection has been closed."""
         return self._closed
 
     def close(self) -> None:
+        """Close the debug connection.  kRPC automatically removes all
+        drawn objects belonging to this client.  Idempotent.
+        """
         if self._closed:
             return
         self._closed = True
@@ -51,11 +63,19 @@ class DebugConnection:
 
 
 class DebugLine:
+    """A single line segment drawn in the flight scene.
+
+    Wraps a kRPC ``Drawing.Line`` object.  Its ``start`` and ``end``
+    properties are read/write, so lines can be moved without recreating them
+    (see :meth:`set_points`).
+    """
+
     def __init__(self, line: Any) -> None:
         self._line = line
 
     @property
     def color(self) -> RGB:
+        """Line colour as an (R, G, B) tuple, each channel 0.0–1.0."""
         return tuple(self._line.color)
 
     @color.setter
@@ -64,6 +84,7 @@ class DebugLine:
 
     @property
     def visible(self) -> bool:
+        """Whether the line is currently visible."""
         return bool(self._line.visible)
 
     @visible.setter
@@ -72,6 +93,7 @@ class DebugLine:
 
     @property
     def thickness(self) -> float:
+        """Line thickness."""
         return float(self._line.thickness)
 
     @thickness.setter
@@ -79,22 +101,31 @@ class DebugLine:
         self._line.thickness = value
 
     def set_points(self, start: Vec3, end: Vec3) -> None:
+        """Move the line to new endpoints without an ``add_line`` RPC."""
         self._line.start = start
         self._line.end = end
 
     def remove(self) -> None:
+        """Remove this line from the scene permanently."""
         self._line.remove()
 
     def clear(self) -> None:
+        """Alias for :meth:`remove`."""
         self.remove()
 
 
 class DebugMarker:
+    """A group of :class:`DebugLine` objects treated as a single drawable.
+    Returned by ``DebugProxy.reference_frame``.  Use :meth:`clear` to
+    remove all axes at once.
+    """
+
     def __init__(self, lines: list[DebugLine]) -> None:
         self._lines = lines
 
     @property
     def visible(self) -> bool:
+        """``True`` when every line in the marker is visible."""
         return all(line.visible for line in self._lines)
 
     @visible.setter
@@ -103,12 +134,28 @@ class DebugMarker:
             line.visible = value
 
     def clear(self) -> None:
+        """Remove every line in this marker from the scene."""
         for line in self._lines:
             line.remove()
         self._lines = []
 
 
 class DebugTrajectory:
+    """A chain of line segments representing a continuous trajectory.
+
+    Constructed once with an initial set of *positions* (N points produce
+    N-1 kRPC ``add_line`` calls).  Subsequent calls to :meth:`update`
+    with the same number of points only adjust ``start``/``end`` on the
+    existing segments — **no new ``add_line`` RPCs are issued**.
+
+    When the point count changes the entire trajectory is rebuilt
+    (old lines removed, new lines added).
+
+    Attributes:
+        name: The key used to retrieve this trajectory from
+            :class:`DebugProxy`.
+    """
+
     def __init__(
         self,
         *,
@@ -129,6 +176,7 @@ class DebugTrajectory:
 
     @property
     def color(self) -> RGB:
+        """Trajectory colour; sets every segment at once."""
         return self._color
 
     @color.setter
@@ -139,6 +187,7 @@ class DebugTrajectory:
 
     @property
     def visible(self) -> bool:
+        """Whether the trajectory is visible (applied to all segments)."""
         return all(line.visible for line in self._lines)
 
     @visible.setter
@@ -148,6 +197,7 @@ class DebugTrajectory:
 
     @property
     def thickness(self) -> float:
+        """Line thickness for all segments."""
         return self._thickness
 
     @thickness.setter
@@ -157,6 +207,16 @@ class DebugTrajectory:
             line.thickness = value
 
     def update(self, positions: Sequence[Any]) -> None:
+        """Replace the trajectory with a new set of waypoints.
+
+        If the number of waypoints has not changed, existing line segments
+        are repositioned via :meth:`DebugLine.set_points` — zero
+        ``add_line`` RPCs.  Otherwise the trajectory is rebuilt from
+        scratch.
+
+        *positions* accepts ``list[tuple]``, ``list[Vector3]``, or a 2-D
+        numpy array.
+        """
         points = _points(positions)
         if len(points) - 1 != len(self._lines):
             self._build(points)
@@ -165,6 +225,7 @@ class DebugTrajectory:
             line.set_points(points[index], points[index + 1])
 
     def clear(self) -> None:
+        """Remove every segment from the scene."""
         for line in self._lines:
             line.remove()
         self._lines = []
@@ -182,6 +243,24 @@ class DebugTrajectory:
 
 
 class DebugProxy:
+    """Per-vessel drawing interface backed by a shared debug connection.
+
+    Obtain via ``VesselHandle.debug`` after ``ConnectionManager.enable_debug()``.
+
+    Reference frames are recreated on the debug connection (frames are
+    per-connection objects) using the same math as the control side.  Five
+    frame names are supported:
+
+    * ``"target"`` — landing-site frame (needs ``register_target`` first)
+    * ``"body"`` — parent celestial body frame
+    * ``"vessel"`` — vessel-local frame (origin at CoM)
+    * ``"surface"`` — surface-relative frame
+    * ``"orbital"`` — orbital frame
+
+    All drawing methods accept ``frame_name`` to select which frame their
+    coordinates are expressed in.
+    """
+
     def __init__(
         self,
         *,
@@ -202,6 +281,7 @@ class DebugProxy:
         self._trajectories: dict[str, DebugTrajectory] = {}
 
     def _resolve_debug_vessel(self) -> Any:
+        """Lazily find this vessel on the debug connection by name."""
         if self._debug_vessel is not None:
             return self._debug_vessel
         for vessel in self._client.space_center.vessels:
@@ -213,6 +293,9 @@ class DebugProxy:
         )
 
     def set_target(self, *, lon: float, lat: float) -> None:
+        """Update the stored landing coordinates and bust the cached
+        ``"target"`` frame so it will be recreated on next access.
+        """
         self._target_lon = lon
         self._target_lat = lat
         self._frames.pop("target", None)
@@ -246,6 +329,12 @@ class DebugProxy:
         return frame
 
     def reference_frame(self, *, frame_name: str = "target", length: float = 10.0) -> DebugMarker:
+        """Draw the three axes of *frame_name* as red (x), green (y), and
+        blue (z) lines of length *length* originating at the frame's origin.
+
+        Returns a :class:`DebugMarker` whose :meth:`~DebugMarker.clear`
+        removes all three axes.
+        """
         frame = self._frame(frame_name)
         origin = (0.0, 0.0, 0.0)
         ends: list[Vec3] = [(length, 0.0, 0.0), (0.0, length, 0.0), (0.0, 0.0, length)]
@@ -268,6 +357,11 @@ class DebugProxy:
         color: RGB = (1.0, 1.0, 1.0),
         thickness: float = 0.1,
     ) -> DebugLine:
+        """Draw a direction vector starting from the origin of *frame_name*.
+
+        Returns a :class:`DebugLine` that can be toggled, recoloured, or
+        removed later.
+        """
         frame = self._frame(frame_name)
         line = DebugLine(self._client.drawing.add_direction(direction, frame, length=length))
         line.color = color
@@ -284,6 +378,11 @@ class DebugProxy:
         color: RGB = (1.0, 1.0, 1.0),
         thickness: float = 0.1,
     ) -> DebugLine:
+        """Draw an arbitrary line segment from *start* to *end* in
+        *frame_name*.
+
+        Returns a :class:`DebugLine`.
+        """
         frame = self._frame(frame_name)
         line = DebugLine(self._client.drawing.add_line(start, end, frame))
         line.color = color
@@ -300,6 +399,28 @@ class DebugProxy:
         color: RGB = (0.0, 1.0, 0.0),
         thickness: float = 0.2,
     ) -> DebugTrajectory | None:
+        """Create, update, or retrieve a named trajectory.
+
+        **Create / update** — pass *positions* (N waypoints) and a
+        string *name*::
+
+            proxy.trajectory(waypoints, name="predicted", frame_name="target")
+
+        **Retrieve** — pass a string as the first argument::
+
+            traj = proxy.trajectory("predicted")
+
+        When the number of waypoints is unchanged between calls only
+        ``start`` / ``end`` positions are patched on the existing line
+        segments — no ``add_line`` RPCs.
+
+        *positions* may be a ``list[tuple]``, ``list[Vector3]``, or a
+        2-D ``numpy.ndarray`` of shape ``(N, 3)``.
+
+        Raises:
+            ValueError: if *name* or *positions* are missing during
+                creation.
+        """
         if isinstance(positions, str):
             return self._trajectories.get(positions)
         if name is None:
@@ -324,9 +445,11 @@ class DebugProxy:
 
     @property
     def trajectories(self) -> dict[str, DebugTrajectory]:
+        """A shallow copy of ``{name: DebugTrajectory}``."""
         return dict(self._trajectories)
 
     def clear(self, name: str) -> None:
+        """Remove the named trajectory and delete its registration."""
         trajectory = self._trajectories.pop(name, None)
         if trajectory is not None:
             trajectory.clear()
@@ -334,6 +457,10 @@ class DebugProxy:
                 self._owned.remove(trajectory)
 
     def clear_all(self) -> None:
+        """Remove **every** drawable owned by this proxy (reference frames,
+        directions, lines, and trajectories), clearing the scene for
+        this vessel.
+        """
         for drawable in self._owned:
             drawable.clear()
         self._owned = []

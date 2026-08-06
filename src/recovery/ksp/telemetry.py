@@ -11,6 +11,23 @@ from .types import FlightState, Quaternion, Situation, Vector3
 
 
 class Telemetry:
+    """Stream-based telemetry aggregator for a single vessel.
+
+    Registers kRPC streams for position, velocity, attitude, mass, thrust,
+    throttle, situation, and atmosphere density.  A background thread polls
+    the stream cache at *telemetry_hz* and builds frozen
+    :class:`FlightState` snapshots.
+
+    Keyword Args:
+        client: kRPC ``Client`` for this vessel.
+        vessel: Resolved kRPC ``Vessel``.
+        frame: Reference frame to express position/velocity/rotation in.
+        telemetry_hz: Snapshot publication frequency.
+        isp_refresh_hz: How often to recompute combined Isp from active
+            engines (this involves engine iteration, which is costlier
+            than a stream read).
+    """
+
     def __init__(
         self,
         *,
@@ -35,11 +52,15 @@ class Telemetry:
         self._last_isp_t = 0.0
 
     def start(self) -> None:
+        """Register kRPC streams and launch the background updater thread."""
         self._register_streams()
         self._thread = threading.Thread(target=self._run, name="telemetry", daemon=True)
         self._thread.start()
 
     def stop(self) -> None:
+        """Signal the background thread to exit, join it, and remove all
+        streams from the server.
+        """
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
@@ -49,6 +70,7 @@ class Telemetry:
         self._streams.clear()
 
     def get(self) -> FlightState | None:
+        """Return the latest snapshot, or ``None`` before the first frame."""
         with self._lock:
             return self._snapshot
 

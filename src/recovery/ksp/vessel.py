@@ -15,6 +15,18 @@ if TYPE_CHECKING:
 
 
 class VesselHandle:
+    """Public handle returned by ``ConnectionManager.add_booster`` and
+    ``ConnectionManager.vessel``.
+
+    The handle is the primary entry point for interaction with a single
+    booster: reading telemetry snapshots, issuing control commands,
+    managing the physics bubble, and accessing debug drawing tools.
+
+    Attributes:
+        control_hz: Suggested control-loop frequency (Hz) for this booster.
+            Set during registration; consumed by the orchestration scheduler.
+    """
+
     def __init__(
         self,
         *,
@@ -35,18 +47,26 @@ class VesselHandle:
 
     @property
     def name(self) -> str:
+        """The vessel name as it appears in-game."""
         return str(self._vessel.name)
 
     @property
     def controls(self) -> VesselControls:
+        """The :class:`VesselControls` gateway for this vessel."""
         return self._controls
 
     @property
     def is_open(self) -> bool:
+        """``True`` while the underlying kRPC connection is still alive."""
         return not self._connection.closed
 
     @property
     def debug(self) -> DebugProxy:
+        """Lazily-built :class:`DebugProxy` for in-game drawing.
+
+        Requires ``ConnectionManager.enable_debug()`` to have been called
+        first; otherwise raises ``RuntimeError``.
+        """
         if self._debug_proxy is None:
             connection = self._debug_provider()
             if connection is None:
@@ -62,20 +82,39 @@ class VesselHandle:
 
     @property
     def raw(self) -> Any:
-        """The underlying kRPC Vessel object.
+        """Escape hatch: the underlying kRPC ``Vessel`` remote object.
 
-        Escape hatch for anything not yet wrapped; bypasses snapshot isolation
-        and all safety checks.
+        Use for any kRPC functionality not yet wrapped.  Bypasses
+        snapshot isolation and all safety checks — the caller is
+        responsible for avoiding expensive synchronous RPCs inside the
+        control loop.
         """
         return self._vessel
 
     def snapshot(self) -> FlightState | None:
+        """Return the latest frozen telemetry snapshot, or ``None`` when
+        the telemetry thread has not yet produced its first frame.
+        """
         return self._connection.snapshot()
 
     def frame(self, name: str = "target") -> Any:
+        """Return a kRPC reference frame handle by name.
+
+        *name* must be ``"target"`` (requires a prior ``register_target``)
+        or ``"surface"``.
+        """
         return self._connection.frame(name)
 
     def register_target(self, *, lon: float, lat: float) -> None:
+        """Register a landing-site target for this vessel.
+
+        Must be called **before** ``start()``.  Builds the target
+        reference frame on the control connection and records the
+        coordinates so the debug proxy can recreate it later.
+
+        Raises:
+            RuntimeError: if called after ``start()``.
+        """
         self._target_lon = lon
         self._target_lat = lat
         self._connection.register_target(lon=lon, lat=lat)
@@ -83,13 +122,22 @@ class VesselHandle:
             self._debug_proxy.set_target(lon=lon, lat=lat)
 
     def start(self) -> None:
+        """Start telemetry streaming for this vessel. Idempotent."""
         self._connection.start()
 
     def close(self) -> None:
+        """Stop telemetry, zero the throttle, and close the kRPC
+        connection. Idempotent.
+        """
         self._connection.close()
 
     @property
     def physics_range(self) -> float:
+        """Physics bubble radius in metres.  Set to a large value to keep
+        this vessel off-rails while the active vessel is far away (enables
+        simultaneous control of multiple boosters).  Set to 0 to restore
+        the game's default.
+        """
         return float(self._vessel.physics_range)
 
     @physics_range.setter
@@ -97,6 +145,10 @@ class VesselHandle:
         self._vessel.physics_range = value
 
     def is_controllable(self) -> bool:
+        """Return ``True`` when the vessel is loaded and has its physics
+        simulation running (i.e. it can accept control inputs).  Returns
+        ``False`` while the telemetry snapshot is not yet available.
+        """
         state = self.snapshot()
         if state is None:
             return False

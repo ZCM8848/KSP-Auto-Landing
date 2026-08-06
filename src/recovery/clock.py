@@ -13,15 +13,30 @@ class FramePacer:
     fixed origin, so the long-run average rate matches ``hz`` exactly even when
     individual ticks jitter. If a tick runs past several boundaries the missed
     frames are skipped instead of accumulating lag.
+
+    Usage::
+
+        pacer = FramePacer(hz=50.0)
+        while running:
+            pacer.tick()
+            # ... per-frame work using pacer.hz or pacer.period ...
     """
 
     def __init__(self, hz: float) -> None:
+        """Create a pacer locked to *hz* frames per second.
+
+        Raises:
+            ValueError: if *hz* is not positive.
+        """
         self.hz = hz
         self._origin = time.monotonic()
         self._prev: float | None = None
 
     @property
     def hz(self) -> float:
+        """Target frequency in frames per second. Setting it re-computes
+        ``period`` immediately; the next ``tick()`` call honours the new rate.
+        """
         return self._hz
 
     @hz.setter
@@ -32,10 +47,18 @@ class FramePacer:
 
     @property
     def period(self) -> float:
+        """Target frame duration in seconds (``1.0 / hz``)."""
         return 1.0 / self._hz
 
     def tick(self) -> float:
-        """Block until the next frame boundary and return the elapsed dt."""
+        """Block until the next frame boundary and return the elapsed *dt* in
+        seconds.
+
+        The returned *dt* equals ``period`` on the first call and the real
+        wall-clock delta on subsequent calls (which may be larger than
+        ``period`` if the preceding tick was slow — the pacer catches up by
+        skipping missed boundaries rather than queuing them).
+        """
         now = time.monotonic()
         elapsed = now - self._origin
         frame = max(1, math.ceil(elapsed / self.period))
