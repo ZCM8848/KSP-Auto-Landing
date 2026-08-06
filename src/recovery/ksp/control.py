@@ -268,7 +268,20 @@ class VesselControls:
             self._auto_pilot.up_reference = tuple(up)
         if roll_angle is not None:
             self._auto_pilot.target_roll = roll_angle
-        self.engage_auto_pilot()
+        if not self.auto_pilot_engaged:
+            self.engage_auto_pilot()
+
+    @property
+    def target_smoothing_time(self) -> float:
+        """The duration (seconds) over which a change to ``target_direction``
+        is slewed smoothly by the kRPC AutoPilot.  Set to 0.0 for instant
+        response; 0.2--0.5 is typical for gfld-guided trajectories.
+        """
+        return float(self._auto_pilot.target_smoothing_time)
+
+    @target_smoothing_time.setter
+    def target_smoothing_time(self, value: float) -> None:
+        self._auto_pilot.target_smoothing_time = value
 
     # -- staging / action groups -------------------------------------------
 

@@ -18,6 +18,7 @@ class FakeAutoPilot:
         self.target_direction: Vector | None = None
         self.up_reference: Vector | None = None
         self.target_roll: float | None = None
+        self.target_smoothing_time = 0.0
 
 
 class FakeControl:

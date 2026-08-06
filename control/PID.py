@@ -27,6 +27,8 @@ class PID:
         self.dumpf = None
 
     def update(self, error, dt):
+        if dt <= 0:
+            dt = 1e-6
         if self.first:
             self.first = False
             self.error_prev = error

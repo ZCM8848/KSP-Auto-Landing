@@ -52,6 +52,35 @@ def test_mixed_apply() -> None:
     assert vessel.auto_pilot.target_direction == (0.0, 1.0, 0.0)
 
 
+def test_repoint_does_not_toggle_engaged() -> None:
+    vessel = FakeVessel()
+    controls = VesselControls(vessel)
+    frame = object()
+    controls.apply(target_direction=(0.0, 1.0, 0.0), reference_frame=frame, throttle=0.5)
+    assert vessel.auto_pilot.engaged is True
+    controls.apply(target_direction=(0.0, 0.0, 1.0), reference_frame=frame, throttle=0.3)
+    assert vessel.auto_pilot.engaged is True
+
+
+def test_repoint_after_manual_disengage() -> None:
+    vessel = FakeVessel()
+    controls = VesselControls(vessel)
+    frame = object()
+    controls.apply(target_direction=(0.0, 1.0, 0.0), reference_frame=frame, throttle=0.5)
+    controls.disengage_auto_pilot()
+    assert vessel.auto_pilot.engaged is False
+    controls.apply(target_direction=(0.0, 0.0, 1.0), reference_frame=frame, throttle=0.3)
+    assert vessel.auto_pilot.engaged is True
+    assert vessel.auto_pilot.target_direction == (0.0, 0.0, 1.0)
+
+
+def test_target_smoothing_time() -> None:
+    vessel = FakeVessel()
+    controls = VesselControls(vessel)
+    controls.target_smoothing_time = 0.3
+    assert controls.target_smoothing_time == 0.3
+
+
 def test_cut_thrust() -> None:
     vessel = FakeVessel()
     controls = VesselControls(vessel)

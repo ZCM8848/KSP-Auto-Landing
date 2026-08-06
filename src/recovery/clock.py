@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import time
 
 
@@ -61,12 +60,14 @@ class FramePacer:
         """
         now = time.monotonic()
         elapsed = now - self._origin
-        frame = max(1, math.ceil(elapsed / self.period))
+        frame = int(elapsed * self._hz + 1e-12) + 1
         target = self._origin + frame * self.period
         delay = target - now
         if delay > 0:
             time.sleep(delay)
             now = target
         dt = self.period if self._prev is None else now - self._prev
+        if dt <= 0:
+            dt = self.period
         self._prev = now
         return dt

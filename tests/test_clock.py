@@ -19,8 +19,8 @@ def test_tick_paces_to_frame_boundaries(monkeypatch) -> None:
     pacer = FramePacer(hz=10.0)
     assert pacer.period == pytest.approx(0.1)
     assert pacer.tick() == pytest.approx(0.1)
-    assert pacer.tick() == pytest.approx(0.3)
     assert pacer.tick() == pytest.approx(0.2)
+    assert pacer.tick() == pytest.approx(0.3)
 
 
 def test_hz_changeable_at_runtime() -> None:
