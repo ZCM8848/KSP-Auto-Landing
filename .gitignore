@@ -9,3 +9,4 @@ dist/
 src/*.egg-info/
 .vscode/
 .idea/
+/KSP-Auto-Landing-main

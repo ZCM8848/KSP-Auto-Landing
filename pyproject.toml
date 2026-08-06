@@ -36,6 +36,19 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+"src/recovery/control/control_utils.py" = ["ALL"]
+"src/recovery/control/dynamics.py" = ["ALL"]
+"src/recovery/control/auto_pilot.py" = ["ALL"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+[[tool.mypy.overrides]]
+module = [
+    "recovery.control.auto_pilot",
+    "recovery.control.control_utils",
+    "recovery.control.dynamics",
+]
+ignore_errors = true

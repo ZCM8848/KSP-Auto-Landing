@@ -91,6 +91,11 @@ class VesselHandle:
         """
         return self._vessel
 
+    @property
+    def client(self) -> Any:
+        """Escape hatch: the underlying kRPC ``Client`` for this connection."""
+        return self._connection.client
+
     def snapshot(self) -> FlightState | None:
         """Return the latest frozen telemetry snapshot, or ``None`` when
         the telemetry thread has not yet produced its first frame.

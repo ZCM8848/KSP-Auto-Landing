@@ -92,6 +92,7 @@ class Telemetry:
         add("velocity", vessel.velocity, self._frame)
         add("velocity_surface", vessel.velocity, surface)
         add("rotation", vessel.rotation, self._frame)
+        add("angular_velocity", vessel.angular_velocity, self._frame)
         add("altitude", getattr, flight, "mean_altitude")
         add("surface_altitude", getattr, flight, "surface_altitude")
         add("atmosphere_density", getattr, flight, "atmosphere_density")
@@ -156,6 +157,11 @@ class Telemetry:
                 values["rotation"][1],
                 values["rotation"][2],
                 values["rotation"][3],
+            ),
+            angular_velocity=Vector3(
+                values["angular_velocity"][0],
+                values["angular_velocity"][1],
+                values["angular_velocity"][2],
             ),
             altitude=float(values["altitude"]),
             surface_altitude=float(values["surface_altitude"]),

@@ -126,6 +126,9 @@ class FakeVessel:
     def rotation(self, frame: Any) -> tuple[float, float, float, float]:
         return (0.0, 0.0, 0.0, 1.0)
 
+    def angular_velocity(self, frame: Any) -> Vector:
+        return (0.1, -0.2, 0.05)
+
     def flight(self, frame: Any) -> FakeFlight:
         return FakeFlight()
 

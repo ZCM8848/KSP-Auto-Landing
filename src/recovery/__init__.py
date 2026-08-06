@@ -1,7 +1,7 @@
 """Extensible multi-booster kRPC rocket recovery framework."""
 
 from .clock import FramePacer
-from .control import PID
+from .control import PID, ApproachingModel, AutoPilot
 from .ksp import (
     ConnectionManager,
     DebugLine,
@@ -18,6 +18,8 @@ from .ksp import (
 
 __all__ = [
     "FramePacer",
+    "AutoPilot",
+    "ApproachingModel",
     "PID",
     "ConnectionManager",
     "VesselHandle",

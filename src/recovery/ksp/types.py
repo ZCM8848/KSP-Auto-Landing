@@ -73,6 +73,7 @@ class FlightState:
         velocity: Velocity in the snapshot frame (m/s).
         velocity_surface: Surface-relative velocity (m/s).
         rotation: Attitude quaternion in the snapshot frame.
+        angular_velocity: Angular velocity vector in the snapshot frame (rad/s).
         altitude: Mean altitude above sea level (m).
         surface_altitude: Altitude above terrain (m).
         mass: Total vessel mass including resources (kg).
@@ -99,6 +100,7 @@ class FlightState:
     velocity: Vector3
     velocity_surface: Vector3
     rotation: Quaternion
+    angular_velocity: Vector3
     altitude: float
     surface_altitude: float
     mass: float

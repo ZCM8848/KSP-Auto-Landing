@@ -5,7 +5,7 @@
 ## 设计约定
 
 - **每船一条独立 kRPC 连接**，各配一个 telemetry 线程；连接彼此独立，RPC 延迟天然并行。
-- **读**：kRPC stream 由服务器持续推送，telemetry 线程用 `wait_for_stream_update` 批量刷新并**原子地**整体拷贝为冻结快照（`FlightState`）。控制循环读快照 = 纯内存读，µs 级，**零网络往返**。
+- **读**：kRPC stream 由服务器持续推送，telemetry 线程按 `telemetry_hz` 节拍轮询并**原子地**整体拷贝为冻结快照（`FlightState`）。控制循环读快照 = 纯内存读，µs 级，**零网络往返**。
 - **写**：`VesselControls` 网关。姿态指令走服务器端 `AutoPilot`（闭环，无需逐 tick 发杆量）；`throttle` 等每次 setter 是一次 RPC。
 - **功能无损**：`VesselHandle.raw` / `VesselControls.raw` 逃逸舱门可直通底层 kRPC 对象。
 - 连接生命周期由 `ConnectionManager` 统一管理，注册 `atexit` 兜底关闭。
@@ -93,6 +93,7 @@ ConnectionManager(
 | `name` | `property -> str` | 船名（注册时解析的那艘）。 |
 | `controls` | `property -> VesselControls` | 控制网关。 |
 | `raw` | `property -> Any` | **逃逸舱门**：底层 kRPC `Vessel` 对象，绕过快照隔离与安全检查。 |
+| `client` | `property -> Any` | **逃逸舱门**：底层 kRPC `Client` 对象。 |
 | `snapshot` | `() -> FlightState \| None` | 同 `km.snapshot`。 |
 | `frame` | `(name="target") -> Any` | 同 `km.frame`。 |
 | `register_target` | `(*, lon, lat) -> None` | 同 `km.register_target`。 |
@@ -137,6 +138,7 @@ apply(
 - `throttle`（越界 clamp 到 0..1）、`pitch`、`yaw`、`roll`
 - `sas`、`rcs`、`legs`、`gear`、`lights`、`brakes`、`abort`
 - `auto_pilot_engaged`（只读）
+- `target_smoothing_time`（可读写，float）——方向切换的平滑时长（秒），设为 0.2–0.5 时 AutoPilot 将阶梯式方向指令匀速旋转过渡，避免振荡
 - `raw` → 底层 kRPC `Control`（逃逸舱门）
 - `auto_pilot` → 底层 kRPC `AutoPilot`（逃逸舱门，可细调 `target_smoothing_time` 等）
 
@@ -162,6 +164,7 @@ apply(
 | `position` / `velocity` | `Vector3` | 目标帧内的位置 / 速度 |
 | `velocity_surface` | `Vector3` | 地表参考系速度（地速） |
 | `rotation` | `Quaternion` | 姿态（目标帧内） |
+| `angular_velocity` | `Vector3` | 角速度（目标帧内，rad/s） |
 | `altitude` / `surface_altitude` | `float` | 海拔（ASL）/ 离地高度（AGL） |
 | `mass` / `dry_mass` | `float` | 总质量 / 干重（kg） |
 | `thrust` | `float` | 当前推力（N） |
@@ -272,6 +275,71 @@ km.disable_debug()           # 关闭调试连接，KSP 自动清空所有绘图
 `DebugMarker`：`visible` 可读写；`clear()`。
 
 > 要求：`frame_name="target"` 前必须先 `km.register_target(...)`，否则 `RuntimeError`；`b.debug` 需先 `km.enable_debug()`，否则 `RuntimeError`。绘图在调试连接上，`positions` 接受 `list[tuple]` / `list[Vector3]` / `numpy.ndarray`。
+
+## 滚转与迎风面控制
+
+`up` 和 `roll_angle` 联合控制船体绕推力轴的旋转——在 Super Heavy 这类栅格翼回收场景中，**保持迎风面始终迎风**至关重要。
+
+### 核心参数
+
+| 参数 | 含义 | 默认行为 |
+|---|---|---|
+| `up` | 背脊（roof）应指向的参考方向 | 缺省用帧内建 up |
+| `roll_angle` | 绕 nose 的额外滚转角 (°) | 缺省不约束滚转 |
+| `target_smoothing_time` | 方向切换的平滑时长（s） | 0（瞬时跳变） |
+
+### 滑翔段：迎风面跟踪
+
+nose 倾斜时，`up` 可以从气流方向动态派生，使背脊始终迎风：
+
+```python
+def wind_up(nose, velocity=(0, 0, -1)):
+    """Project wind-facing direction onto nose-perpendicular plane."""
+    belly = (-velocity[0], -velocity[1], -velocity[2])   # 迎风面
+    d = nose
+    dot = d[0]*belly[0] + d[1]*belly[1] + d[2]*belly[2]
+    px, py, pz = belly[0]-dot*d[0], belly[1]-dot*d[1], belly[2]-dot*d[2]
+    n2 = px*px + py*py + pz*pz
+    if n2 < 1e-12:
+        return (1.0, 0.0, 0.0)                           # 鼻平行于气流，fallback
+    inv = n2 ** -0.5
+    return (-px*inv, -py*inv, -pz*inv)                    # 背脊 = 迎风面反方向
+
+# 锥面扫描——每帧新方向 + 新 up，迎风面自动旋转
+for phi in sweep:
+    direction = cone(phi)
+    controls.apply(
+        target_direction=direction,
+        reference_frame=frame,
+        up=wind_up(direction),
+        roll_angle=0.0,
+    )
+```
+
+nose 绕锥面一圈 → `wind_up` 每帧给出对应方位角下的迎风 `up` → AutoPilot 维持背脊迎风 → 栅格翼始终以最大面积吃风。
+
+### 着陆段：模式切换
+
+当 nose 趋近竖直（与气流方向夹角 < ~20°）时，`wind_up` 的投影退化（鼻平行于速度 → `n2 → 0`），导致 AutoPilot 产生 180° 急滚。**解决方案**：接近奇异时把 `up` 冻结在一个水平方向，随后 nose 穿过竖直也不翻转。
+
+```
+滑翔段                      →  鼻接近竖直(<20°)  →  着陆段
+up = wind_up(nose)              up = freeze           up = (1, 0, 0)
+roll = 0                        roll = freeze          roll = capture_angle
+```
+
+切换时机由 `n2 < threshold` 触发（`threshold ≈ sin²(20°) ≈ 0.12`）。切换只需一次 `apply`：
+
+```python
+controls.apply(
+    target_direction=(0, 0, 1),
+    reference_frame=frame,
+    up=(1.0, 0.0, 0.0),          # 切到水平基准
+    roll_angle=capture_angle,     # 抓塔卡槽角度
+)
+```
+
+切换后 `up` 永远垂直于 nose（水平 vs 向上），无奇异——滚转精度在着陆末段完全可保证。
 
 ## 异常
 
