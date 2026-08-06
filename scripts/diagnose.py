@@ -4,11 +4,11 @@ import time
 
 sys.path.insert(0, "src")
 from recovery import ConnectionManager
-from internal import Targets_JNSQ
+from recovery.data.targets import LAUNCHPAD_JNSQ
 
 with ConnectionManager(address="127.0.0.1") as km:
     b = km.add_booster("booster-01", "VTVL-Cam", control_hz=60.0, telemetry_hz=30.0)
-    km.register_target("booster-01", lon=Targets_JNSQ.launchpad[0], lat=Targets_JNSQ.launchpad[1])
+    km.register_target("booster-01", lon=LAUNCHPAD_JNSQ.lon, lat=LAUNCHPAD_JNSQ.lat)
     km.start()
 
     deadline = time.monotonic() + 5

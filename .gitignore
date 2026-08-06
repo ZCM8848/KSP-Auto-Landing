@@ -1,21 +1,11 @@
-./__pycache__
-./GFOLD_SOLVER/__pycache__
 *.pyc
-test.py
-test2.py
-test copy.py
-landing copy.py
-./.vscode
-./.idea
-/Solver/cyn
-/.vscode
-GUI_test.py
-/solver/landing/__pycache__
-/solver/RTLS/__pycache__
+__pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-src/*.egg-info/
 build/
 dist/
 .eggs/
+src/*.egg-info/
+.vscode/
+.idea/

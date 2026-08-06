@@ -4,11 +4,11 @@ import time
 
 sys.path.insert(0, "src")
 from recovery import ConnectionManager
-from internal import Targets_JNSQ
+from recovery.data.targets import LAUNCHPAD_JNSQ
 
 with ConnectionManager(address="127.0.0.1") as km:
     b = km.add_booster("booster-01", "VTVL-Cam", control_hz=60.0, telemetry_hz=30.0)
-    km.register_target("booster-01", lon=Targets_JNSQ.launchpad[0], lat=Targets_JNSQ.launchpad[1])
+    km.register_target("booster-01", lon=LAUNCHPAD_JNSQ.lon, lat=LAUNCHPAD_JNSQ.lat)
     km.start()
 
     deadline = time.monotonic() + 5
@@ -29,7 +29,7 @@ with ConnectionManager(address="127.0.0.1") as km:
 
     print("t(s), err(deg), pitch, yaw, roll, throttle, ang_vel(rad/s), osc_py, osc_r")
     t0 = time.monotonic()
-    for i in range(20):
+    for _ in range(20):
         time.sleep(0.1)
         t = time.monotonic() - t0
         err = ap.error
