@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "krpc>=0.5",
     "numpy",
+    "scipy",
     "gfold",
 ]
 
@@ -52,3 +53,7 @@ module = [
     "recovery.control.dynamics",
 ]
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
+ignore_missing_imports = true
