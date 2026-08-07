@@ -98,6 +98,7 @@ ConnectionManager(
 | `register_target` | `(*, lon, lat) -> None` | 同 `km.register_target`。 |
 | `physics_range` | `property -> float`（可读写） | 物理泡半径（米），`RangeManager` 钩子。 |
 | `is_controllable` | `() -> bool` | `loaded and not packed`。快照未就绪返回 `False`。 |
+| `init_predictor` | `(*, altitude_samples=64, manual_beta=None) -> LandingPredictor` | 一次性采样大气密度剖面与弹道系数（~25 ms RPC），构造带 `DragModel` 的离线落点预测器。调用后可安全用于 20 Hz 控制循环（零 RPC）。需先 `register_target`。见[制导模块](#制导模块)。 |
 | `start` / `close` | `() -> None` | 委托给内部连接。 |
 | `control_hz` | 公开属性 `float` | 编排层 Scheduler 使用的目标控制频率（隔离层不自行跑控制循环）。 |
 
@@ -138,6 +139,7 @@ apply(
 - `sas`、`rcs`、`legs`、`gear`、`lights`、`brakes`、`abort`
 - `auto_pilot_engaged`（只读）
 - `target_smoothing_time`（可读写，float）——方向切换的平滑时长（秒），设为 0.2–0.5 时 AutoPilot 将阶梯式方向指令匀速旋转过渡，避免振荡
+- `direction_tolerance`（可读写，float，默认 0.02）——惰性更新阈值。当连续两帧的 `target_direction` 分量差小于该值时，跳过 `target_direction` 与 `reference_frame` 的 kRPC RPC（约 1.15° 的门槛）。设为 `0.0` 强制每帧更新
 - `raw` → 底层 kRPC `Control`（逃逸舱门）
 - `auto_pilot` → 底层 kRPC `AutoPilot`（逃逸舱门，可细调 `target_smoothing_time` 等）
 
@@ -358,6 +360,136 @@ controls.apply(
 - 3-4 船 × 50Hz × 少量属性 ≈ 数百 RPC/s，localhost kRPC 无压力。
 - 所有遥测字段均为 kRPC stream 直读（包括 `specific_impulse`）。
 - 避免在控制循环内使用 `raw` 做同步 RPC 读（即 `client.md` 中"循环内反复 `vessel.position()`"的反模式）。
+- `VesselControls.apply()` 内置惰性缓存：`reference_frame` 只在变化时下发；`target_direction` 只在分量变化超过 `direction_tolerance`（默认 0.02 ≈ 1.15°）时下发。高频循环可直接每帧调用 `apply()`，框架自动消除冗余 RPC。
+
+## 制导模块
+
+`src/recovery/guidance/` —— 独立的轨迹预测与气动建模层，**只在初始化阶段访问 kRPC**，运行阶段零网络 I/O。
+
+### `recovery.guidance.LandingPredictor`
+
+RK45 数值积分落点预测器，在行星固连（target）参考系中对运动方程积分至地表。
+
+```python
+# 纯弹道（无大气）
+predictor = LandingPredictor(
+    mu=body.gravitational_parameter,
+    omega=rotation_vector,
+    body_center=center_position,
+    body_radius=surface_radius,
+    aero=None,                             # 默认 None = 纯弹道
+)
+
+# 或用 from_body 自动获取常数
+predictor = LandingPredictor.from_body(body, target_frame, lat, lon, aero=drag_model)
+```
+
+| 成员 | 签名 | 说明 |
+|---|---|---|
+| `from_body` | `(body, target_frame, lat, lon, aero=None) -> LandingPredictor` | 从 kRPC `CelestialBody` 读取 μ / 转速 / 半径 / 球心坐标（**一次 RPC**）。 |
+| `predict` | `(*, position, velocity, t_max=600, rtol=1e-9, atol=1e-9) -> ImpactResult \| None` | 积分至地表。返回 `(position, time)`；`t_max` 内未落地返回 `None`。控制循环用 `rtol/atol=1e-6`。 |
+| `predict_from` | `(state: FlightState, **kwargs) -> ImpactResult \| None` | 同 `predict`，从快照读取位置/速度。 |
+
+动力学方程：`a = g_μ(r) − 2ω×v − ω×(ω×r) + a_aero(r,v)`。`a_aero` 为可选的气动模型贡献。
+
+### `recovery.guidance.ImpactResult`
+
+```python
+@dataclass(frozen=True)
+class ImpactResult:
+    position: tuple[float, float, float]  # 落点在目标帧坐标 (m)
+    time: float                           # 落地剩余时间 (s)
+```
+
+### 气动模型（AeroModel 协议）
+
+所有气动模型实现 `acceleration(position, velocity) -> Vec3` 协议：
+
+| 模型 | 来源 | RPC/步？ | 适用场景 |
+|---|---|---|---|
+| 无（`aero=None`） | — | — | 快速纯弹道预测 |
+| `KrpcAeroModel` | `Flight.simulate_aerodynamic_force_at`（攻角 180° / 鼻锥后指） | **是**（每步一发 RPC） | 离线校验、高精度分析 |
+| `DragModel` | 一次性采样的密度插值表 + 弹道系数 β | **否** | **20 Hz 控制循环** |
+
+### `recovery.guidance.DragModel`
+
+离线阻力模型，通过 `from_krpc` 一次性采样大气密度剖面和弹道系数（~25 ms RPC 总开销），之后 `acceleration()` 纯本地计算。
+
+```
+a_drag = −½ · ρ(海拔) · |v|² / β · v̂
+```
+
+```python
+# 方式 ①：手动构造
+model = DragModel(
+    ballistic_coefficient=5000.0,
+    density_fn=lambda h: 1.225 * np.exp(-h / 5600),
+    body_center=(0, 0, -600000),
+    sea_level_radius=600000,
+)
+
+# 方式 ②：从 kRPC 一次性采样（推荐）
+model = DragModel.from_krpc(
+    body=celestial_body,
+    flight=vessel.flight(target_frame),
+    target_frame=target_frame,
+    mass=vessel.mass,                     # 非 FAR 时的 β 反算用
+    manual_beta=None,                     # 强制指定 β（kg/m²），None=自动
+    altitude_samples=64,                  # 采样点数（自适应下限 = max(32, depth/500)）
+)
+```
+
+| 参数 | 说明 |
+|---|---|
+| `altitude_samples` | 余弦非均匀分布（低空密、高空疏）。RSS（~140 km 大气）自动 ≥ 128 点。 |
+| 弹道系数 β | 三级获取策略：`manual_beta` → FAR `ballistic_coefficient` → `Flight.drag` 反算 |
+| 密度模型 | `density_at(altitude)` × N 点 → `np.interp` 线性插值；超出大气深度返回 0 |
+
+### `recovery.guidance.KrpcAeroModel`
+
+每步调用 kRPC 的 `simulate_aerodynamic_force_at`（攻角 180° / 鼻锥反指速度）。适用于离线精度校验。控制循环**不推荐**——单次 `predict` 产生 100–400 次 RPC（总耗时 0.1–2 s）。
+
+```python
+aero = KrpcAeroModel(flight=v.flight(target_frame), body=body, mass=mass)
+predictor = LandingPredictor.from_body(body, target_frame, lat, lon, aero=aero)
+```
+
+### 典型用法：ZEM 助推回收
+
+```python
+with ConnectionManager() as km:
+    b = km.add_booster("booster", "SuperHeavy")
+    km.register_target("booster", lon=LAUNCHPAD.lon, lat=LAUNCHPAD.lat)
+    km.start()
+
+    predictor = b.init_predictor()          # 一次采样 ~25 ms RPC
+    frame = km.frame("booster", "target")
+
+    while True:
+        s = b.snapshot()
+        r = predictor.predict_from(s, rtol=1e-6, atol=1e-6)
+        if r is None:
+            continue
+        mx, my = r.position[0], r.position[1]
+        miss = (mx**2 + my**2) ** 0.5
+
+        # 鼻锥水平指向目标 —— 推力纯水平推回
+        if miss < 1.0:
+            target_dir = (0.0, 0.0, -1.0)
+        else:
+            target_dir = (-mx / miss, -my / miss, 0.0)
+
+        b.controls.apply(
+            target_direction=target_dir,
+            reference_frame=frame,
+            throttle=1.0,
+        )
+
+        if miss > min_history:
+            break  # 局部最小值 —— 助推回收完成
+```
+
+完整示例见 `scripts/zem_boosterback.py`。
 
 ## 测试
 
