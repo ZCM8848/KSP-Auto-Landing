@@ -17,9 +17,6 @@ with ConnectionManager(address="127.0.0.1") as km:
     km.enable_debug()
     km.start()
 
-    while km.snapshot("booster-01") is None:
-        time.sleep(0.02)
-
     frame = km.frame("booster-01", "target")
     booster.controls.target_smoothing_time = 0.2
     booster.controls.apply(
