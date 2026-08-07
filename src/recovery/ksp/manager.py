@@ -50,13 +50,11 @@ class ConnectionManager:
         rpc_port: int = 50000,
         stream_port: int = 50001,
         telemetry_hz: float = 20.0,
-        isp_refresh_hz: float = 2.0,
     ) -> None:
         self._address = address
         self._rpc_port = rpc_port
         self._stream_port = stream_port
         self._telemetry_hz = telemetry_hz
-        self._isp_refresh_hz = isp_refresh_hz
         self._boosters: dict[str, VesselHandle] = {}
         self._debug: DebugConnection | None = None
         self._started = False
@@ -69,7 +67,6 @@ class ConnectionManager:
         *,
         control_hz: float = 50.0,
         telemetry_hz: float | None = None,
-        isp_refresh_hz: float | None = None,
     ) -> VesselHandle:
         """Open a kRPC connection for *vessel_name* and register it under
         *booster_id*.
@@ -96,7 +93,6 @@ class ConnectionManager:
             rpc_port=self._rpc_port,
             stream_port=self._stream_port,
             telemetry_hz=telemetry_hz if telemetry_hz is not None else self._telemetry_hz,
-            isp_refresh_hz=isp_refresh_hz if isp_refresh_hz is not None else self._isp_refresh_hz,
         )
         try:
             connection.resolve_vessel(vessel_name)

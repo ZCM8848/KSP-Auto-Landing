@@ -104,6 +104,7 @@ class FakeVessel:
         self.available_thrust = 300000.0
         self.max_thrust = 400000.0
         self.max_vacuum_thrust = 450000.0
+        self.specific_impulse = 300.0
         self.met = 100.0
         self.loaded = True
         self.packed = False

@@ -24,7 +24,7 @@ def test_snapshot_pipeline_and_controls(monkeypatch) -> None:
     client = FakeClient([vessel], ut=1234.0)
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
     with ConnectionManager(address="127.0.0.1") as km:
-        handle = km.add_booster("b1", "Booster 1", telemetry_hz=50.0, isp_refresh_hz=50.0)
+        handle = km.add_booster("b1", "Booster 1", telemetry_hz=50.0)
         km.start()
         state = _pump(client, lambda: km.snapshot("b1"))
         assert state is not None

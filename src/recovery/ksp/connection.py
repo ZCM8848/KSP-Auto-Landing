@@ -37,14 +37,12 @@ class KspConnection:
         rpc_port: int = 50000,
         stream_port: int = 50001,
         telemetry_hz: float = 20.0,
-        isp_refresh_hz: float = 2.0,
     ) -> None:
         self._client = krpc.connect(
             name=name, address=address, rpc_port=rpc_port, stream_port=stream_port
         )
         self._name = name
         self._telemetry_hz = telemetry_hz
-        self._isp_refresh_hz = isp_refresh_hz
         self._vessel: Any = None
         self._controls: VesselControls | None = None
         self._telemetry: Telemetry | None = None
@@ -142,7 +140,6 @@ class KspConnection:
             vessel=self._vessel,
             frame=self._snapshot_frame,
             telemetry_hz=self._telemetry_hz,
-            isp_refresh_hz=self._isp_refresh_hz,
         )
         self._telemetry.start()
         self._started = True

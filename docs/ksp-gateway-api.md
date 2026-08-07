@@ -64,13 +64,12 @@ ConnectionManager(
     rpc_port: int = 50000,
     stream_port: int = 50001,
     telemetry_hz: float = 20.0,     # 全局默认遥测频率
-    isp_refresh_hz: float = 2.0,    # 全局默认 Isp 聚合刷新频率
 )
 ```
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `add_booster` | `(booster_id: str, vessel_name: str, *, control_hz=50.0, telemetry_hz=None, isp_refresh_hz=None) -> VesselHandle` | 注册一艘船；按 `vessel_name` 从 `space_center.vessels` 解析，找不到抛 `ValueError`（含可用船名清单）。重复 id 抛 `ValueError`；`start()` 后调用抛 `RuntimeError`。解析失败自动关闭该连接。 |
+| `add_booster` | `(booster_id: str, vessel_name: str, *, control_hz=50.0, telemetry_hz=None) -> VesselHandle` | 注册一艘船；按 `vessel_name` 从 `space_center.vessels` 解析，找不到抛 `ValueError`（含可用船名清单）。重复 id 抛 `ValueError`；`start()` 后调用抛 `RuntimeError`。解析失败自动关闭该连接。 |
 | `start` | `() -> None` | 启动所有船的 telemetry 线程。 |
 | `close` | `() -> None` | 停止所有 telemetry 并关闭连接。幂等。 |
 | `vessel` | `(booster_id) -> VesselHandle` | 取句柄；未知 id 抛 `KeyError`。 |
@@ -170,7 +169,7 @@ apply(
 | `thrust` | `float` | 当前推力（N） |
 | `available_thrust` | `float` | 活跃引擎可用推力（N） |
 | `max_thrust` / `max_vacuum_thrust` | `float` | 最大推力 / 真空最大推力（N） |
-| `specific_impulse` | `float` | 活跃引擎按推力加权聚合 Isp（s），按 `isp_refresh_hz` 限频刷新 |
+| `specific_impulse` | `float` | 活跃引擎组合 Isp（s），直读 `Vessel.specific_impulse` 流式推送 |
 | `max_acceleration` | `float` | `max_thrust / mass` |
 | `throttle` | `float` | 当前油门（0..1） |
 | `situation` | `Situation` | 见下 |
@@ -357,7 +356,7 @@ controls.apply(
 - 读：快照 = 内存拷贝，µs 级。服务器推流频率决定新鲜度（`telemetry_hz` 只做采样上限）。
 - 写：每次 setter 一次 RPC（本机 sub-ms~1ms）。推荐：姿态用 `target_direction`（服务器端闭环），高频循环只写 `throttle`。
 - 3-4 船 × 50Hz × 少量属性 ≈ 数百 RPC/s，localhost kRPC 无压力。
-- `specific_impulse` 经引擎枚举聚合，默认仅 2Hz 刷新（`isp_refresh_hz`），避免逐帧 RPC。
+- 所有遥测字段均为 kRPC stream 直读（包括 `specific_impulse`）。
 - 避免在控制循环内使用 `raw` 做同步 RPC 读（即 `client.md` 中"循环内反复 `vessel.position()`"的反模式）。
 
 ## 测试

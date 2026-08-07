@@ -23,9 +23,6 @@ class Telemetry:
         vessel: Resolved kRPC ``Vessel``.
         frame: Reference frame to express position/velocity/rotation in.
         telemetry_hz: Snapshot publication frequency.
-        isp_refresh_hz: How often to recompute combined Isp from active
-            engines (this involves engine iteration, which is costlier
-            than a stream read).
     """
 
     def __init__(
@@ -35,21 +32,16 @@ class Telemetry:
         vessel: Any,
         frame: Any,
         telemetry_hz: float = 20.0,
-        isp_refresh_hz: float = 2.0,
     ) -> None:
         self._client = client
         self._vessel = vessel
         self._frame = frame
         self._telemetry_interval = 1.0 / telemetry_hz
-        self._isp_interval = 1.0 / isp_refresh_hz
         self._streams: list[tuple[str, Any]] = []
         self._snapshot: FlightState | None = None
-        self._isp = 0.0
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
-        self._last_snapshot_t = 0.0
-        self._last_isp_t = 0.0
 
     def start(self) -> None:
         """Register kRPC streams and launch the background updater thread."""
@@ -102,6 +94,7 @@ class Telemetry:
         add("available_thrust", getattr, vessel, "available_thrust")
         add("max_thrust", getattr, vessel, "max_thrust")
         add("max_vacuum_thrust", getattr, vessel, "max_vacuum_thrust")
+        add("specific_impulse", getattr, vessel, "specific_impulse")
         add("throttle", getattr, vessel.control, "throttle")
         add("situation", getattr, vessel, "situation")
         add("loaded", getattr, vessel, "loaded")
@@ -112,30 +105,9 @@ class Telemetry:
             time.sleep(self._telemetry_interval)
             if self._stop.is_set():
                 break
-            now = time.monotonic()
-            self._last_snapshot_t = now
-            if now - self._last_isp_t >= self._isp_interval:
-                self._last_isp_t = now
-                self._refresh_isp()
             snapshot = self._build_snapshot()
             with self._lock:
                 self._snapshot = snapshot
-
-    def _refresh_isp(self) -> None:
-        try:
-            engines = [engine for engine in self._vessel.parts.engines if engine.active]
-        except Exception:
-            return
-        total_thrust = 0.0
-        weighted = 0.0
-        for engine in engines:
-            thrust = float(engine.thrust)
-            isp = float(engine.specific_impulse)
-            if thrust > 0.0 and isp > 0.0:
-                total_thrust += thrust
-                weighted += thrust * isp
-        if total_thrust > 0.0:
-            self._isp = weighted / total_thrust
 
     def _build_snapshot(self) -> FlightState:
         values = {name: stream() for name, stream in self._streams}
@@ -171,7 +143,7 @@ class Telemetry:
             available_thrust=float(values["available_thrust"]),
             max_thrust=max_thrust,
             max_vacuum_thrust=float(values["max_vacuum_thrust"]),
-            specific_impulse=self._isp,
+            specific_impulse=float(values["specific_impulse"]),
             max_acceleration=max_thrust / mass if mass > 0.0 else 0.0,
             throttle=float(values["throttle"]),
             situation=situation,
