@@ -38,6 +38,9 @@ class VesselControls:
         self._vessel = vessel
         self._control = vessel.control
         self._auto_pilot = vessel.auto_pilot
+        self._cached_ref_frame: Any = None
+        self._cached_direction: Vec3 | None = None
+        self._direction_tol: float = 0.02
 
     @property
     def raw(self) -> Any:
@@ -259,17 +262,57 @@ class VesselControls:
     ) -> None:
         if reference_frame is None:
             raise ValueError("reference_frame is required when commanding target_direction")
-        self._auto_pilot.reference_frame = reference_frame
+
         norm = sqrt(sum(component * component for component in direction))
         if norm == 0:
             raise ValueError("target_direction must be non-zero")
-        self._auto_pilot.target_direction = tuple(component / norm for component in direction)
+        normalized = tuple(component / norm for component in direction)
+
+        # --- cached: reference_frame ----------------------------------------
+        if reference_frame is not self._cached_ref_frame:
+            self._auto_pilot.reference_frame = reference_frame  # RPC
+            self._cached_ref_frame = reference_frame
+
+        # --- cached: target_direction ---------------------------------------
+        if self._cached_direction is not None:
+            skip = True
+            for i in range(3):
+                if abs(normalized[i] - self._cached_direction[i]) >= self._direction_tol:
+                    skip = False
+                    break
+            if skip:
+                if up is not None:
+                    self._auto_pilot.up_reference = tuple(up)
+                if roll_angle is not None:
+                    self._auto_pilot.target_roll = roll_angle
+                if not self.auto_pilot_engaged:
+                    self.engage_auto_pilot()
+                return
+
+        self._auto_pilot.target_direction = normalized  # RPC
+        self._cached_direction = (normalized[0], normalized[1], normalized[2])
+
         if up is not None:
             self._auto_pilot.up_reference = tuple(up)
         if roll_angle is not None:
             self._auto_pilot.target_roll = roll_angle
         if not self.auto_pilot_engaged:
             self.engage_auto_pilot()
+
+    @property
+    def direction_tolerance(self) -> float:
+        """Lazy-update threshold for ``target_direction`` (vector component
+        difference, ~1.15° at default 0.02).
+
+        When ``target_direction`` changes by less than this amount the
+        command is silently skipped, avoiding an unnecessary kRPC RPC.
+        Set to ``0.0`` to force an update on every ``apply()`` call.
+        """
+        return self._direction_tol
+
+    @direction_tolerance.setter
+    def direction_tolerance(self, value: float) -> None:
+        self._direction_tol = float(value)
 
     @property
     def target_smoothing_time(self) -> float:

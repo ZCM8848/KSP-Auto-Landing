@@ -10,3 +10,5 @@ src/*.egg-info/
 .vscode/
 .idea/
 /KSP-Auto-Landing-main
+/old
+zem_boosterback_debug.log
