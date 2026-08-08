@@ -20,7 +20,7 @@ sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.data.targets import LAUNCHPAD_JNSQ
 
-VESSEL = "New Glenn Probe"
+VESSEL = "RLV Probe"
 
 MIN_ALT = 8000.0     # boosterback window (m)
 ROI_MISS = 50000.0   # ignore miss-increase below this threshold
@@ -32,12 +32,6 @@ def main() -> None:
         b = km.add_booster("zem", VESSEL)
         km.register_target("zem", lon=LAUNCHPAD_JNSQ.lon, lat=LAUNCHPAD_JNSQ.lat)
         km.start()
-
-        deadline = time.monotonic() + 5.0
-        while km.snapshot("zem") is None:
-            if time.monotonic() > deadline:
-                raise RuntimeError("telemetry not ready")
-            time.sleep(0.02)
 
         frame = km.frame("zem", "target")
         predictor = b.init_predictor()
