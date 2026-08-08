@@ -384,3 +384,43 @@ def test_drag_inf_beta_gives_zero_drag() -> None:
         np.array([0.0, 0.0, -200.0]),
     )
     assert acc == (0.0, 0.0, 0.0)
+
+
+def test_numba_rk4_matches_scipy() -> None:
+    """Fixed-step RK4 result agrees with scipy adaptive when DragModel is attached."""
+    from recovery.guidance.predictor import _rk4_fixed
+
+    h_vals = np.linspace(0, 80000, 64)
+    density_vals = 1.225 * np.exp(-h_vals / 5600.0)
+    drag = DragModel(
+        ballistic_coefficient=5000.0,
+        density_fn=lambda h: float(np.interp(h, h_vals, density_vals)),
+        body_center=(0.0, 0.0, -R),
+        sea_level_radius=R,
+        density_alts=h_vals,
+        density_vals=density_vals,
+    )
+    predictor = LandingPredictor(
+        mu=MU, omega=(0.0, 0.0, 0.0),
+        body_center=(0.0, 0.0, -R), body_radius=R,
+        aero=drag,
+    )
+
+    for alt, vx, vz in [(50000, 1200, -600), (10000, 500, -100)]:
+        r_scipy = predictor.predict(
+            position=(0.0, 0.0, alt), velocity=(vx, 0.0, vz),
+            rtol=5e-6, atol=5e-6,
+        )
+        assert r_scipy is not None
+        r0 = np.array([0.0, 0.0, alt], dtype=float)
+        v0 = np.array([vx, 0.0, vz], dtype=float)
+        hit = _rk4_fixed(
+            r0, v0, MU, np.zeros(3), np.array([0.0, 0.0, -R]), R,
+            drag._beta, h_vals, density_vals, R,
+            dt=0.04, max_n=5000,
+        )
+        assert hit is not None
+        dpos = np.hypot(r_scipy.position[0] - hit[0], r_scipy.position[2] - hit[2])
+        dt_err = abs(r_scipy.time - hit[3])
+        assert dpos < 500, f"position diff {dpos:.0f}m too large at alt={alt}"
+        assert dt_err < 2.0, f"time diff {dt_err:.2f}s too large at alt={alt}"

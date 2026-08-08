@@ -139,7 +139,6 @@ apply(
 - `sas`、`rcs`、`legs`、`gear`、`lights`、`brakes`、`abort`
 - `auto_pilot_engaged`（只读）
 - `target_smoothing_time`（可读写，float）——方向切换的平滑时长（秒），设为 0.2–0.5 时 AutoPilot 将阶梯式方向指令匀速旋转过渡，避免振荡
-- `direction_tolerance`（可读写，float，默认 0.02）——惰性更新阈值。当连续两帧的 `target_direction` 分量差小于该值时，跳过 `target_direction` 与 `reference_frame` 的 kRPC RPC（约 1.15° 的门槛）。设为 `0.0` 强制每帧更新
 - `raw` → 底层 kRPC `Control`（逃逸舱门）
 - `auto_pilot` → 底层 kRPC `AutoPilot`（逃逸舱门，可细调 `target_smoothing_time` 等）
 
@@ -360,7 +359,6 @@ controls.apply(
 - 3-4 船 × 50Hz × 少量属性 ≈ 数百 RPC/s，localhost kRPC 无压力。
 - 所有遥测字段均为 kRPC stream 直读（包括 `specific_impulse`）。
 - 避免在控制循环内使用 `raw` 做同步 RPC 读（即 `client.md` 中"循环内反复 `vessel.position()`"的反模式）。
-- `VesselControls.apply()` 内置惰性缓存：`reference_frame` 只在变化时下发；`target_direction` 只在分量变化超过 `direction_tolerance`（默认 0.02 ≈ 1.15°）时下发。高频循环可直接每帧调用 `apply()`，框架自动消除冗余 RPC。
 
 ## 制导模块
 

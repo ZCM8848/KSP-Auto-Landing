@@ -11,6 +11,7 @@ dependencies = [
     "krpc>=0.5",
     "numpy",
     "scipy",
+    "numba",
     "gfold",
 ]
 
@@ -53,6 +54,10 @@ module = [
     "recovery.control.dynamics",
 ]
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "numba.*"
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "scipy.*"

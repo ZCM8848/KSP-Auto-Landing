@@ -39,7 +39,6 @@ def main() -> None:
         b.physics_range = 200000.0
         b.controls.target_smoothing_time = 0.3
         b.controls.rcs = True
-        b.controls.direction_tolerance = 0.02
 
         # set frame and initial throttle once (outside the hot loop)
         b.controls.apply(reference_frame=frame, throttle=1.0)
@@ -47,6 +46,8 @@ def main() -> None:
         log = open("zem_boosterback_debug.log", "w", encoding="utf-8")
         error_hist: list[float] = [float("inf")]
         t_start = time.monotonic()
+        t_last_flush = t_start
+        buf: list[str] = []
         pacer = FramePacer(hz=50)
         header = (
             f"{'t':>6s}  {'loop_us':>7s}  {'alt':>6s}"
@@ -68,7 +69,7 @@ def main() -> None:
                 print(msg, file=log)
                 break
 
-            result = predictor.predict_from(s, rtol=1e-6, atol=1e-6)
+            result = predictor.predict_from(s, rtol=5e-6, atol=5e-6)
             if result is None:
                 continue
 
@@ -94,9 +95,16 @@ def main() -> None:
                 f"   -  "
                 f"{s.thrust * 1e-3:8.0f}"
             )
-            print(line)
-            print(line, file=log)
-            log.flush()
+            buf.append(line)
+
+            now = time.monotonic()
+            if now - t_last_flush >= 1.0 or (miss < ROI_MISS and miss > min(error_hist)):
+                block = "\n".join(buf)
+                print(block)
+                print(block, file=log)
+                log.flush()
+                buf.clear()
+                t_last_flush = now
 
             if miss < ROI_MISS and miss > min(error_hist):
                 b.controls.cut_thrust()

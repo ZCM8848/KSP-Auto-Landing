@@ -13,3 +13,5 @@ src/*.egg-info/
 /old
 zem_boosterback_debug.log
 zem_boosterback_frequency_report.md
+1_zem_boosterback_debug.log
+2_zem_boosterback_debug.log
