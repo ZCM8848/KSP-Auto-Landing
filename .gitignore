@@ -12,3 +12,4 @@ src/*.egg-info/
 /KSP-Auto-Landing-main
 /old
 zem_boosterback_debug.log
+zem_boosterback_frequency_report.md

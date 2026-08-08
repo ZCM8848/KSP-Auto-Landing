@@ -39,6 +39,7 @@ def main() -> None:
         b.physics_range = 200000.0
         b.controls.target_smoothing_time = 0.3
         b.controls.rcs = True
+        b.controls.direction_tolerance = 0.02
 
         # set frame and initial throttle once (outside the hot loop)
         b.controls.apply(reference_frame=frame, throttle=1.0)
@@ -46,7 +47,7 @@ def main() -> None:
         log = open("zem_boosterback_debug.log", "w", encoding="utf-8")
         error_hist: list[float] = [float("inf")]
         t_start = time.monotonic()
-        pacer = FramePacer(hz=20)
+        pacer = FramePacer(hz=50)
         header = (
             f"{'t':>6s}  {'loop_us':>7s}  {'alt':>6s}"
             f"  {'miss':>8s}  {'tti':>6s}  {'rpc':>3s}  {'kN':>8s}"
