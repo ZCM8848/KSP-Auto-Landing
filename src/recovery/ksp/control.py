@@ -38,6 +38,8 @@ class VesselControls:
         self._vessel = vessel
         self._control = vessel.control
         self._auto_pilot = vessel.auto_pilot
+        self._ref_frame_sent: bool = False
+        self._ap_engaged: bool = False
 
     @property
     def raw(self) -> Any:
@@ -175,10 +177,12 @@ class VesselControls:
     def engage_auto_pilot(self) -> None:
         """Engage the kRPC AutoPilot. Sets ``auto_pilot.engaged = True``."""
         self._auto_pilot.engaged = True
+        self._ap_engaged = True
 
     def disengage_auto_pilot(self) -> None:
         """Disengage the kRPC AutoPilot. Sets ``auto_pilot.engaged = False``."""
         self._auto_pilot.engaged = False
+        self._ap_engaged = False
 
     # -- combined command ---------------------------------------------------
 
@@ -259,7 +263,9 @@ class VesselControls:
     ) -> None:
         if reference_frame is None:
             raise ValueError("reference_frame is required when commanding target_direction")
-        self._auto_pilot.reference_frame = reference_frame
+        if not self._ref_frame_sent:
+            self._auto_pilot.reference_frame = reference_frame  # RPC — once
+            self._ref_frame_sent = True
         norm = sqrt(sum(component * component for component in direction))
         if norm == 0:
             raise ValueError("target_direction must be non-zero")
@@ -268,7 +274,7 @@ class VesselControls:
             self._auto_pilot.up_reference = tuple(up)
         if roll_angle is not None:
             self._auto_pilot.target_roll = roll_angle
-        if not self.auto_pilot_engaged:
+        if not self._ap_engaged:
             self.engage_auto_pilot()
 
     @property

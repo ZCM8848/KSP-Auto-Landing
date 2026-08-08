@@ -7,6 +7,7 @@ from typing import Any
 
 from .connection import KspConnection
 from .debug import DebugConnection
+from .exceptions import DuplicateBooster, InvalidState
 from .types import FlightState
 from .vessel import VesselHandle
 
@@ -84,9 +85,9 @@ class ConnectionManager:
             RuntimeError: if called after :meth:`start`.
         """
         if booster_id in self._boosters:
-            raise ValueError(f"duplicate booster id {booster_id!r}")
+            raise DuplicateBooster(f"duplicate booster id {booster_id!r}")
         if self._started:
-            raise RuntimeError("cannot add a booster after start()")
+            raise InvalidState("cannot add a booster after start()")
         connection = KspConnection(
             name=f"recovery-{booster_id}",
             address=self._address,

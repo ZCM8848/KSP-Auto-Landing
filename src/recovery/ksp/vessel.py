@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from .control import VesselControls
 from .debug import DebugProxy
+from .exceptions import DebugNotEnabled, TargetNotRegistered
 from .types import FlightState
 
 if TYPE_CHECKING:
@@ -70,7 +71,7 @@ class VesselHandle:
         if self._debug_proxy is None:
             connection = self._debug_provider()
             if connection is None:
-                raise RuntimeError("debug not enabled; call ConnectionManager.enable_debug()")
+                raise DebugNotEnabled("debug not enabled; call ConnectionManager.enable_debug()")
             self._debug_proxy = DebugProxy(
                 client=connection.client,
                 body_name=str(self._vessel.orbit.body.name),
@@ -183,7 +184,7 @@ class VesselHandle:
                 installed) or estimated from the current drag force.
         """
         if self._target_lat is None or self._target_lon is None:
-            raise RuntimeError(
+            raise TargetNotRegistered(
                 "register_target() must be called before init_predictor()"
             )
         from ..guidance.predictor import DragModel, LandingPredictor

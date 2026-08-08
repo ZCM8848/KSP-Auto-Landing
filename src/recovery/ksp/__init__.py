@@ -2,6 +2,16 @@
 
 from .control import VesselControls
 from .debug import DebugLine, DebugMarker, DebugProxy, DebugTrajectory
+from .exceptions import (
+    AmbiguousVesselName,
+    DebugNotEnabled,
+    DuplicateBooster,
+    InvalidState,
+    RecoveryError,
+    TargetNotRegistered,
+    VesselNotFound,
+    VesselNotResolved,
+)
 from .manager import ConnectionManager
 from .types import FlightState, Quaternion, Situation, Vector3
 from .vessel import VesselHandle
@@ -18,4 +28,12 @@ __all__ = [
     "Situation",
     "Vector3",
     "Quaternion",
+    "RecoveryError",
+    "InvalidState",
+    "VesselNotResolved",
+    "VesselNotFound",
+    "AmbiguousVesselName",
+    "DuplicateBooster",
+    "TargetNotRegistered",
+    "DebugNotEnabled",
 ]

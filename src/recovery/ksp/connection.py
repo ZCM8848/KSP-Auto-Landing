@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import krpc
 
 from .control import VesselControls
+from .exceptions import (
+    InvalidState,
+    VesselNotFound,
+    VesselNotResolved,
+)
 from .reference_frames import create_target_reference_frame
 from .telemetry import Telemetry
 from .types import FlightState
@@ -68,17 +74,17 @@ class KspConnection:
         Raises ``RuntimeError`` if ``resolve_vessel`` has not been called.
         """
         if self._vessel is None:
-            raise RuntimeError("no vessel resolved")
+            raise VesselNotResolved("no vessel resolved")
         return self._vessel
 
     @property
     def controls(self) -> VesselControls:
         """The :class:`VesselControls` gateway for this vessel.
 
-        Raises ``RuntimeError`` if ``resolve_vessel`` has not been called.
+        Raises ``VesselNotResolved`` if ``resolve_vessel`` has not been called.
         """
         if self._controls is None:
-            raise RuntimeError("no vessel resolved")
+            raise VesselNotResolved("no vessel resolved")
         return self._controls
 
     @property
@@ -91,19 +97,34 @@ class KspConnection:
         this connection.
 
         Raises:
-            RuntimeError: if a vessel is already resolved.
-            ValueError: if no vessel with *vessel_name* exists; the message
-                includes all currently available vessel names.
+            InvalidState: if a vessel is already resolved.
+            VesselNotFound: if no vessel with *vessel_name* exists.
+
+        Warns:
+            AmbiguousVesselName: if multiple vessels share *vessel_name*.
         """
         if self._vessel is not None:
-            raise RuntimeError("a vessel is already resolved")
+            raise InvalidState("a vessel is already resolved")
+        matches: list[str] = []
         for vessel in self._client.space_center.vessels:
             if vessel.name == vessel_name:
-                self._vessel = vessel
-                self._controls = VesselControls(vessel)
-                return
-        available = ", ".join(vessel.name for vessel in self._client.space_center.vessels)
-        raise ValueError(f"no vessel named {vessel_name!r} found (available: {available})")
+                if self._vessel is None:
+                    self._vessel = vessel
+                    self._controls = VesselControls(vessel)
+                matches.append(vessel.situation.name)
+        if self._vessel is None:
+            available = ", ".join(
+                v.name for v in self._client.space_center.vessels
+            )
+            raise VesselNotFound(
+                f"no vessel named {vessel_name!r} found (available: {available})"
+            )
+        if len(matches) > 1:
+            warnings.warn(
+                f"ambiguous name '{vessel_name}': {len(matches)} matches "
+                f"({', '.join(matches)})",
+                stacklevel=2,
+            )
 
     def register_target(self, *, lon: float, lat: float) -> None:
         """Build a landing-site reference frame at (*lon*, *lat*) on the
@@ -115,7 +136,7 @@ class KspConnection:
             RuntimeError: if called after :meth:`start`.
         """
         if self._started:
-            raise RuntimeError("register_target must be called before start()")
+            raise InvalidState("register_target must be called before start()")
         body = self.vessel.orbit.body
         self._target_frame = create_target_reference_frame(
             self._client.space_center, body, lon, lat
@@ -131,7 +152,7 @@ class KspConnection:
         if self._started:
             return
         if self._vessel is None:
-            raise RuntimeError("no vessel resolved; call resolve_vessel first")
+            raise VesselNotResolved("no vessel resolved; call resolve_vessel first")
         self._snapshot_frame = self._target_frame
         if self._snapshot_frame is None:
             self._snapshot_frame = self.vessel.surface_reference_frame
