@@ -343,14 +343,33 @@ controls.apply(
 
 ## 异常
 
+所有框架级异常继承自 `recovery.RecoveryError`，同时链入标准异常（`RuntimeError` / `ValueError`），保证向后兼容。
+
 | 场景 | 异常 |
 |---|---|
-| 船名未找到 | `ValueError`（附带可用船名） |
-| 重复 `booster_id` | `ValueError` |
-| `start()` 后 `add_booster` / `register_target` | `RuntimeError` |
+| 船名未找到 | `VesselNotFound`（`ValueError`） |
+| 同名冲突（≥2 艘） | `warnings.warn`，不阻断（拾取第一艘） |
+| 重复 `booster_id` | `DuplicateBooster`（`ValueError`） |
+| `resolve_vessel` 未调用即访问 `vessel`/`controls` | `VesselNotResolved`（`RuntimeError`） |
+| `start()` 后 `add_booster` / `register_target` | `InvalidState`（`RuntimeError`） |
+| `init_predictor()` 前未 `register_target` | `TargetNotRegistered`（`RuntimeError`） |
+| `debug` 未启用 | `DebugNotEnabled`（`RuntimeError`） |
 | 未知 `booster_id` | `KeyError` |
 | `target_direction` 缺 `reference_frame` / 零向量 | `ValueError` |
 | 未知帧名 | `KeyError` |
+
+### 自定义异常类
+
+| 异常 | 基类 | 说明 |
+|---|---|---|
+| `RecoveryError` | `Exception` | 框架基础异常 |
+| `InvalidState` | `RecoveryError`, `RuntimeError` | 生命周期状态非法 |
+| `VesselNotResolved` | `RecoveryError`, `RuntimeError` | 船舶未解析 |
+| `TargetNotRegistered` | `RecoveryError`, `RuntimeError` | 着陆目标未注册 |
+| `DebugNotEnabled` | `RecoveryError`, `RuntimeError` | 调试连接未启用 |
+| `VesselNotFound` | `RecoveryError`, `ValueError` | 船名未匹配 |
+| `AmbiguousVesselName` | `RecoveryError`, `ValueError` | 同名多艘（异常类，实际以 `warnings.warn` 发出） |
+| `DuplicateBooster` | `RecoveryError`, `ValueError` | 助推器 ID 重复 |
 
 ## 性能备注
 

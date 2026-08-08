@@ -80,9 +80,10 @@ class ConnectionManager:
         retrieved later via :meth:`vessel`.
 
         Raises:
-            ValueError: if *booster_id* is a duplicate, or *vessel_name*
-                is not found (the error message lists available names).
-            RuntimeError: if called after :meth:`start`.
+            DuplicateBooster: if *booster_id* is a duplicate.
+            InvalidState: if called after :meth:`start`.
+            VesselNotFound: if *vessel_name* is not found (the error
+                message lists available names).
         """
         if booster_id in self._boosters:
             raise DuplicateBooster(f"duplicate booster id {booster_id!r}")
