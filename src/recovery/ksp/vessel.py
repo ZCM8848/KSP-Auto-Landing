@@ -187,7 +187,8 @@ class VesselHandle:
             raise TargetNotRegistered(
                 "register_target() must be called before init_predictor()"
             )
-        from ..guidance.predictor import DragModel, LandingPredictor
+        from ..guidance.aerodynamics import DragModel
+        from ..guidance.predictor import LandingPredictor
 
         frame = self.frame("target")
         body = self._vessel.orbit.body

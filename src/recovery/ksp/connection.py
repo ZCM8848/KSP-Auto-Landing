@@ -32,7 +32,6 @@ class KspConnection:
         rpc_port: kRPC RPC port (default 50000).
         stream_port: kRPC stream port (default 50001).
         telemetry_hz: Snapshot publishing frequency.
-        isp_refresh_hz: Specific-impulse recomputation frequency.
     """
 
     def __init__(

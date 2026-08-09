@@ -82,8 +82,8 @@ class FlightState:
         available_thrust: Maximum thrust available from active engines (N).
         max_thrust: Theoretical maximum thrust from active engines (N).
         max_vacuum_thrust: Maximum thrust in vacuum from active engines (N).
-        specific_impulse: Thrust-weighted combined Isp of active engines (s).
-            Refreshed at ``isp_refresh_hz`` (default 2 Hz).
+        specific_impulse: Combined Isp of active engines (s), read directly
+            from kRPC ``Vessel.specific_impulse`` stream.
         max_acceleration: ``max_thrust / mass`` (m/s²).
         throttle: Vessel throttle (0.0--1.0).
         situation: Flight situation (pre-launch, flying, landed, …).

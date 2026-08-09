@@ -56,7 +56,19 @@ module = [
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = "numba.*"
+module = "recovery.guidance.predictor"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "recovery.guidance._numba"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "recovery.guidance.aerodynamics"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

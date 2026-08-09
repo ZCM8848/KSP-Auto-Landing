@@ -1,5 +1,12 @@
 """Guidance algorithms: impact prediction, GFOLD solver, trajectory workers."""
 
-from .predictor import AeroModel, DragModel, ImpactResult, KrpcAeroModel, LandingPredictor
+from .aerodynamics import AeroModel, DragModel, KrpcAeroModel
+from .predictor import ImpactResult, LandingPredictor
 
-__all__ = ["AeroModel", "DragModel", "LandingPredictor", "ImpactResult", "KrpcAeroModel"]
+__all__ = [
+    "AeroModel",
+    "DragModel",
+    "ImpactResult",
+    "KrpcAeroModel",
+    "LandingPredictor",
+]

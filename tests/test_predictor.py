@@ -388,7 +388,7 @@ def test_drag_inf_beta_gives_zero_drag() -> None:
 
 def test_numba_rk4_matches_scipy() -> None:
     """Fixed-step RK4 result agrees with scipy adaptive when DragModel is attached."""
-    from recovery.guidance.predictor import _rk4_fixed
+    from recovery.guidance._numba import rk4_fixed
 
     h_vals = np.linspace(0, 80000, 64)
     density_vals = 1.225 * np.exp(-h_vals / 5600.0)
@@ -414,7 +414,7 @@ def test_numba_rk4_matches_scipy() -> None:
         assert r_scipy is not None
         r0 = np.array([0.0, 0.0, alt], dtype=float)
         v0 = np.array([vx, 0.0, vz], dtype=float)
-        hit = _rk4_fixed(
+        hit = rk4_fixed(
             r0, v0, MU, np.zeros(3), np.array([0.0, 0.0, -R]), R,
             drag._beta, h_vals, density_vals, R,
             dt=0.04, max_n=5000,

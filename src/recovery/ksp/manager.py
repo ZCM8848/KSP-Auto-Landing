@@ -41,7 +41,6 @@ class ConnectionManager:
         stream_port: kRPC stream port.
         telemetry_hz: Default snapshot rate for boosters that don't
             specify their own.
-        isp_refresh_hz: Default Isp recomputation rate.
     """
 
     def __init__(
