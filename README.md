@@ -1,3 +1,5 @@
+
+
 # KSP-Auto-Landing
 *Some python scripts enable your Kerbal rocket to land (safely, hopefully) at a fixed point*
 
@@ -8,8 +10,7 @@ First, install the dependences:
 `pip install -r requirements.txt`  
   
 Next, adjust settings in:  
-`./Internal/params.py`(for control params)  
-`./landing.py`(line 145, in function `create_target_reference_frame` ,`targets=`)
+`./landing.py` (for control parameters and target coordinates)
    
 Finally, run the script:  
 `python landing.py`
