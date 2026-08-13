@@ -19,8 +19,10 @@ import numpy as np
 sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.data.targets import LAUNCHPAD_JNSQ
+from recovery.guidance import DragModel, LandingPredictor
+from recovery.ksp.sampling import sample_body_spec, sample_drag_spec
 
-VESSEL = "RLV-1 Probe"
+VESSEL = "RLV Probe"
 
 MIN_ALT = 8000.0     # boosterback window (m)
 ROI_MISS = 50000.0   # ignore miss-increase below this threshold
@@ -34,7 +36,14 @@ def main() -> None:
         km.start()
 
         frame = km.frame("zem", "target")
-        predictor = b.init_predictor()
+
+        body = b.raw.orbit.body
+        flight = b.raw.flight(frame)
+        body_spec = sample_body_spec(body, frame, LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
+        drag_spec = sample_drag_spec(body, flight, frame, mass=float(b.raw.mass))
+        predictor = LandingPredictor.from_body_spec(
+            body_spec, aero=DragModel.from_spec(drag_spec)
+        )
 
         b.physics_range = 200000.0
         b.controls.target_smoothing_time = 0.3

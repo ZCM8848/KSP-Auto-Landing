@@ -8,7 +8,8 @@ import numpy as np
 import pytest
 
 from recovery.guidance import AeroModel, DragModel, KrpcAeroModel, LandingPredictor
-from recovery.ksp.types import FlightState, Quaternion, Situation, Vector3
+from recovery.ksp.sampling import sample_drag_spec
+from recovery.types import FlightState, Quaternion, Situation, Vector3
 
 # Kerbin-like planet (no rotation for simpler tests)
 MU = 3.5316e12
@@ -299,8 +300,8 @@ def test_drag_slows_impact() -> None:
     )
 
 
-def test_drag_from_krpc_sampling() -> None:
-    """from_krpc builds a functional model from mock kRPC objects."""
+def test_sample_drag_spec_far() -> None:
+    """sample_drag_spec + DragModel.from_spec builds a functional model."""
     mock_body = MagicMock()
     mock_body.equatorial_radius = float(R)
     mock_body.atmosphere_depth = 80000.0
@@ -318,13 +319,13 @@ def test_drag_from_krpc_sampling() -> None:
     mock_flight = MagicMock()
     mock_flight.ballistic_coefficient = 1500.0
 
-    # Need a valid target_frame for body.position() to succeed
-    model = DragModel.from_krpc(
+    spec = sample_drag_spec(
         body=mock_body,
         flight=mock_flight,
         target_frame=MagicMock(),
         altitude_samples=32,
     )
+    model = DragModel.from_spec(spec)
 
     r = np.array([0.0, 0.0, 1000.0])
     v = np.array([0.0, 0.0, -500.0])
@@ -337,7 +338,7 @@ def test_drag_from_krpc_sampling() -> None:
     assert acc_high == (0.0, 0.0, 0.0)
 
 
-def test_drag_from_krpc_no_far_estimation() -> None:
+def test_sample_drag_spec_no_far_estimation() -> None:
     """Without FAR and with mass, beta is estimated from drag force."""
     mock_body = MagicMock()
     mock_body.equatorial_radius = float(R)
@@ -357,13 +358,14 @@ def test_drag_from_krpc_no_far_estimation() -> None:
     # = 30000 * 1.0 * 500^2 / (2 * 500)
     # = 30000 * 250000 / 1000
     # = 7500000  (kg/m2)
-    model = DragModel.from_krpc(
+    spec = sample_drag_spec(
         body=mock_body,
         flight=mock_flight,
         target_frame=MagicMock(),
         mass=30000.0,
         altitude_samples=32,
     )
+    model = DragModel.from_spec(spec)
 
     r = np.array([0.0, 0.0, 1000.0])
     v = np.array([0.0, 0.0, -200.0])
@@ -424,3 +426,40 @@ def test_numba_rk4_matches_scipy() -> None:
         dt_err = abs(r_scipy.time - hit[3])
         assert dpos < 500, f"position diff {dpos:.0f}m too large at alt={alt}"
         assert dt_err < 2.0, f"time diff {dt_err:.2f}s too large at alt={alt}"
+
+
+def test_from_body_spec_pure() -> None:
+    """LandingPredictor.from_body_spec constructs from pure data, no kRPC."""
+    from recovery.specs import BodySpec
+
+    spec = BodySpec(
+        mu=MU,
+        omega=(0.0, 0.0, 0.0),
+        body_center=(0.0, 0.0, -R),
+        body_radius=R,
+    )
+    predictor = LandingPredictor.from_body_spec(spec)
+    result = predictor.predict(position=(0.0, 0.0, 1000.0), velocity=(0.0, 0.0, 0.0))
+    assert result is not None
+    assert result.position[2] == pytest.approx(0.0, abs=1.0)
+
+
+def test_drag_from_spec_pure() -> None:
+    """DragModel.from_spec builds the interpolation from raw density arrays."""
+    from recovery.specs import DragSpec
+
+    alts = np.linspace(0.0, 80000.0, 64)
+    vals = 1.225 * np.exp(-alts / 5600.0)
+    spec = DragSpec(
+        ballistic_coefficient=5000.0,
+        density_alts=alts,
+        density_vals=vals,
+        body_center=(0.0, 0.0, -R),
+        sea_level_radius=R,
+    )
+    model = DragModel.from_spec(spec)
+    assert model._numba_supported
+    acc = model.acceleration(
+        np.array([0.0, 0.0, 1000.0]), np.array([0.0, 0.0, -200.0])
+    )
+    assert acc[2] > 0.0

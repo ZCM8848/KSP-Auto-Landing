@@ -1,5 +1,6 @@
 """KSP isolation layer: the only place that imports kRPC."""
 
+from ..types import FlightState, Quaternion, Situation, Vector3
 from .control import VesselControls
 from .debug import DebugLine, DebugMarker, DebugProxy, DebugTrajectory
 from .exceptions import (
@@ -13,7 +14,6 @@ from .exceptions import (
     VesselNotResolved,
 )
 from .manager import ConnectionManager
-from .types import FlightState, Quaternion, Situation, Vector3
 from .vessel import VesselHandle
 
 __all__ = [

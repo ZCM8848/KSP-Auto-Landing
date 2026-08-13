@@ -1,4 +1,8 @@
-"""Public value types crossing the KSP isolation layer."""
+"""Public value types shared across the recovery framework.
+
+These are pure data containers with no kRPC dependency, imported by both the
+KSP isolation layer and the pure guidance/control layers.
+"""
 
 from __future__ import annotations
 

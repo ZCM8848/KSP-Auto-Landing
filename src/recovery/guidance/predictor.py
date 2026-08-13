@@ -10,9 +10,10 @@ crosses the surface sphere.  The dynamics include:
 * optional aerodynamic acceleration from an :class:`AeroModel` (e.g.
   :class:`DragModel` for per-step kRPC-based drag simulation)
 
-The recommended constructor is :meth:`LandingPredictor.from_body`, which
-derives all planetary constants from a kRPC ``CelestialBody``; callers can
-then use :meth:`predict` with :class:`Vector3` values or
+The recommended constructor is :meth:`LandingPredictor.from_body_spec`, which
+takes a pure-data :class:`~recovery.specs.BodySpec` (produced by the KSP
+isolation layer via :func:`recovery.ksp.sampling.sample_body_spec`); callers
+can then use :meth:`predict` with :class:`Vector3` values or
 :meth:`predict_from` with a :class:`FlightState` snapshot.
 """
 
@@ -26,7 +27,8 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.integrate import solve_ivp
 
-from ..ksp.types import FlightState, Vector3
+from ..specs import BodySpec
+from ..types import FlightState, Vector3
 from ._numba import rk4_fixed
 from .aerodynamics import AeroModel, DragModel
 
@@ -73,32 +75,22 @@ class LandingPredictor:
         self._aero = aero
 
     @classmethod
-    def from_body(
+    def from_body_spec(
         cls,
-        body: object,
-        target_frame: object,
-        lat: float,
-        lon: float,
+        spec: BodySpec,
         aero: AeroModel | None = None,
     ) -> LandingPredictor:
-        """Construct a predictor from a kRPC ``CelestialBody``.
+        """Construct a predictor from a pure-data :class:`BodySpec`.
 
-        Queries the body for gravitational parameter, rotation vector,
-        surface radius, and body-centre position — all expressed in
-        *target_frame*.
+        The spec is produced by :func:`recovery.ksp.sampling.sample_body_spec`
+        (which performs the one-shot kRPC sampling); this constructor is pure
+        and makes no network calls.
         """
-        omega = tuple(
-            np.array(body.direction(target_frame)) * body.rotational_speed
-        )
-        center = tuple(np.array(body.position(target_frame)))
-        radius = float(
-            body.equatorial_radius + body.surface_height(lat, lon)
-        )
         return cls(
-            mu=float(body.gravitational_parameter),
-            omega=omega,
-            body_center=center,
-            body_radius=radius,
+            mu=spec.mu,
+            omega=spec.omega,
+            body_center=spec.body_center,
+            body_radius=spec.body_radius,
             aero=aero,
         )
 

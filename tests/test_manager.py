@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from recovery.ksp import ConnectionManager
-from recovery.ksp.types import Situation, Vector3
+from recovery.types import Situation, Vector3
 from tests.fakes import FakeClient, FakeVessel
 
 

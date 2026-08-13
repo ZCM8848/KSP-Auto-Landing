@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from .types import FlightState, Quaternion, Situation, Vector3
+from ..types import FlightState, Quaternion, Situation, Vector3
 
 
 class Telemetry:

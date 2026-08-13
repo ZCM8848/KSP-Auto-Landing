@@ -19,6 +19,8 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
 
+from ..specs import DragSpec
+
 Vec3 = tuple[float, float, float]
 Vec4 = tuple[float, float, float, float]
 
@@ -106,9 +108,9 @@ class DragModel(AeroModel):
     and *ρ(h)* is the atmospheric density interpolated from a pre-sampled
     altitude‑density table.
 
-    Use :meth:`from_krpc` to build a model by sampling a kRPC
-    ``CelestialBody`` and ``Flight`` once; after construction the model is
-    fully offline and safe to evaluate from any thread.
+    Use :meth:`from_spec` to build a model from a pre-sampled
+    :class:`~recovery.specs.DragSpec`; after construction the model is fully
+    offline and safe to evaluate from any thread.
     """
 
     def __init__(
@@ -129,76 +131,32 @@ class DragModel(AeroModel):
         self._density_vals = density_vals
 
     @classmethod
-    def from_krpc(
-        cls,
-        body: Any,
-        flight: Any,
-        target_frame: Any,
-        *,
-        mass: float | None = None,
-        manual_beta: float | None = None,
-        altitude_samples: int = 64,
-    ) -> DragModel:
-        """Sample density profile and ballistic coefficient from kRPC.
+    def from_spec(cls, spec: DragSpec) -> DragModel:
+        """Construct a model from a pure-data :class:`DragSpec`.
 
-        **One-time RPC cost:** ~25 ms for 64 samples (measured on Kerbin).
-        After this call the returned model performs zero network I/O.
-
-        *altitude_samples* is treated as a minimum; the actual count is
-        never less than ``max(32, atmosphere_depth / 500)`` so very deep
-        atmospheres (RSS Earth ~140 km) automatically get more points.
-        Sample spacing follows a cosine distribution — dense near sea level,
-        coarser at high altitude.
+        The spec is produced by
+        :func:`recovery.ksp.sampling.sample_drag_spec` (which performs the
+        one-shot kRPC density/coefficient sampling); this constructor is pure
+        and makes no network calls.
         """
-        center = tuple(np.array(body.position(target_frame)))
-        sea_r = float(body.equatorial_radius)
-        depth = float(body.atmosphere_depth)
-
-        min_s = max(32, int(depth / 500.0))
-        n = max(altitude_samples, min_s)
-        raw = np.linspace(0.0, np.pi / 2.0, n)
-        alts = depth * (1.0 - np.cos(raw))
-        alts[0] = 0.0
-        alts[-1] = depth
-        densities = np.array(
-            [float(body.density_at(float(h))) for h in alts], dtype=float
-        )
+        alts = spec.density_alts
+        vals = spec.density_vals
+        depth = float(alts[-1])
 
         def _interp(h: float) -> float:
             if h < 0.0:
-                return float(densities[0])
+                return float(vals[0])
             if h > depth:
                 return 0.0
-            return float(np.interp(h, alts, densities))
-
-        # --- ballistic coefficient ------------------------------------------
-        beta: float
-        if manual_beta is not None:
-            beta = manual_beta
-        elif getattr(getattr(body, "space_center", None), "far_available", False):
-            beta = float(getattr(flight, "ballistic_coefficient", 0.0))
-        elif mass is not None:
-            rho = float(flight.atmosphere_density)
-            d = flight.drag
-            drag_mag = float(sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]))
-            spd = float(flight.speed)
-            if drag_mag > 1e-6 and spd > 1e-6 and rho > 1e-12:
-                beta = mass * rho * spd * spd / (2.0 * drag_mag)
-            else:
-                beta = float("inf")
-        else:
-            raise ValueError(
-                "Cannot determine ballistic coefficient: "
-                "FAR not installed, no manual_beta, and no mass for estimation"
-            )
+            return float(np.interp(h, alts, vals))
 
         return cls(
-            ballistic_coefficient=beta,
+            ballistic_coefficient=spec.ballistic_coefficient,
             density_fn=_interp,
-            body_center=center,
-            sea_level_radius=sea_r,
+            body_center=spec.body_center,
+            sea_level_radius=spec.sea_level_radius,
             density_alts=alts,
-            density_vals=densities,
+            density_vals=vals,
         )
 
     @property

@@ -3,10 +3,10 @@ import sys
 import time
 
 sys.path.insert(0, "src")
-import numpy as np
 from recovery import ConnectionManager
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import LandingPredictor
+from recovery.ksp.sampling import sample_body_spec
 
 with ConnectionManager(address="127.0.0.1") as km:
     b = km.add_booster("pred", "RLV-1 VTVL")
@@ -23,22 +23,13 @@ with ConnectionManager(address="127.0.0.1") as km:
     body = raw.orbit.body
     tf = km.frame("pred", "target")
 
-    omega = np.array(body.direction(tf)) * body.rotational_speed
-    body_center = np.array(body.position(tf))
-    body_radius = body.equatorial_radius + body.surface_height(
-        LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon
-    )
+    body_spec = sample_body_spec(body, tf, LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
 
-    print("omega        =", tuple(omega))
-    print("body_center  =", tuple(body_center))
-    print("body_radius  = %.1f" % body_radius)
+    print("omega        =", body_spec.omega)
+    print("body_center  =", body_spec.body_center)
+    print(f"body_radius  = {body_spec.body_radius:.1f}")
 
-    predictor = LandingPredictor(
-        mu=body.gravitational_parameter,
-        omega=tuple(omega),
-        body_center=tuple(body_center),
-        body_radius=body_radius,
-    )
+    predictor = LandingPredictor.from_body_spec(body_spec)
 
     s = b.snapshot()
     position = tuple(s.position)
@@ -49,7 +40,8 @@ with ConnectionManager(address="127.0.0.1") as km:
     result = predictor.predict(position, velocity)
     if result:
         print("\nIMPACT:")
-        print("  position = (%.1f, %.1f, %.1f)" % result.position)
-        print("  time     = %.2f s" % result.time)
+        pos = result.position
+        print(f"  position = ({pos[0]:.1f}, {pos[1]:.1f}, {pos[2]:.1f})")
+        print(f"  time     = {result.time:.2f} s")
     else:
         print("\nNo impact within t_max")

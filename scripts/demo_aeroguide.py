@@ -13,6 +13,7 @@ sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import LandingPredictor
+from recovery.ksp.sampling import sample_body_spec
 
 VESSEL = "RLV-1 VTVL"
 MAX_AOA = 20.0       # degrees — max angle of attack for body lift
@@ -77,7 +78,8 @@ def main():
         frame = km.frame("aero", "target")
 
         # build predictor
-        predictor = LandingPredictor.from_body(body, frame, LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
+        body_spec = sample_body_spec(body, frame, LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
+        predictor = LandingPredictor.from_body_spec(body_spec)
 
         # debug: target frame axes + vessel frame
         b.debug.reference_frame(frame_name="target", length=10)

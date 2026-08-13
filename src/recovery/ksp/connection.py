@@ -7,6 +7,7 @@ from typing import Any
 
 import krpc
 
+from ..types import FlightState
 from .control import VesselControls
 from .exceptions import (
     InvalidState,
@@ -15,7 +16,6 @@ from .exceptions import (
 )
 from .reference_frames import create_target_reference_frame
 from .telemetry import Telemetry
-from .types import FlightState
 
 
 class KspConnection:

@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from recovery.ksp.types import Situation
+from recovery.types import Situation
 
 
 def test_situation_mapping() -> None:

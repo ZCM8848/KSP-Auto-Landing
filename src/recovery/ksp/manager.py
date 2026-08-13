@@ -5,10 +5,10 @@ from __future__ import annotations
 import atexit
 from typing import Any
 
+from ..types import FlightState
 from .connection import KspConnection
 from .debug import DebugConnection
 from .exceptions import DuplicateBooster, InvalidState
-from .types import FlightState
 from .vessel import VesselHandle
 
 

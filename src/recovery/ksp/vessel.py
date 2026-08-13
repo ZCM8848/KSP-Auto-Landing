@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from ..types import FlightState
 from .control import VesselControls
 from .debug import DebugProxy
-from .exceptions import DebugNotEnabled, TargetNotRegistered
-from .types import FlightState
+from .exceptions import DebugNotEnabled
 
 if TYPE_CHECKING:
     from .connection import KspConnection
@@ -159,54 +159,3 @@ class VesselHandle:
         if state is None:
             return False
         return state.loaded and not state.packed
-
-    def init_predictor(
-        self,
-        *,
-        altitude_samples: int = 64,
-        manual_beta: float | None = None,
-    ) -> Any:
-        """Build a :class:`~recovery.guidance.LandingPredictor` with an
-        offline :class:`~recovery.guidance.DragModel` attached.
-
-        Samples the celestial body's atmosphere density profile and the
-        vessel's current ballistic coefficient from kRPC **once** (~25 ms);
-        subsequent :meth:`predict` calls run entirely offline and are safe
-        to invoke from the 20 Hz control loop.
-
-        Requires :meth:`register_target` to have been called first.
-
-        Keyword Args:
-            altitude_samples: Minimum number of density sample points
-                (actual count is auto-scaled for deep atmospheres).
-            manual_beta: Explicit ballistic coefficient override (kg/m²).
-                When ``None`` the coefficient is read from FAR (if
-                installed) or estimated from the current drag force.
-        """
-        if self._target_lat is None or self._target_lon is None:
-            raise TargetNotRegistered(
-                "register_target() must be called before init_predictor()"
-            )
-        from ..guidance.aerodynamics import DragModel
-        from ..guidance.predictor import LandingPredictor
-
-        frame = self.frame("target")
-        body = self._vessel.orbit.body
-        flight = self._vessel.flight(frame)
-        mass = float(self._vessel.mass)
-
-        drag = DragModel.from_krpc(
-            body=body,
-            flight=flight,
-            target_frame=frame,
-            mass=mass,
-            manual_beta=manual_beta,
-            altitude_samples=altitude_samples,
-        )
-        return LandingPredictor.from_body(
-            body=body,
-            target_frame=frame,
-            lat=self._target_lat,
-            lon=self._target_lon,
-            aero=drag,
-        )

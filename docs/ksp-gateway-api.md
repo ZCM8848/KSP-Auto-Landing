@@ -98,7 +98,6 @@ ConnectionManager(
 | `register_target` | `(*, lon, lat) -> None` | 同 `km.register_target`。 |
 | `physics_range` | `property -> float`（可读写） | 物理泡半径（米），`RangeManager` 钩子。 |
 | `is_controllable` | `() -> bool` | `loaded and not packed`。快照未就绪返回 `False`。 |
-| `init_predictor` | `(*, altitude_samples=64, manual_beta=None) -> LandingPredictor` | 一次性采样大气密度剖面与弹道系数（~25 ms RPC），构造带 `DragModel` 的离线落点预测器。调用后可安全用于 20 Hz 控制循环（零 RPC）。需先 `register_target`。见[制导模块](#制导模块)。 |
 | `start` / `close` | `() -> None` | 委托给内部连接。 |
 | `control_hz` | 公开属性 `float` | 编排层 Scheduler 使用的目标控制频率（隔离层不自行跑控制循环）。 |
 
@@ -352,7 +351,6 @@ controls.apply(
 | 重复 `booster_id` | `DuplicateBooster`（`ValueError`） |
 | `resolve_vessel` 未调用即访问 `vessel`/`controls` | `VesselNotResolved`（`RuntimeError`） |
 | `start()` 后 `add_booster` / `register_target` | `InvalidState`（`RuntimeError`） |
-| `init_predictor()` 前未 `register_target` | `TargetNotRegistered`（`RuntimeError`） |
 | `debug` 未启用 | `DebugNotEnabled`（`RuntimeError`） |
 | 未知 `booster_id` | `KeyError` |
 | `target_direction` 缺 `reference_frame` / 零向量 | `ValueError` |
@@ -381,30 +379,55 @@ controls.apply(
 
 ## 制导模块
 
-`src/recovery/guidance/` —— 独立的轨迹预测与气动建模层，**只在初始化阶段访问 kRPC**，运行阶段零网络 I/O。
+`src/recovery/guidance/` —— 纯轨迹预测与气动建模层，**完全不接触 kRPC**。所有 KSP I/O 由隔离层的 `recovery.ksp.sampling` 完成，产出纯数据 spec，再交给本层构造模型。
+
+### 分层数据流
+
+```
+kRPC 对象 ──→ recovery.ksp.sampling（RPC 采样）──→ recovery.specs（纯数据）
+                                                      │
+recovery.guidance（纯构造）←──────────────────────────┘
+```
+
+### `recovery.specs` —— 纯数据 spec
+
+| spec | 字段 | 说明 |
+|---|---|---|
+| `BodySpec` | `mu`, `omega`, `body_center`, `body_radius` | 行星常数（target 帧内） |
+| `DragSpec` | `ballistic_coefficient`, `density_alts`, `density_vals`, `body_center`, `sea_level_radius` | 大气阻力参数 |
+
+### `recovery.ksp.sampling` —— RPC 采样（唯一做预测 RPC 的模块）
+
+```python
+from recovery.ksp.sampling import sample_body_spec, sample_drag_spec
+
+body_spec = sample_body_spec(body, target_frame, lat, lon)
+drag_spec = sample_drag_spec(
+    body, flight, target_frame,
+    mass=vessel.mass,            # 非 FAR 时 β 反算用
+    manual_beta=None,            # 强制指定 β，None=自动
+    altitude_samples=64,         # 自适应下限 = max(32, depth/500)
+)
+```
 
 ### `recovery.guidance.LandingPredictor`
 
 RK45 数值积分落点预测器，在行星固连（target）参考系中对运动方程积分至地表。
 
 ```python
-# 纯弹道（无大气）
-predictor = LandingPredictor(
-    mu=body.gravitational_parameter,
-    omega=rotation_vector,
-    body_center=center_position,
-    body_radius=surface_radius,
-    aero=None,                             # 默认 None = 纯弹道
-)
+# 纯构造（无 RPC）
+predictor = LandingPredictor.from_body_spec(body_spec, aero=drag_model)
 
-# 或用 from_body 自动获取常数
-predictor = LandingPredictor.from_body(body, target_frame, lat, lon, aero=drag_model)
+# 或直接传标量
+predictor = LandingPredictor(
+    mu=..., omega=..., body_center=..., body_radius=..., aero=None,
+)
 ```
 
 | 成员 | 签名 | 说明 |
 |---|---|---|
-| `from_body` | `(body, target_frame, lat, lon, aero=None) -> LandingPredictor` | 从 kRPC `CelestialBody` 读取 μ / 转速 / 半径 / 球心坐标（**一次 RPC**）。 |
-| `predict` | `(*, position, velocity, t_max=600, rtol=1e-9, atol=1e-9) -> ImpactResult \| None` | 积分至地表。返回 `(position, time)`；`t_max` 内未落地返回 `None`。控制循环用 `rtol/atol=1e-6`。 |
+| `from_body_spec` | `(spec: BodySpec, aero=None) -> LandingPredictor` | 纯构造，从 `sample_body_spec` 的产物建预测器。 |
+| `predict` | `(*, position, velocity, t_max=600, rtol=1e-9, atol=1e-9) -> ImpactResult \| None` | 积分至地表。`t_max` 内未落地返回 `None`。控制循环用 `rtol/atol=1e-6`。 |
 | `predict_from` | `(state: FlightState, **kwargs) -> ImpactResult \| None` | 同 `predict`，从快照读取位置/速度。 |
 
 动力学方程：`a = g_μ(r) − 2ω×v − ω×(ω×r) + a_aero(r,v)`。`a_aero` 为可选的气动模型贡献。
@@ -430,7 +453,7 @@ class ImpactResult:
 
 ### `recovery.guidance.DragModel`
 
-离线阻力模型，通过 `from_krpc` 一次性采样大气密度剖面和弹道系数（~25 ms RPC 总开销），之后 `acceleration()` 纯本地计算。
+离线阻力模型。由 `sample_drag_spec` 采样的 `DragSpec` 经 `from_spec` 纯构造，之后 `acceleration()` 纯本地计算。
 
 ```
 a_drag = −½ · ρ(海拔) · |v|² / β · v̂
@@ -445,20 +468,13 @@ model = DragModel(
     sea_level_radius=600000,
 )
 
-# 方式 ②：从 kRPC 一次性采样（推荐）
-model = DragModel.from_krpc(
-    body=celestial_body,
-    flight=vessel.flight(target_frame),
-    target_frame=target_frame,
-    mass=vessel.mass,                     # 非 FAR 时的 β 反算用
-    manual_beta=None,                     # 强制指定 β（kg/m²），None=自动
-    altitude_samples=64,                  # 采样点数（自适应下限 = max(32, depth/500)）
-)
+# 方式 ②：从采样 spec 构造（推荐，配合 sample_drag_spec）
+model = DragModel.from_spec(drag_spec)
 ```
 
 | 参数 | 说明 |
 |---|---|
-| `altitude_samples` | 余弦非均匀分布（低空密、高空疏）。RSS（~140 km 大气）自动 ≥ 128 点。 |
+| `sample_drag_spec.altitude_samples` | 余弦非均匀分布（低空密、高空疏）。RSS（~140 km 大气）自动 ≥ 128 点。 |
 | 弹道系数 β | 三级获取策略：`manual_beta` → FAR `ballistic_coefficient` → `Flight.drag` 反算 |
 | 密度模型 | `density_at(altitude)` × N 点 → `np.interp` 线性插值；超出大气深度返回 0 |
 
@@ -468,19 +484,28 @@ model = DragModel.from_krpc(
 
 ```python
 aero = KrpcAeroModel(flight=v.flight(target_frame), body=body, mass=mass)
-predictor = LandingPredictor.from_body(body, target_frame, lat, lon, aero=aero)
+body_spec = sample_body_spec(body, target_frame, lat, lon)
+predictor = LandingPredictor.from_body_spec(body_spec, aero=aero)
 ```
 
 ### 典型用法：ZEM 助推回收
 
 ```python
+from recovery.ksp.sampling import sample_body_spec, sample_drag_spec
+
 with ConnectionManager() as km:
     b = km.add_booster("booster", "SuperHeavy")
     km.register_target("booster", lon=LAUNCHPAD.lon, lat=LAUNCHPAD.lat)
     km.start()
 
-    predictor = b.init_predictor()          # 一次采样 ~25 ms RPC
     frame = km.frame("booster", "target")
+    body = b.raw.orbit.body
+    flight = b.raw.flight(frame)
+    body_spec = sample_body_spec(body, frame, LAUNCHPAD.lat, LAUNCHPAD.lon)
+    drag_spec = sample_drag_spec(body, flight, frame, mass=float(b.raw.mass))
+    predictor = LandingPredictor.from_body_spec(
+        body_spec, aero=DragModel.from_spec(drag_spec)
+    )
 
     while True:
         s = b.snapshot()
