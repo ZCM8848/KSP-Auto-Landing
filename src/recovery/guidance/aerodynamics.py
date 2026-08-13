@@ -169,6 +169,26 @@ class DragModel(AeroModel):
             and self._density_vals is not None
         )
 
+    @property
+    def numba_params(
+        self,
+    ) -> tuple[float, np.ndarray, np.ndarray, float] | None:
+        """Return ``(beta, density_alts, density_vals, sea_level_radius)``
+        for the fixed-step RK4 fast path, or ``None`` when the model cannot
+        be evaluated by the numba kernel.
+
+        This is the only supported way for :class:`~recovery.guidance.LandingPredictor`
+        to feed a :class:`DragModel` into its numba fast path — callers must
+        not reach into the private fields directly.
+        """
+        if not self._numba_supported:
+            return None
+        alts = self._density_alts
+        vals = self._density_vals
+        if alts is None or vals is None:
+            return None
+        return (self._beta, alts, vals, self._sea_r)
+
     def acceleration(
         self,
         position: NDArray[np.float64],

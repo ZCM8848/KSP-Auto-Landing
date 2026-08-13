@@ -151,8 +151,12 @@ class LandingPredictor:
         """Fixed-step RK4 fast path, used when a :class:`DragModel` with
         pre-sampled density tables is attached."""
         aero = self._aero
-        if not isinstance(aero, DragModel) or not aero._numba_supported:
+        if not isinstance(aero, DragModel):
             return None
+        params = aero.numba_params
+        if params is None:
+            return None
+        beta, alts, vals, sea_r = params
 
         dt = 0.04
         max_n = int(t_max / dt)
@@ -163,10 +167,10 @@ class LandingPredictor:
             self._omega,
             self._center,
             self._radius,
-            aero._beta,
-            aero._density_alts,  # type: ignore[arg-type]
-            aero._density_vals,  # type: ignore[arg-type]
-            aero._sea_r,
+            beta,
+            alts,
+            vals,
+            sea_r,
             dt,
             max_n,
         )
@@ -206,8 +210,7 @@ class LandingPredictor:
         inv_cube = 1.0 / (dist * dist * dist)
         g_vec = -self._mu * inv_cube * d
         coriolis = -2.0 * np.cross(self._omega, v)
-        d_center = r - self._center
-        centrifugal = -np.cross(self._omega, np.cross(self._omega, d_center))
+        centrifugal = -np.cross(self._omega, np.cross(self._omega, d))
         a = g_vec + coriolis + centrifugal
         if self._aero is not None:
             a += np.array(self._aero.acceleration(r, v), dtype=float)

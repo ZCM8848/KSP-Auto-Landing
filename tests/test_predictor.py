@@ -416,9 +416,12 @@ def test_numba_rk4_matches_scipy() -> None:
         assert r_scipy is not None
         r0 = np.array([0.0, 0.0, alt], dtype=float)
         v0 = np.array([vx, 0.0, vz], dtype=float)
+        params = drag.numba_params
+        assert params is not None
+        beta, alts, dens, sea_r = params
         hit = rk4_fixed(
             r0, v0, MU, np.zeros(3), np.array([0.0, 0.0, -R]), R,
-            drag._beta, h_vals, density_vals, R,
+            beta, alts, dens, sea_r,
             dt=0.04, max_n=5000,
         )
         assert hit is not None
@@ -458,7 +461,7 @@ def test_drag_from_spec_pure() -> None:
         sea_level_radius=R,
     )
     model = DragModel.from_spec(spec)
-    assert model._numba_supported
+    assert model.numba_params is not None
     acc = model.acceleration(
         np.array([0.0, 0.0, 1000.0]), np.array([0.0, 0.0, -200.0])
     )
