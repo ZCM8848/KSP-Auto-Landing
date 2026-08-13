@@ -12,6 +12,7 @@ from typing import Any
 
 import krpc
 
+from .exceptions import TargetNotRegistered
 from .reference_frames import create_target_reference_frame
 
 Vec3 = tuple[float, float, float]
@@ -307,7 +308,7 @@ class DebugProxy:
         space_center = self._client.space_center
         if frame_name == "target":
             if self._target_lon is None or self._target_lat is None:
-                raise RuntimeError("no target registered for this booster")
+                raise TargetNotRegistered("no target registered for this booster")
             body = space_center.bodies[self._body_name]
             frame = create_target_reference_frame(
                 space_center, body, self._target_lon, self._target_lat

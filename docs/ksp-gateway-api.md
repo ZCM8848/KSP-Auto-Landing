@@ -1,6 +1,6 @@
 # KSP 隔离层网关 API
 
-`src/recovery/ksp/` —— 整个应用中**唯一导入 `krpc`** 的模块。上层（simulation / guidance / orchestration / server）只能经由本层公共 API 读写 KSP，禁止直接接触 kRPC。
+`src/recovery/ksp/` —— 整个应用中**唯一导入 `krpc`** 的模块。上层（guidance / control / data 及未来的编排层）只能经由本层公共 API 读写 KSP，禁止直接接触 kRPC。
 
 ## 设计约定
 
@@ -69,14 +69,14 @@ ConnectionManager(
 
 | 方法 | 签名 | 说明 |
 |---|---|---|
-| `add_booster` | `(booster_id: str, vessel_name: str, *, control_hz=50.0, telemetry_hz=None) -> VesselHandle` | 注册一艘船；按 `vessel_name` 从 `space_center.vessels` 解析，找不到抛 `ValueError`（含可用船名清单）。重复 id 抛 `ValueError`；`start()` 后调用抛 `RuntimeError`。解析失败自动关闭该连接。 |
+| `add_booster` | `(booster_id: str, vessel_name: str, *, control_hz=50.0, telemetry_hz=None) -> VesselHandle` | 注册一艘船；按 `vessel_name` 从 `space_center.vessels` 解析，找不到抛 `VesselNotFound`（含可用船名清单）。重复 id 抛 `DuplicateBooster`；`start()` 后调用抛 `InvalidState`。解析失败自动关闭该连接。 |
 | `start` | `() -> None` | 启动所有船的 telemetry 线程。 |
 | `close` | `() -> None` | 停止所有 telemetry 并关闭连接。幂等。 |
 | `vessel` | `(booster_id) -> VesselHandle` | 取句柄；未知 id 抛 `KeyError`。 |
 | `snapshot` | `(booster_id) -> FlightState \| None` | 取最新快照；telemetry 未就绪时返回 `None`。 |
 | `snapshot_all` | `() -> dict[str, FlightState \| None]` | 全部船的快照。 |
 | `frame` | `(booster_id, name="target") -> Any` | 参考系句柄。`"target"`（需先 `register_target`，否则 `KeyError`）或 `"surface"`。 |
-| `register_target` | `(booster_id, *, lon: float, lat: float) -> None` | 为该船建立着陆点参考系（见下"坐标系"）。必须 `start()` 前调用，否则 `RuntimeError`。 |
+| `register_target` | `(booster_id, *, lon: float, lat: float) -> None` | 为该船建立着陆点参考系（见下"坐标系"）。必须 `start()` 前调用，否则 `InvalidState`。 |
 | `abort_all` | `() -> None` | 对每船执行 `cut_thrust()`。 |
 | `enable_debug` | `() -> None` | 打开一条共享调试连接（独立于控制连接）。 |
 | `disable_debug` | `() -> None` | 关闭调试连接，KSP 自动清除其全部绘图。幂等。 |
@@ -273,7 +273,7 @@ km.disable_debug()           # 关闭调试连接，KSP 自动清空所有绘图
 `DebugTrajectory`：`update(positions)`（点数不变时仅改 `start`/`end`，零 `add_line`）；`color` / `visible` / `thickness` 可读写；`clear()`。
 `DebugMarker`：`visible` 可读写；`clear()`。
 
-> 要求：`frame_name="target"` 前必须先 `km.register_target(...)`，否则 `RuntimeError`；`b.debug` 需先 `km.enable_debug()`，否则 `RuntimeError`。绘图在调试连接上，`positions` 接受 `list[tuple]` / `list[Vector3]` / `numpy.ndarray`。
+> 要求：`frame_name="target"` 前必须先 `km.register_target(...)`，否则 `TargetNotRegistered`；`b.debug` 需先 `km.enable_debug()`，否则 `DebugNotEnabled`。绘图在调试连接上，`positions` 接受 `list[tuple]` / `list[Vector3]` / `numpy.ndarray`。
 
 ## 滚转与迎风面控制
 
@@ -449,7 +449,7 @@ class ImpactResult:
 |---|---|---|---|
 | 无（`aero=None`） | — | — | 快速纯弹道预测 |
 | `KrpcAeroModel` | `Flight.simulate_aerodynamic_force_at`（攻角 180° / 鼻锥后指） | **是**（每步一发 RPC） | 离线校验、高精度分析 |
-| `DragModel` | 一次性采样的密度插值表 + 弹道系数 β | **否** | **20 Hz 控制循环** |
+| `DragModel` | 一次性采样的密度插值表 + 弹道系数 β | **否** | **高频控制循环（零 RPC/步）** |
 
 ### `recovery.guidance.DragModel`
 

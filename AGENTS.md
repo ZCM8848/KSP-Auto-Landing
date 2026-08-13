@@ -30,7 +30,8 @@ mypy                         # typecheck (strict)
 - Lifecycle order matters: `add_booster()` → `register_target()` → `start()`. `register_target` after `start()` raises; frame `"target"` requires it.
 - `snapshot()` returns `None` until the telemetry thread produces its first frame — poll for readiness before driving a control loop.
 - Snapshots are frozen `FlightState` objects (thread-safe reads). Control loop reads snapshots; only throttle/attitude setters do RPCs.
-- Building a predictor is a two-step compose: `sample_body_spec()` + `sample_drag_spec()` (in `ksp/sampling.py`, one-time ~25 ms RPC) → `LandingPredictor.from_body_spec()` + `DragModel.from_spec()` (pure). `predict()` after that is pure local and safe at control-loop rates.- The `"target"` reference-frame axis convention is inherited verbatim from the legacy implementation (`reference_frames.py` says "do not reinterpret these axes"). Don't "fix" it.
+- Building a predictor is a two-step compose: `sample_body_spec()` + `sample_drag_spec()` (in `ksp/sampling.py`, one-time ~25 ms RPC) → `LandingPredictor.from_body_spec()` + `DragModel.from_spec()` (pure). `predict()` after that is pure local and safe at control-loop rates.
+- The `"target"` reference-frame axis convention is inherited verbatim from the legacy implementation (`reference_frames.py` says "do not reinterpret these axes"). Don't "fix" it.
 - `abort_all()`/`close()` must run **inside** the `with` block; commanding a closed connection raises `OSError` (WinError 10038).
 
 ## Lint / type config quirks
