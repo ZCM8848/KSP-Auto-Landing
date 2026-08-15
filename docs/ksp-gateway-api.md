@@ -533,6 +533,48 @@ with ConnectionManager() as km:
 
 完整示例见 `scripts/zem_boosterback.py`。
 
+### `recovery.guidance.gfold` —— G-FOLD 动力下降规划器
+
+纯封装 `gfold` SOCP 求解器，**+z = 天顶**（与 target 帧和 gfold 库一致，重力 `[0, 0, -g]`，推力沿 +z）。`GfoldParams`（frozen dataclass）集中所有可调参数；固定量（质量/燃料/推力/Isp/重力/初始状态）自动从 `FlightState` 快照 + 表面重力 `g0` 推导。
+
+| 成员 | 签名 | 说明 |
+|---|---|---|
+| `GfoldParams` | frozen dataclass | 可调参数：目标位置/速度、glide-slope 锥、推力指向锥、节流上下限、`max_velocity`、节点数 `n`、TOF（`None`=搜索） |
+| `build_config` | `(state, g0, params, *, tof=None, n=None) -> gfold.Config` | 组装求解器配置 |
+| `solve` | `(config) -> Trajectory \| None` | 求解；不可行/求解失败返回 `None` |
+| `replan` | `(state, g0, params, *, tof) -> Trajectory \| None` | 固定 TOF 单次求解（热循环，~10 ms @ n=50） |
+| `solve_optimal` | `(state, g0, params) -> Trajectory \| None` | 燃料最优（内部搜索 TOF，~0.5 s）——点火触发/兜底 |
+| `tof_of` | `(traj) -> float` | 反算解出的 TOF |
+| `command` | `(traj, *, mass, available_thrust, min_throttle, max_throttle) -> (throttle, nose)` | 轨迹首节点 → `(油门, 鼻锥方向)`（推力加速度方向 = 鼻锥方向；仅在推力朝上的刹车阶段调用） |
+| `features_of` | `(state, params) -> list[float]` | 14 维 TOF-Net 特征向量（见下） |
+
+### `recovery.guidance.tofnet` —— TOF-Net TOF 预测器
+
+加载预训练 ONNX 模型，用 `(p_feasible, tf)` 预测**替代 `solve_optimal` 内部的 TOF 搜索**。纯黑盒：14 维原始特征进、`(p_feasible, tf)` 出；归一化已打包进 ONNX 前向。`onnxruntime` 是可选依赖（惰性 import，仅在实例化 `TofPredictor` 时需要）。
+
+```python
+from recovery.guidance.gfold import GfoldParams, features_of, replan, solve_optimal
+from recovery.guidance.tofnet import TofPredictor
+
+tofnet = TofPredictor()                          # 默认加载包内 assets/tofnet.onnx
+p, tf = tofnet.predict(features_of(s, params))   # 微秒级推理
+if p >= tofnet.threshold:
+    traj = replan(s, g0, params, tof=tf)         # 固定 TOF，跳过搜索
+else:
+    traj = solve_optimal(s, g0, params)          # fallback：完整 TOF 搜索
+```
+
+| 成员 | 说明 |
+|---|---|
+| `TofPredictor(onnx_path=None, meta_path=None)` | 加载 ONNX + 元数据；默认用 `importlib.resources` 定位 `recovery.guidance/assets/` |
+| `predict(features) -> (p_feasible, tf)` | 推理，返回可行概率 + 最优 TOF（秒） |
+| `threshold` | 可行性阈值（来自 `.onnx.json` 元数据） |
+| `features` | 特征名顺序（契约参考） |
+
+**14 维特征顺序是训练契约**（GFOLD-solver `common/config.py` 的 `FEATURES`）：`x,y,z, vx,vy,vz, dry_mass, fuel, real_max_thrust, min_thrust_pct, max_thrust_pct, fuel_consumption, glide_slope_angle_deg, max_angle_deg`。`features_of` 是唯一产生源；`fuel_consumption` 用标准重力 `G0=9.80665`（Isp 换算），**不是**表面重力 `g0`。
+
+> 注意：该模型是 **Kerbin 专用**（训练时重力 `[0,0,-9.81]` 写死，特征向量不含重力）。换天体需重训或把重力加进特征重训。`onnxruntime` 属可选 extra（`pip install -e .[tofnet]`）。
+
 ## 测试
 
 ```bash

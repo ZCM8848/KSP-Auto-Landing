@@ -17,12 +17,14 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "mypy"]
+tofnet = ["onnxruntime"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 "recovery" = ["py.typed"]
+"recovery.guidance" = ["assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -58,6 +60,14 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module = "recovery.guidance._numba"
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "gfold"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "onnxruntime"
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "scipy.*"

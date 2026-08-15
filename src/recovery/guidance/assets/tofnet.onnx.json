@@ -1,0 +1,79 @@
+{
+  "features": [
+    "x",
+    "y",
+    "z",
+    "vx",
+    "vy",
+    "vz",
+    "dry_mass",
+    "fuel",
+    "real_max_thrust",
+    "min_thrust_pct",
+    "max_thrust_pct",
+    "fuel_consumption",
+    "glide_slope_angle_deg",
+    "max_angle_deg"
+  ],
+  "threshold": 0.48285120725631714,
+  "tf_mean": 26.376367568969727,
+  "tf_std": 7.216611385345459,
+  "norm_bounds": {
+    "x": [
+      -3000.0,
+      3000.0
+    ],
+    "y": [
+      -3000.0,
+      3000.0
+    ],
+    "z": [
+      0.0,
+      6000.0
+    ],
+    "vx": [
+      -200.0,
+      200.0
+    ],
+    "vy": [
+      -200.0,
+      200.0
+    ],
+    "vz": [
+      -500.0,
+      0.0
+    ],
+    "dry_mass": [
+      12000.0,
+      26000.0
+    ],
+    "fuel": [
+      2000.0,
+      200000.0
+    ],
+    "real_max_thrust": [
+      200000.0,
+      11000000.0
+    ],
+    "min_thrust_pct": [
+      0.3,
+      0.5
+    ],
+    "max_thrust_pct": [
+      0.95,
+      1.0
+    ],
+    "fuel_consumption": [
+      0.0002832545036049801,
+      0.0005098581064889641
+    ],
+    "glide_slope_angle_deg": [
+      15.0,
+      75.0
+    ],
+    "max_angle_deg": [
+      5.0,
+      15.0
+    ]
+  }
+}
