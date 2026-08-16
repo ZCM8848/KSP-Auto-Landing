@@ -629,3 +629,104 @@ def test_numba_vs_scipy_performance(monkeypatch: pytest.MonkeyPatch) -> None:
         # The existing test_numba_rk4_matches_scipy tolerances.
         assert dpos < 500.0
         assert dt_err < 2.0
+
+
+def test_predict_dt_validation() -> None:
+    """Constructor and per-call dt must reject non-positive values."""
+    with pytest.raises(ValueError):
+        LandingPredictor(
+            mu=MU,
+            omega=(0.0, 0.0, 0.0),
+            body_center=(0.0, 0.0, -R),
+            body_radius=R,
+            dt=0.0,
+        )
+    with pytest.raises(ValueError):
+        LandingPredictor(
+            mu=MU,
+            omega=(0.0, 0.0, 0.0),
+            body_center=(0.0, 0.0, -R),
+            body_radius=R,
+            dt=-0.1,
+        )
+    predictor = LandingPredictor(
+        mu=MU, omega=(0.0, 0.0, 0.0), body_center=(0.0, 0.0, -R), body_radius=R
+    )
+    with pytest.raises(ValueError):
+        predictor.predict(position=(0.0, 0.0, 1000.0), velocity=(0.0, 0.0, 0.0), dt=0.0)
+
+
+def test_predict_dt_override() -> None:
+    """Per-call dt overrides the constructor default."""
+    h_vals = np.linspace(0, 80000, 64)
+    density_vals = 1.225 * np.exp(-h_vals / 5600.0)
+    drag = DragModel(
+        ballistic_coefficient=5000.0,
+        density_fn=lambda h: float(np.interp(h, h_vals, density_vals)),
+        body_center=(0.0, 0.0, -R),
+        sea_level_radius=R,
+        density_alts=h_vals,
+        density_vals=density_vals,
+    )
+    predictor = LandingPredictor(
+        mu=MU,
+        omega=(0.0, 0.0, 0.0),
+        body_center=(0.0, 0.0, -R),
+        body_radius=R,
+        aero=drag,
+        dt=0.04,
+    )
+    r_default = predictor.predict(position=(0.0, 0.0, 10000.0), velocity=(500.0, 0.0, -100.0))
+    r_large = predictor.predict(
+        position=(0.0, 0.0, 10000.0), velocity=(500.0, 0.0, -100.0), dt=0.5
+    )
+    assert r_default is not None
+    assert r_large is not None
+
+
+def test_dt_speed_accuracy_tradeoff() -> None:
+    """Print the speed/accuracy tradeoff for different numba dt values.
+
+    Uses a long high-altitude reentry so the effect of dt is visible.
+    Assertions are loose; the printed table is the primary evaluation output.
+    """
+    h_vals = np.linspace(0, 80000, 64)
+    density_vals = 1.225 * np.exp(-h_vals / 5600.0)
+    drag = DragModel(
+        ballistic_coefficient=5000.0,
+        density_fn=lambda h: float(np.interp(h, h_vals, density_vals)),
+        body_center=(0.0, 0.0, -R),
+        sea_level_radius=R,
+        density_alts=h_vals,
+        density_vals=density_vals,
+    )
+    predictor = LandingPredictor(
+        mu=MU,
+        omega=(0.0, 0.0, 0.0),
+        body_center=(0.0, 0.0, -R),
+        body_radius=R,
+        aero=drag,
+    )
+
+    r0 = (0.0, 0.0, 50000.0)
+    v0 = (1500.0, 0.0, -900.0)
+
+    # Reference: high-precision scipy path.
+    r_scipy = predictor.predict(position=r0, velocity=v0, rtol=1e-9, atol=1e-9)
+    assert r_scipy is not None
+
+    print("\n  dt      time(ms)   dpos_vs_scipy(m)   dt_err(s)")
+    print("  -----------------------------------------------")
+    for dt in (0.5, 0.1, 0.04, 0.01):
+        t0 = time.perf_counter()
+        r = predictor.predict(position=r0, velocity=v0, dt=dt)
+        elapsed = time.perf_counter() - t0
+        assert r is not None
+        dpos = np.hypot(
+            r.position[0] - r_scipy.position[0],
+            r.position[2] - r_scipy.position[2],
+        )
+        dt_err = abs(r.time - r_scipy.time)
+        print(f"  {dt:4.2f}    {elapsed * 1e3:6.2f}      {dpos:8.1f}          {dt_err:.2f}")
+        assert dpos < 1000.0
+        assert dt_err < 5.0

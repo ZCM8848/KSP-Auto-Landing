@@ -48,7 +48,16 @@ class ImpactResult:
 
 
 class LandingPredictor:
-    """RK45 ballistic trajectory integrator in a rotating frame.
+    """Ballistic trajectory integrator in a rotating frame.
+
+    Two integration paths are available:
+
+    * scipy RK45 adaptive integrator (default fallback, respects *rtol/atol*);
+    * numba fixed-step RK4 fast path (used when a :class:`DragModel` with
+      pre-sampled density tables is attached).
+
+    The fixed-step path is configured by *dt*; smaller values increase accuracy
+    at the cost of more steps.
 
     Keyword Args:
         mu: Standard gravitational parameter (m^3/s^2).
@@ -57,6 +66,7 @@ class LandingPredictor:
         body_radius: Surface radius at the target (m).
         aero: Optional aerodynamic model whose
             :meth:`AeroModel.acceleration` is evaluated at every RK45 step.
+        dt: Default fixed-step size (s) for the numba RK4 path.
     """
 
     def __init__(
@@ -67,12 +77,16 @@ class LandingPredictor:
         body_center: Sequence[float],
         body_radius: float,
         aero: AeroModel | None = None,
+        dt: float = 0.04,
     ) -> None:
+        if dt <= 0.0:
+            raise ValueError(f"dt must be positive, got {dt}")
         self._mu = float(mu)
         self._omega = np.asarray(omega, dtype=float)
         self._center = np.asarray(body_center, dtype=float)
         self._radius = float(body_radius)
         self._aero = aero
+        self._dt = float(dt)
 
     @classmethod
     def from_body_spec(
@@ -102,6 +116,7 @@ class LandingPredictor:
         t_max: float = 600.0,
         rtol: float = 1e-9,
         atol: float = 1e-9,
+        dt: float | None = None,
     ) -> ImpactResult | None:
         """Integrate until the surface sphere is reached.
 
@@ -113,15 +128,20 @@ class LandingPredictor:
                 the numba path).
             atol: Absolute tolerance for the scipy RK45 path (ignored by
                 the numba path).
+            dt: Fixed-step size (s) for the numba RK4 path.  Overrides the
+                constructor default.  Ignored by the scipy fallback.
 
         Returns:
             ``ImpactResult``, or ``None`` if the surface is never reached
             within *t_max*.
         """
+        if dt is not None and dt <= 0.0:
+            raise ValueError(f"dt must be positive, got {dt}")
+
         r0 = np.asarray(position, dtype=float)
         v0 = np.asarray(velocity, dtype=float)
 
-        result = self._predict_numba(r0, v0, t_max)
+        result = self._predict_numba(r0, v0, t_max, dt=dt)
         if result is not None:
             return result
 
@@ -150,6 +170,8 @@ class LandingPredictor:
         r0: np.ndarray,
         v0: np.ndarray,
         t_max: float,
+        *,
+        dt: float | None = None,
     ) -> ImpactResult | None:
         """Fixed-step RK4 fast path, used when a :class:`DragModel` with
         pre-sampled density tables is attached."""
@@ -161,8 +183,10 @@ class LandingPredictor:
             return None
         beta, alts, vals, sea_r = params
 
-        dt = 0.04
-        max_n = int(t_max / dt)
+        use_dt = self._dt if dt is None else float(dt)
+        if use_dt <= 0.0:
+            raise ValueError(f"dt must be positive, got {use_dt}")
+        max_n = int(t_max / use_dt) + 1
         hit = rk4_fixed(
             r0,
             v0,
@@ -174,7 +198,7 @@ class LandingPredictor:
             alts,
             vals,
             sea_r,
-            dt,
+            use_dt,
             max_n,
         )
         if hit is None:
@@ -191,6 +215,7 @@ class LandingPredictor:
         t_max: float = 600.0,
         rtol: float = 1e-9,
         atol: float = 1e-9,
+        dt: float | None = None,
     ) -> ImpactResult | None:
         """Equivalent of :meth:`predict` reading position and velocity
         directly from a :class:`FlightState` snapshot.
@@ -201,6 +226,7 @@ class LandingPredictor:
             t_max=t_max,
             rtol=rtol,
             atol=atol,
+            dt=dt,
         )
 
     # -- internal -----------------------------------------------------------
