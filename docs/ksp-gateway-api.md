@@ -6,7 +6,7 @@
 
 - **每船一条独立 kRPC 连接**，各配一个 telemetry 线程；连接彼此独立，RPC 延迟天然并行。
 - **读**：kRPC stream 由服务器持续推送，telemetry 线程按 `telemetry_hz` 节拍轮询并**原子地**整体拷贝为冻结快照（`FlightState`）。控制循环读快照 = 纯内存读，µs 级，**零网络往返**。
-- **写**：`VesselControls` 网关。姿态指令走服务器端 `AutoPilot`（闭环，无需逐 tick 发杆量）；`throttle` 等每次 setter 是一次 RPC。
+- **写**：`VesselControls` 网关。姿态有两条路：① 服务器端 `AutoPilot`（传 `target_direction`，闭环，无需逐 tick 发杆量）；② **本地姿态控制**（`LocalAttitudeController.step` 逐 tick 算杆量 → `apply(roll/yaw/pitch)` 写杆量）。`throttle` 等每次 setter 是一次 RPC。
 - **功能无损**：`VesselHandle.raw` / `VesselControls.raw` 逃逸舱门可直通底层 kRPC 对象。
 - 连接生命周期由 `ConnectionManager` 统一管理，注册 `atexit` 兜底关闭。
 
@@ -177,6 +177,10 @@ apply(
 | `landed` | `bool` | `situation ∈ {LANDED, PRE_LAUNCH, SPLASHED}` 的推导 |
 | `atmosphere_density` | `float` | 大气密度（kg/m³） |
 | `frame` | `Any` | 该快照所在参考系句柄（不透明） |
+| `direction` | `Vector3` | 机鼻（前向）方向，`Vessel.direction(frame)` 流式直读 |
+| `bottom_axis` | `Vector3` | 船体 +z（底部）轴在快照帧内，滚转参考（`transform_direction((0,0,1), …)`） |
+| `available_reaction_wheel_torque` / `available_rcs_torque` / `available_engine_torque` / `available_control_surface_torque` | `TorquePair` | 各姿态执行器扭矩限值（负/正方向各一个 3 向量，`available_*_torque` 流式直读） |
+| `moment_of_inertia` | `Vector3` | 绕质心转动惯量（pitch/roll/yaw 分量） |
 
 GFOLD 求解器所需的运动学 + 质量 + 推力 + Isp 数据均在快照内，无需额外 RPC。
 
@@ -186,9 +190,9 @@ GFOLD 求解器所需的运动学 + 质量 + 推力 + Isp 数据均在快照内�
 
 `Situation.from_krpc(value)` 将 kRPC 枚举转为本类型，无法识别 → `UNKNOWN`。
 
-### `recovery.Vector3` / `recovery.Quaternion`
+### `recovery.Vector3` / `recovery.Quaternion` / `recovery.TorquePair`
 
-`NamedTuple`：`Vector3(x, y, z)`；`Quaternion(x, y, z, w)`。
+`NamedTuple`：`Vector3(x, y, z)`；`Quaternion(x, y, z, w)`；`TorquePair(negative: Vector3, positive: Vector3)`——kRPC `available_*` 属性的负/正方向扭矩对。
 
 ### `recovery.FramePacer`
 
@@ -340,6 +344,46 @@ controls.apply(
 
 切换后 `up` 永远垂直于 nose（水平 vs 向上），无奇异——滚转精度在着陆末段完全可保证。
 
+## 本地姿态控制（LocalAttitudeController）
+
+`src/recovery/control/local_attitude.py` —— **纯客户端**姿态控制器，与服务器端 `AutoPilot` 二选一。它不接触 kRPC，只吃 `FlightState` 快照 + 目标方向，产出原始杆量，由调用方经 `VesselControls.apply(roll/yaw/pitch)` 写入。控制律**速率无关**（固定 `settling_time`），循环频率完全由调用方（编排层 Scheduler）决定。
+
+### 数据流
+
+```
+guidance:  快照 ──► target_dir（指向目标的水平方向）
+control:   快照 + target_dir ──► StickCommand(roll, yaw, pitch)   # 纯函数，零 IO
+IO:        StickCommand ──► controls.apply(roll/yaw/pitch)        # 写 kRPC 原始杆量
+```
+
+### API
+
+```python
+from recovery.control import LocalAttitudeController
+
+ctrl = LocalAttitudeController(settling_time=0.5, config_interval=0.5)
+
+s = b.snapshot()
+target_dir = (-mx / miss, -my / miss, 0.0)      # 由 guidance 给出
+sticks = ctrl.step(s, target_dir)               # StickCommand(roll, yaw, pitch)
+b.controls.apply(roll=sticks.roll, yaw=sticks.yaw, pitch=sticks.pitch)
+
+# 滚转策略：roll_target=None（默认）只阻尼滚转角速度；传弧度值则锁到该角度
+sticks = ctrl.step(s, target_dir, roll_target=0.0)
+```
+
+| 成员 | 签名 | 说明 |
+|---|---|---|
+| `StickCommand` | `NamedTuple(roll, yaw, pitch)` | 原始杆量，不裁剪（kRPC 在 `Control` 层截到 ±1） |
+| `LocalAttitudeController` | `(*, settling_time=0.5, config_interval=0.5)` | 持有 `AutoPilot`；`config_interval` 为 max_acc 重估节流（游戏时间 s） |
+| `step` | `(s: FlightState, target_dir, *, roll_target=None) -> StickCommand` | 纯计算：从 `s.direction`/`s.bottom_axis` 推滚转、`s.angular_velocity` 做阻尼、按 `s.ut` 节流重估 max_acc |
+| `roll_from_axes` | `(direction, bottom) -> float` | 由鼻向与 +z 轴推滚转角（rad），等价旧 `Rocket.update_ap` 的滚转逻辑 |
+| `max_acc_from_snapshot` | `(s: FlightState) -> (roll, yaw, pitch)` | 由扭矩/MoI 估计各轴最大角加速度（rad/s²），等价旧 `_ap_auto_config` |
+
+- 依赖快照字段：`direction` / `bottom_axis` / `angular_velocity` / `available_*_torque` / `moment_of_inertia`（均已入快照，读取零 RPC）。
+- 与服务器端 `AutoPilot` 的区别：本控制器逐 tick 输出杆量（速度曲线 + 阻尼，`rot_flag=-1`），`AutoPilot` 则在服务器端做 PID 闭环。
+- 完整示例见 `scripts/zem_boosterback_local.py`。
+
 ## 异常
 
 所有框架级异常继承自 `recovery.RecoveryError`，同时链入标准异常（`RuntimeError` / `ValueError`），保证向后兼容。
@@ -375,6 +419,7 @@ controls.apply(
 - 写：每次 setter 一次 RPC（本机 sub-ms~1ms）。推荐：姿态用 `target_direction`（服务器端闭环），高频循环只写 `throttle`。
 - 3-4 船 × 50Hz × 少量属性 ≈ 数百 RPC/s，localhost kRPC 无压力。
 - 所有遥测字段均为 kRPC stream 直读（包括 `specific_impulse`）。
+- 本地姿态控制：每 tick 写 `roll/yaw/pitch` 三杆 = 3 次 RPC（kRPC 无批量杆量接口）；读取全部走快照（零 RPC）。max_acc 重估按游戏时间 0.5s 节流，开销可忽略。
 - 避免在控制循环内使用 `raw` 做同步 RPC 读（即 `client.md` 中"循环内反复 `vessel.position()`"的反模式）。
 
 ## 制导模块
