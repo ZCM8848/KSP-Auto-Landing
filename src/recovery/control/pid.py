@@ -1,3 +1,10 @@
+"""Legacy PID controller and scalar helpers.
+
+Ported from the legacy control layer.  **Not used by the current recovery
+stack** — kept as a reference implementation (``LocalAttitudeController``
+drives attitude via :class:`AutoPilot` + velocity-profile models instead).
+"""
+
 from __future__ import annotations
 
 
@@ -10,6 +17,8 @@ def clamp(num: float, limit1: float, limit2: float) -> float:
 
 
 class PID:
+    """Legacy PID controller; see module docstring for status."""
+
     def __init__(self) -> None:
         self.d_prev: float | None = None
         self.i_prev: float | None = None
