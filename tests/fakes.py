@@ -80,6 +80,10 @@ class FakeBody:
         self.name = name
         self.equatorial_radius = equatorial_radius
         self.reference_frame = object()
+        self.rotational_speed = 1.16e-5
+        self.gravitational_parameter = 3.5316e12
+        self.surface_gravity = 9.81
+        self.atmosphere_depth = 70000.0
         self._bedrock = bedrock
         self._surface = surface
 
@@ -88,6 +92,18 @@ class FakeBody:
 
     def surface_height(self, lat: float, lon: float) -> float:
         return self._surface
+
+    def direction(self, frame: Any) -> Vector:
+        del frame
+        return (0.0, 0.0, 1.0)
+
+    def position(self, frame: Any) -> Vector:
+        del frame
+        return (0.0, 0.0, -self.equatorial_radius)
+
+    def density_at(self, altitude: float) -> float:
+        del altitude
+        return 1.225
 
 
 class FakeOrbit:
