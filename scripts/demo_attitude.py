@@ -8,11 +8,9 @@ Part 4 — Glide → Landing mode switch:  nose transitions from tilted to
          vertical, ``up`` switches from wind-aligned to horizontal at the
          singular boundary.
 """
-import sys
 import time
 from math import cos, pi, radians, sin
 
-sys.path.insert(0, "src")
 from recovery import ConnectionManager
 from recovery.data.targets import LAUNCHPAD_JNSQ
 

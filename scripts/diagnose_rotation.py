@@ -1,8 +1,6 @@
 """Verify planetary rotation vector in the target reference frame."""
-import sys
-
-sys.path.insert(0, "src")
 import numpy as np
+
 from recovery import ConnectionManager
 from recovery.data.targets import LAUNCHPAD_JNSQ
 
@@ -20,11 +18,11 @@ with ConnectionManager(address="127.0.0.1") as km:
     surf_h = body.surface_height(LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
     body_radius = re + surf_h
 
-    print("mu   = %.2f m^3/s^2" % mu)
-    print("w    = %.6f rad/s" % rs)
-    print("Re   = %.1f m" % re)
-    print("surf = %.1f m" % surf_h)
-    print("R    = %.1f m" % body_radius)
+    print(f"mu   = {mu:.2f} m^3/s^2")
+    print(f"w    = {rs:.6f} rad/s")
+    print(f"Re   = {re:.1f} m")
+    print(f"surf = {surf_h:.1f} m")
+    print(f"R    = {body_radius:.1f} m")
     print()
 
     # Method A: direction(target_frame) * rotational_speed
@@ -42,5 +40,5 @@ with ConnectionManager(address="127.0.0.1") as km:
     print(f"w-in-body       = ({av_bf[0]:.6f}, {av_bf[1]:.6f}, {av_bf[2]:.6f})")
 
     print()
-    print("|w-in-target|   = %.6f  (expect %.6f)" % (np.linalg.norm(av_tf), rs))
-    print("|w-method-A|    = %.6f  (expect %.6f)" % (np.linalg.norm(omega_a), rs))
+    print(f"|w-in-target|   = {np.linalg.norm(av_tf):.6f}  (expect {rs:.6f})")
+    print(f"|w-method-A|    = {np.linalg.norm(omega_a):.6f}  (expect {rs:.6f})")

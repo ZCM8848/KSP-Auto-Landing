@@ -13,12 +13,10 @@ Usage::
     python scripts/zem_boosterback_local.py
 """
 
-import sys
 import time
 
 import numpy as np
 
-sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.control import LocalAttitudeController
 from recovery.control.control_utils import angle_between

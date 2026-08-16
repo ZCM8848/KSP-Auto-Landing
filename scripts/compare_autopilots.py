@@ -4,12 +4,10 @@ Both tests start from the SAME initial orientation, then command a re-point
 to TARGET_DIR.  Error convergence is logged side by side.
 """
 import math
-import sys
 import time
 
 import numpy as np
 
-sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.control import AutoPilot as LocalAP
 from recovery.control.control_utils import angle_between, normalize, rotate

@@ -11,12 +11,10 @@ Usage::
     python scripts/zem_boosterback.py
 """
 
-import sys
 import time
 
 import numpy as np
 
-sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import DragModel, LandingPredictor

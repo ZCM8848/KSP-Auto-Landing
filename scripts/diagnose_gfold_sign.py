@@ -1,11 +1,7 @@
 """Check gfold s_values (slack) vs u norm, and normalized_thrusts semantics."""
 
-import sys
-
+import gfold
 import numpy as np
-
-sys.path.insert(0, "src")
-import gfold  # noqa: E402
 
 cfg = gfold.Config(
     gfold.Spacecraft(

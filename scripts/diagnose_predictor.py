@@ -1,8 +1,6 @@
 """Live validation: landing prediction against actual vessel state."""
-import sys
 import time
 
-sys.path.insert(0, "src")
 from recovery import ConnectionManager
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import LandingPredictor

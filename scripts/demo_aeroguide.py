@@ -4,12 +4,10 @@ Main engine OFF.  The rocket tilts its body to generate aerodynamic lift,
 shifting the predicted impact point toward the launch pad.  Roll is kept
 wind-aligned (belly into the airflow) via the ``up`` parameter.
 """
-import sys
 import time
 
 import numpy as np
 
-sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import LandingPredictor

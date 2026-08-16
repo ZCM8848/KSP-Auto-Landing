@@ -13,13 +13,11 @@ and the rocket simply follows the last solved trajectory to touchdown.
 """
 
 import csv
-import sys
 import threading
 import time
 
 import numpy as np
 
-sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.control import LocalAttitudeController
 from recovery.data.targets import LAUNCHPAD_JNSQ

@@ -1,8 +1,6 @@
 """Live diagnostic round 2: monitor attitude error and actuator output over time."""
-import sys
 import time
 
-sys.path.insert(0, "src")
 from recovery import ConnectionManager
 from recovery.data.targets import LAUNCHPAD_JNSQ
 

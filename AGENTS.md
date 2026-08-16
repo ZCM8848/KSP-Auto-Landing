@@ -5,6 +5,7 @@ KSP booster-recovery framework (`ksp-auto-landing`). Python **>= 3.12**, `src/` 
 ## Commands
 
 ```powershell
+pip install -e .              # editable install (one-time setup; makes `recovery` importable everywhere)
 python -m pytest              # unit tests — no KSP needed (fake kRPC client)
 python -m pytest -m live      # live integration — needs KSP + kRPC server running
 ruff check .                  # lint
@@ -13,7 +14,7 @@ mkdocs build                 # build the docs site (site/)
 mkdocs serve                 # live-reload docs server (http://127.0.0.1:8000)
 ```
 
-- Tests import the package from `src/` (`pythonpath = ["src"]` in pyproject). No install needed, but scripts outside pytest do `sys.path.insert(0, "src")` manually — keep that pattern when adding scripts.
+- Install the package editable (`pip install -e .`) so `recovery` is importable everywhere; `scripts/` run against the installed package. pytest additionally uses `pythonpath = ["src"]` from pyproject, so tests also work without installing.
 - `python -m pytest` **skips** `live`-marked tests automatically (see `tests/conftest.py`); only `-m live` runs them.
 - Live tests target vessel `$env:KSP_VESSEL` (default `"Booster 1"`).
 - Docs reference a conda env `KRPC` (e.g. `D:\miniconda3\envs\KRPC\python.exe`); `.vscode/settings.json` also assumes conda.
