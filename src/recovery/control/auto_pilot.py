@@ -145,7 +145,8 @@ class AutoPilot:
             roll_err *= rot_flag
             acc_x = self.roll_model.next_acc(roll_err, v_x_proj, self.settling_time) * x_
         max_acc = self.max_acc
-        assert max_acc is not None
+        if max_acc is None:
+            raise RuntimeError("max_acc is not configured; call update_max_acc() first")
         acc_level_x = float(np.dot(acc_x, x_) / max_acc[0])
         acc_level_y = float(np.dot(acc_yz, y_) / max_acc[1])
         acc_level_z = float(np.dot(acc_yz, z_) / max_acc[2])
