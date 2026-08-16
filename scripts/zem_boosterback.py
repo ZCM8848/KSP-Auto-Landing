@@ -36,9 +36,7 @@ def main() -> None:
 
         frame = km.frame("zem", "target")
 
-        body_spec, drag_spec = b.sample_predictor_specs(
-            lat=LAUNCHPAD_JNSQ.lat, lon=LAUNCHPAD_JNSQ.lon
-        )
+        body_spec, drag_spec = b.sample_predictor_specs()
         predictor = LandingPredictor.from_body_spec(
             body_spec, aero=DragModel.from_spec(drag_spec)
         )

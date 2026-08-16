@@ -39,6 +39,7 @@ def sample_body_spec(
         omega=omega,
         body_center=center,
         body_radius=radius,
+        surface_gravity=float(body.surface_gravity),
     )
 
 

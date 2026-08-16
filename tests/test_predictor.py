@@ -440,6 +440,7 @@ def test_from_body_spec_pure() -> None:
         omega=(0.0, 0.0, 0.0),
         body_center=(0.0, 0.0, -R),
         body_radius=R,
+        surface_gravity=MU / R**2,
     )
     predictor = LandingPredictor.from_body_spec(spec)
     result = predictor.predict(position=(0.0, 0.0, 1000.0), velocity=(0.0, 0.0, 0.0))

@@ -272,8 +272,7 @@ def main() -> None:
         b.debug.reference_frame(frame_name="target", length=50.0)
 
         frame = km.frame("gfold", "target")
-        body = b.raw.orbit.body
-        g0 = float(body.surface_gravity)
+        g0 = b.body_spec.surface_gravity
         params = GfoldParams()
         tofnet = TofPredictor()
 

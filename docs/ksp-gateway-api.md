@@ -95,6 +95,8 @@ ConnectionManager(
 | `client` | `property -> Any` | **逃逸舱门**：底层 kRPC `Client` 对象。 |
 | `snapshot` | `() -> FlightState \| None` | 同 `km.snapshot`。 |
 | `frame` | `(name="target") -> Any` | 同 `km.frame`。 |
+| `body_spec` | `property -> BodySpec` | 本船当前天体的行星常数（target 帧内），首次采样后缓存、之后零 RPC；需先 `register_target`。 |
+| `sample_predictor_specs` | `(*, mass=None, manual_beta=None, altitude_samples=64) -> (BodySpec, DragSpec)` | 一次性采样：返回缓存 `body_spec` + 新采样的 `DragSpec`；`mass` 默认当前质量。 |
 | `register_target` | `(*, lon, lat) -> None` | 同 `km.register_target`。 |
 | `physics_range` | `property -> float`（可读写） | 物理泡半径（米），`RangeManager` 钩子。 |
 | `is_controllable` | `() -> bool` | `loaded and not packed`。快照未就绪返回 `False`。 |
@@ -438,7 +440,7 @@ recovery.guidance（纯构造）←───────────────
 
 | spec | 字段 | 说明 |
 |---|---|---|
-| `BodySpec` | `mu`, `omega`, `body_center`, `body_radius` | 行星常数（target 帧内） |
+| `BodySpec` | `mu`, `omega`, `body_center`, `body_radius`, `surface_gravity` | 行星常数（target 帧内；`surface_gravity` 为表面重力） |
 | `DragSpec` | `ballistic_coefficient`, `density_alts`, `density_vals`, `body_center`, `sea_level_radius` | 大气阻力参数 |
 
 ### `recovery.ksp.sampling` —— RPC 采样（唯一做预测 RPC 的模块）
@@ -536,18 +538,13 @@ predictor = LandingPredictor.from_body_spec(body_spec, aero=aero)
 ### 典型用法：ZEM 助推回收
 
 ```python
-from recovery.ksp.sampling import sample_body_spec, sample_drag_spec
-
 with ConnectionManager() as km:
     b = km.add_booster("booster", "SuperHeavy")
     km.register_target("booster", lon=LAUNCHPAD.lon, lat=LAUNCHPAD.lat)
     km.start()
 
     frame = km.frame("booster", "target")
-    body = b.raw.orbit.body
-    flight = b.raw.flight(frame)
-    body_spec = sample_body_spec(body, frame, LAUNCHPAD.lat, LAUNCHPAD.lon)
-    drag_spec = sample_drag_spec(body, flight, frame, mass=float(b.raw.mass))
+    body_spec, drag_spec = b.sample_predictor_specs()   # 一次性 RPC；body 取自注册的 target
     predictor = LandingPredictor.from_body_spec(
         body_spec, aero=DragModel.from_spec(drag_spec)
     )

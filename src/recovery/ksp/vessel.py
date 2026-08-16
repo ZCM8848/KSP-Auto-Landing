@@ -47,6 +47,7 @@ class VesselHandle:
         self._debug_proxy: DebugProxy | None = None
         self._target_lon: float | None = None
         self._target_lat: float | None = None
+        self._body_spec: BodySpec | None = None
 
     @property
     def name(self) -> str:
@@ -113,12 +114,31 @@ class VesselHandle:
         """
         return self._connection.frame(name)
 
+    @property
+    def body_spec(self) -> BodySpec:
+        """The sampled planetary constants for this vessel's current body.
+
+        Expressed in this vessel's ``"target"`` reference frame, with
+        ``body_radius`` evaluated at the registered landing target.  Sampled
+        once (one-time RPC) and cached — subsequent reads are pure field
+        access, safe at control-loop rates.
+
+        Raises:
+            KeyError: if ``register_target`` was not called first.
+        """
+        if self._body_spec is None:
+            lat = self._target_lat
+            lon = self._target_lon
+            if lat is None or lon is None:
+                raise KeyError("no target registered; call register_target() first")
+            body = self._vessel.orbit.body
+            frame = self._connection.frame("target")
+            self._body_spec = sample_body_spec(body, frame, lat, lon)
+        return self._body_spec
+
     def sample_predictor_specs(
         self,
         *,
-        lat: float,
-        lon: float,
-        body: Any = None,
         mass: float | None = None,
         manual_beta: float | None = None,
         altitude_samples: int = 64,
@@ -126,19 +146,16 @@ class VesselHandle:
         """One-shot sample of the specs needed to build a
         :class:`~recovery.guidance.LandingPredictor`.
 
-        *body* defaults to the celestial body this vessel is currently on;
-        *mass* defaults to the vessel's current mass.  Both the body and the
-        drag spec are expressed in this vessel's ``"target"`` reference frame
-        (requires a prior :meth:`register_target`).  One-time RPC cost only —
-        do not call inside the control loop.
+        The body spec is the cached :attr:`body_spec`; only the drag spec is
+        sampled here.  *mass* defaults to the vessel's current mass.  Requires
+        a prior :meth:`register_target`.  One-time RPC cost only — do not call
+        inside the control loop.
         """
-        if body is None:
-            body = self._vessel.orbit.body
         frame = self._connection.frame("target")
+        body = self._vessel.orbit.body
         flight = self._vessel.flight(frame)
         if mass is None:
             mass = float(self._vessel.mass)
-        body_spec = sample_body_spec(body, frame, lat, lon)
         drag_spec = sample_drag_spec(
             body,
             flight,
@@ -147,7 +164,7 @@ class VesselHandle:
             manual_beta=manual_beta,
             altitude_samples=altitude_samples,
         )
-        return body_spec, drag_spec
+        return self.body_spec, drag_spec
 
     def register_target(self, *, lon: float, lat: float) -> None:
         """Register a landing-site target for this vessel.

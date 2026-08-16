@@ -32,6 +32,9 @@ class BodySpec:
     body_radius: float
     """Surface radius at the landing target (m)."""
 
+    surface_gravity: float
+    """Gravitational acceleration at the body's surface (m/s²)."""
+
 
 @dataclass(frozen=True)
 class DragSpec:
