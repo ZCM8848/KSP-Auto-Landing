@@ -54,6 +54,7 @@ module = [
     "recovery.control.auto_pilot",
     "recovery.control.control_utils",
     "recovery.control.dynamics",
+    "recovery.control.local_attitude",
 ]
 ignore_errors = true
 

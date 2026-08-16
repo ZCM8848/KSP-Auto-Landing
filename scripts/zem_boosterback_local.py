@@ -20,8 +20,8 @@ import numpy as np
 
 sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
-from recovery.control import AutoPilot as LocalAP
-from recovery.control.control_utils import angle_between, cross, normalize, pi, rotate
+from recovery.control import LocalAttitudeController
+from recovery.control.control_utils import angle_between
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import DragModel, LandingPredictor
 from recovery.ksp.sampling import sample_body_spec, sample_drag_spec
@@ -32,40 +32,13 @@ MIN_ALT = 8000.0     # boosterback window (m)
 ROI_MISS = 50000.0   # ignore miss-increase below this threshold
 
 
-def _roll_from_direction(direction: object, bottom: object) -> float:
-    x = np.array(direction)
-    y = np.array(bottom)
-    x0 = np.array((1.0, 0.0, 0.0))
-    rot_axis = normalize(cross(x, x0))
-    rot_ang = angle_between(x, x0)
-    y0 = rotate(rot_axis, y, rot_ang)
-    ang1 = angle_between(y0, (0.0, 1.0, 0.0))
-    ang2 = angle_between(y0, (0.0, 0.0, 1.0))
-    roll = ang1
-    if ang2 > pi / 2:
-        roll = -roll
-    return roll
-
-
-def _local_max_acc(s: object) -> tuple[float, float, float]:
-    torques = [
-        np.abs(s.available_reaction_wheel_torque.negative),
-        np.abs(s.available_rcs_torque.negative),
-        np.abs(s.available_engine_torque.negative),
-        np.abs(s.available_control_surface_torque.negative),
-    ]
-    moi = np.array(s.moment_of_inertia)
-    acc = (sum(torques) / moi).tolist()
-    return (acc[1], acc[2], acc[0])  # reorder to (roll, yaw, pitch)
-
-
 def _zero_sticks(b: object) -> None:
     b.controls.apply(roll=0.0, yaw=0.0, pitch=0.0)
 
 
 def main() -> None:
     with ConnectionManager(address="127.0.0.1", telemetry_hz=50) as km:
-        b = km.add_booster("zem", VESSEL)
+        b = km.add_booster("zem", VESSEL, control_hz=30)
         km.register_target("zem", lon=LAUNCHPAD_JNSQ.lon, lat=LAUNCHPAD_JNSQ.lat)
         km.start()
 
@@ -89,16 +62,16 @@ def main() -> None:
         b.controls.rcs = True
         b.controls.throttle = 1.0
 
-        ctrl = LocalAP(settling_time=0.5)
-        ctrl.update_max_acc(_local_max_acc(b.snapshot()))
+        ctrl = LocalAttitudeController(settling_time=0.5)
 
         log = open("zem_boosterback_debug.log", "w", encoding="utf-8")
         error_hist: list[float] = [float("inf")]
-        ap_cfg_at = 0.0
         t_start = time.monotonic()
         t_last_flush = t_start
         buf: list[str] = []
-        pacer = FramePacer(hz=30)
+        # Loop pacing is owned by the booster's control_hz knob; the future
+        # orchestration scheduler will replace this FramePacer entirely.
+        pacer = FramePacer(hz=b.control_hz)
         header = (
             f"{'t':>6s}  {'loop_us':>7s}  {'alt':>6s}"
             f"  {'miss':>8s}  {'tti':>6s}  {'err(deg)':>9s}  {'kN':>8s}"
@@ -134,23 +107,11 @@ def main() -> None:
                 target_dir = np.array((-mx / miss, -my / miss, 0.0))
 
             # ---------- local AutoPilot step ---------------------------------
-            if time.monotonic() - ap_cfg_at >= 0.5:
-                ctrl.update_max_acc(_local_max_acc(s))
-                ap_cfg_at = time.monotonic()
-
-            cur_dir = np.array(s.direction)
-            cur_roll = _roll_from_direction(s.direction, s.bottom_axis)
-            ang_vel = np.array(s.angular_velocity)
-            ctrl_x, ctrl_y, ctrl_z = ctrl.update(
-                (cur_roll, *cur_dir),
-                (None, *target_dir),
-                -ang_vel,
-                rot_flag=-1,
-            )
-            b.controls.apply(roll=ctrl_x, yaw=ctrl_y, pitch=ctrl_z)
+            sticks = ctrl.step(s, target_dir)
+            b.controls.apply(roll=sticks.roll, yaw=sticks.yaw, pitch=sticks.pitch)
             # -----------------------------------------------------------------
 
-            att_err = float(np.degrees(angle_between(cur_dir, target_dir)))
+            att_err = float(np.degrees(angle_between(np.array(s.direction), target_dir)))
 
             loop_us = (time.perf_counter_ns() - t_loop) // 1000
             line = (
