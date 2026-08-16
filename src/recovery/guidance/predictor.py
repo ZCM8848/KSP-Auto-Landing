@@ -231,7 +231,7 @@ class LandingPredictor:
 
     # -- internal -----------------------------------------------------------
 
-    def _dynamics(self, _t: float, y: NDArray[np.float64]) -> list[float]:
+    def _dynamics(self, _t: float, y: NDArray[np.float64]) -> NDArray[np.float64]:
         r = y[0:3]
         v = y[3:6]
         d = r - self._center
@@ -243,7 +243,9 @@ class LandingPredictor:
         a = g_vec + coriolis + centrifugal
         if self._aero is not None:
             a += np.array(self._aero.acceleration(r, v), dtype=float)
-        return [v[0], v[1], v[2], float(a[0]), float(a[1]), float(a[2])]
+        # ndarray avoids the list -> array conversion scipy performs on every
+        # RHS evaluation (this function is called once per RK45 stage).
+        return np.concatenate([v, a])
 
     def _surface_event(self, _t: float, y: NDArray[np.float64]) -> float:
         r = y[0:3]
