@@ -22,7 +22,13 @@ def normalize(v: ArrayLike) -> np.ndarray:
 
 
 def rotate(k: np.ndarray, v: np.ndarray, ang: float) -> np.ndarray:
-    """Rotate vector *v* about axis *k* by *ang* radians (Rodrigues' formula)."""
+    """Rotate vector *v* about axis *k* by *ang* radians (Rodrigues' formula).
+
+    Retained as the bit-for-bit legacy reference — the production attitude
+    path uses :class:`scipy.spatial.transform.Rotation` instead (see
+    ``local_attitude.roll_from_axes``); this helper is still exercised by the
+    regression tests as an independent baseline.
+    """
     return np.asarray(
         math.cos(ang) * v
         + (1 - math.cos(ang)) * np.dot(v, k) * k
@@ -31,5 +37,15 @@ def rotate(k: np.ndarray, v: np.ndarray, ang: float) -> np.ndarray:
 
 
 def angle_between(vec1: ArrayLike, vec2: ArrayLike) -> float:
-    """Return the unsigned angle (radians) between two vectors."""
-    return float(np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))))
+    """Return the unsigned angle (radians) between two vectors.
+
+    The cosine is clipped to ``[-1, 1]`` so that floating-point round-off on
+    near-parallel (or near-antiparallel) vectors cannot push ``arccos`` out of
+    its domain and produce ``NaN``.
+    """
+    n1 = np.linalg.norm(vec1)
+    n2 = np.linalg.norm(vec2)
+    if n1 == 0.0 or n2 == 0.0:
+        return 0.0
+    cosine = float(np.dot(vec1, vec2) / (n1 * n2))
+    return float(np.arccos(np.clip(cosine, -1.0, 1.0)))
