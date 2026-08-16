@@ -37,7 +37,7 @@ mypy                         # typecheck (strict)
 ## Lint / type config quirks
 
 - The control layer (`auto_pilot`, `control_utils`, `dynamics`, `local_attitude`) is fully typed and linted; its control law is guarded bit-for-bit by `tests/test_local_attitude.py`.
-- `recovery.guidance._numba` is mypy-ignored (numba typing); `predictor`/`aerodynamics` typecheck under strict mypy.
+- Third-party libs without type stubs (`numba`, `gfold`, `onnxruntime`, `scipy`) use `ignore_missing_imports` in mypy; all first-party `src/` code (including the `_numba` kernels) typechecks under strict mypy.
 
 ## Key docs
 

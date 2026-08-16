@@ -45,8 +45,8 @@ python_version = "3.12"
 strict = true
 
 [[tool.mypy.overrides]]
-module = "recovery.guidance._numba"
-ignore_errors = true
+module = "numba"
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "gfold"
