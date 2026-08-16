@@ -18,8 +18,9 @@ axis permutation.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from typing import Any
+from typing import Protocol, cast
 
 import gfold
 import numpy as np
@@ -32,10 +33,16 @@ G0 = 9.80665
 
 Vec3 = tuple[float, float, float]
 
-Trajectory = Any
-"""gfold trajectory object.  Typed ``Any`` because the ``gfold`` extension
-ships no stubs; the fields we read (``u_values``, ``time_points``,
-``positions``) are documented in ``gfold_Python_API文档.md``."""
+class Trajectory(Protocol):
+    """Structural type for the ``gfold`` trajectory result.
+
+    The ``gfold`` extension ships no stubs, so the fields we read are declared
+    structurally: ``u_values`` (thrust-acceleration profiles) and
+    ``time_points`` (sample times).  See ``gfold_Python_API文档.md``.
+    """
+
+    u_values: Sequence[Sequence[float]]
+    time_points: Sequence[float]
 
 
 @dataclass(frozen=True)
@@ -177,7 +184,7 @@ def solve(config: gfold.Config) -> Trajectory | None:
     trigger.
     """
     try:
-        return gfold.solve(config)
+        return cast(Trajectory | None, gfold.solve(config))
     except ValueError:
         return None
 

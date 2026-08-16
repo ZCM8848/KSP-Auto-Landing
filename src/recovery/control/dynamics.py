@@ -5,9 +5,11 @@ Ported from the legacy control layer; behaviour is preserved bit-for-bit.
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
+from numpy.typing import NDArray
+
+ScalarOrVec = float | NDArray[np.float64]
+"""A per-channel quantity: scalar (roll channel) or 3-vector (direction)."""
 
 
 class ApproachingModel:
@@ -39,9 +41,9 @@ class ApproachingModel:
         """Return the target speed at distance *s* from the setpoint."""
         return float(np.sqrt(2 * self.max_acc * s) / (1 + np.exp(self.k * (s + self.b))))
 
-    def next_acc(self, err: Any, v: Any, dt: float) -> Any:
+    def next_acc(self, err: ScalarOrVec, v: ScalarOrVec, dt: float) -> ScalarOrVec:
         """Return the acceleration to track the velocity profile for *err*."""
-        dist = np.linalg.norm(err)
+        dist = float(np.linalg.norm(err))
         next_spd = self.spd_at_dist(dist)
         next_spd = min(next_spd, self.max_spd)
         direction = 0.0 if dist == 0 else err / dist
