@@ -161,10 +161,16 @@ class VesselHandle:
         flight = self._vessel.flight(frame)
         if mass is None:
             mass = float(self._vessel.mass)
+        lat = self._target_lat
+        lon = self._target_lon
+        if lat is None or lon is None:
+            raise TargetNotRegistered("no target registered; call register_target() first")
         drag_spec = sample_drag_spec(
             body,
             flight,
             frame,
+            lat=lat,
+            lon=lon,
             mass=mass,
             manual_beta=manual_beta,
             altitude_samples=altitude_samples,

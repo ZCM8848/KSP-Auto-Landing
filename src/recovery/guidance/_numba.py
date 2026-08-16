@@ -154,12 +154,20 @@ def _accel_jit(
 
 @njit(cache=True)
 def _interp_jit(x: float, xp: np.ndarray, fp: np.ndarray) -> float:
-    """Linear interpolation — numba-safe for a single query."""
+    """Atmospheric density interpolation.
+
+    Mirrors the Python-side :class:`~recovery.guidance.DragModel` boundary
+    policy used by the fast RK4 path:
+
+    * at or below the lowest sample -> clamp to the lowest value;
+    * strictly above the highest sample -> zero (above the atmosphere);
+    * otherwise linearly interpolate between the bracketing samples.
+    """
     n = len(xp)
     if x <= xp[0]:
         return float(fp[0])
-    if x >= xp[n - 1]:
-        return float(fp[n - 1])
+    if x > xp[n - 1]:
+        return 0.0
     for i in range(n - 1):
         if xp[i] <= x <= xp[i + 1]:
             t = (x - xp[i]) / (xp[i + 1] - xp[i])

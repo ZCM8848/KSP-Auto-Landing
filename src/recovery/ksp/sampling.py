@@ -43,11 +43,25 @@ def sample_body_spec(
     )
 
 
+def _local_sea_level_radius(body: Any, lat: float, lon: float) -> float:
+    """Return the sea-level radius of *body* at (*lat*, *lon*).
+
+    KSP's physics treats celestial bodies as spheres, so this currently
+    returns ``body.equatorial_radius`` for every latitude/longitude.  If a
+    future mod or KRPC version exposes oblate-body geometry, this helper is
+    the single place to switch to a latitude-dependent sea-level radius.
+    """
+    del lat, lon  # reserved for future oblate-body support
+    return float(body.equatorial_radius)
+
+
 def sample_drag_spec(
     body: Any,
     flight: Any,
     target_frame: Any,
     *,
+    lat: float | None = None,
+    lon: float | None = None,
     mass: float | None = None,
     manual_beta: float | None = None,
     altitude_samples: int = 64,
@@ -62,7 +76,10 @@ def sample_drag_spec(
     a cosine distribution — dense near sea level, coarser at high altitude.
     """
     center = tuple(np.array(body.position(target_frame)))
-    sea_r = float(body.equatorial_radius)
+    if lat is not None and lon is not None:
+        sea_r = _local_sea_level_radius(body, lat, lon)
+    else:
+        sea_r = float(body.equatorial_radius)
     depth = float(body.atmosphere_depth)
 
     min_s = max(32, int(depth / 500.0))

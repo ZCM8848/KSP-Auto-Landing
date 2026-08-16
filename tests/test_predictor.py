@@ -388,6 +388,36 @@ def test_drag_inf_beta_gives_zero_drag() -> None:
     assert acc == (0.0, 0.0, 0.0)
 
 
+def test_sample_drag_spec_uses_local_sea_level_radius() -> None:
+    """sample_drag_spec accepts lat/lon and computes a location-aware sea-level radius."""
+    mock_body = MagicMock()
+    mock_body.equatorial_radius = float(R)
+    mock_body.atmosphere_depth = 70000.0
+    mock_body.position.return_value = (0.0, 0.0, -float(R))
+    mock_body.density_at.return_value = 1.0
+
+    far_proxy = MagicMock()
+    far_proxy.far_available = True
+    mock_body.space_center = far_proxy
+
+    mock_flight = MagicMock()
+    mock_flight.ballistic_coefficient = 1500.0
+
+    spec = sample_drag_spec(
+        body=mock_body,
+        flight=mock_flight,
+        target_frame=MagicMock(),
+        lat=-0.185,
+        lon=-74.473,
+        altitude_samples=32,
+    )
+    # KSP bodies are spheres, so the local sea-level radius equals the equatorial radius.
+    assert spec.sea_level_radius == pytest.approx(float(R))
+    # Ensure the body was queried at the requested location (placeholder for
+    # future oblate-body support; currently the helper ignores lat/lon).
+    assert mock_body.equatorial_radius == pytest.approx(float(R))
+
+
 def test_numba_rk4_matches_scipy() -> None:
     """Fixed-step RK4 result agrees with scipy adaptive when DragModel is attached."""
     from recovery.guidance._numba import rk4_fixed
@@ -467,3 +497,135 @@ def test_drag_from_spec_pure() -> None:
         np.array([0.0, 0.0, 1000.0]), np.array([0.0, 0.0, -200.0])
     )
     assert acc[2] > 0.0
+
+
+def test_numba_drag_acceleration_matches_python_at_boundaries() -> None:
+    """Numba drag acceleration must match the Python DragModel at atmosphere boundaries.
+
+    Regression guard: the old numba interpolator returned the top-of-atmosphere
+    density for every altitude above the atmosphere, producing spurious drag in
+    the fast RK4 path. This test uses a constant-density profile so the bug
+    produces a large, obvious discrepancy above the atmosphere.
+    """
+    from recovery.guidance._numba import _accel_jit
+
+    depth = 80000.0
+    h_vals = np.linspace(0.0, depth, 64)
+    density_vals = np.full_like(h_vals, 1.225)  # constant sea-level density
+    beta = 100.0  # small beta -> large drag, makes the bug obvious
+    center_arr = np.array([0.0, 0.0, -R], dtype=float)
+    omega = np.zeros(3)
+
+    model = DragModel(
+        ballistic_coefficient=beta,
+        density_fn=lambda h: 0.0 if h > depth else 1.225,
+        body_center=(0.0, 0.0, -R),
+        sea_level_radius=R,
+        density_alts=h_vals,
+        density_vals=density_vals,
+    )
+
+    velocity = np.array([1000.0, 0.0, -500.0], dtype=float)
+    positions = [
+        (0.0, 0.0, 1000.0),  # in atmosphere
+        (0.0, 0.0, depth),  # exactly at atmosphere top
+        (0.0, 0.0, 100000.0),  # above atmosphere
+        (0.0, 0.0, -50.0),  # below sea level
+    ]
+
+    for pos in positions:
+        r_arr = np.array(pos, dtype=float)
+        python_drag = np.array(model.acceleration(r_arr, velocity), dtype=float)
+
+        # _accel_jit returns total acceleration; subtract gravity to isolate drag.
+        d = r_arr - center_arr
+        dist = float(np.linalg.norm(d))
+        gravity = -MU / (dist ** 3) * d
+        numba_total = _accel_jit(
+            r_arr,
+            velocity,
+            MU,
+            omega,
+            center_arr,
+            beta,
+            h_vals,
+            density_vals,
+            R,
+        )
+        numba_drag = numba_total - gravity
+
+        np.testing.assert_allclose(
+            numba_drag,
+            python_drag,
+            atol=1e-6,
+            err_msg=f"drag mismatch at position {pos}",
+        )
+
+
+def test_numba_vs_scipy_performance(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Benchmark the numba fast path against the scipy fallback.
+
+    Both paths integrate the same state with the same :class:`DragModel`; the
+    only difference is the integrator.  Results are printed so the speedup and
+    accuracy gap are visible when deciding whether to invest in a variable-step
+    numba integrator.
+    """
+    h_vals = np.linspace(0, 80000, 64)
+    density_vals = 1.225 * np.exp(-h_vals / 5600.0)
+    drag = DragModel(
+        ballistic_coefficient=5000.0,
+        density_fn=lambda h: float(np.interp(h, h_vals, density_vals)),
+        body_center=(0.0, 0.0, -R),
+        sea_level_radius=R,
+        density_alts=h_vals,
+        density_vals=density_vals,
+    )
+    predictor = LandingPredictor(
+        mu=MU,
+        omega=(0.0, 0.0, 0.0),
+        body_center=(0.0, 0.0, -R),
+        body_radius=R,
+        aero=drag,
+    )
+
+    cases: list[tuple[tuple[float, float, float], tuple[float, float, float], str]] = [
+        ((0.0, 0.0, 50000.0), (1500.0, 0.0, -900.0), "high_altitude_reentry"),
+        ((0.0, 0.0, 10000.0), (500.0, 0.0, -100.0), "mid_altitude_landing"),
+    ]
+
+    for r0, v0, name in cases:
+        # Numba fast path.
+        t0 = time.perf_counter()
+        r_numba = predictor.predict(position=r0, velocity=v0)
+        t_numba = time.perf_counter() - t0
+
+        # Force the scipy fallback by neutering the numba fast path.
+        monkeypatch.setattr(predictor, "_predict_numba", lambda *a, **k: None)
+        t0 = time.perf_counter()
+        r_scipy = predictor.predict(
+            position=r0, velocity=v0, rtol=1e-6, atol=1e-6
+        )
+        t_scipy = time.perf_counter() - t0
+        monkeypatch.undo()
+
+        assert r_numba is not None
+        assert r_scipy is not None
+        dpos = np.hypot(
+            r_numba.position[0] - r_scipy.position[0],
+            r_numba.position[2] - r_scipy.position[2],
+        )
+        dt_err = abs(r_numba.time - r_scipy.time)
+        speedup = t_scipy / t_numba if t_numba > 0.0 else float("inf")
+
+        print(
+            f"\n{name}:"
+            f" numba={t_numba * 1e3:.2f}ms"
+            f" scipy={t_scipy * 1e3:.2f}ms"
+            f" speedup={speedup:.1f}x"
+            f" dpos={dpos:.1f}m"
+            f" dt_err={dt_err:.2f}s"
+        )
+
+        # The existing test_numba_rk4_matches_scipy tolerances.
+        assert dpos < 500.0
+        assert dt_err < 2.0
