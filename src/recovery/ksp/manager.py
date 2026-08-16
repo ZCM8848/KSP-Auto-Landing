@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import atexit
+import threading
 from typing import Any
 
 from ..types import FlightState
@@ -58,6 +59,13 @@ class ConnectionManager:
         self._boosters: dict[str, VesselHandle] = {}
         self._debug: DebugConnection | None = None
         self._started = False
+        # Guards ``_boosters`` / ``_debug`` / ``_started`` so lifecycle calls
+        # (``add_booster`` / ``start`` / ``close`` / debug enable/disable) are
+        # safe even when the atexit handler races the main thread.  Handles are
+        # snapshotted under the lock and the actual (potentially slow) work
+        # runs outside it, so no lock is ever held across a nested
+        # ``KspConnection`` call.
+        self._lock = threading.Lock()
         atexit.register(self.close)
 
     def add_booster(
@@ -84,30 +92,31 @@ class ConnectionManager:
             VesselNotFound: if *vessel_name* is not found (the error
                 message lists available names).
         """
-        if booster_id in self._boosters:
-            raise DuplicateBooster(f"duplicate booster id {booster_id!r}")
-        if self._started:
-            raise InvalidState("cannot add a booster after start()")
-        connection = KspConnection(
-            name=f"recovery-{booster_id}",
-            address=self._address,
-            rpc_port=self._rpc_port,
-            stream_port=self._stream_port,
-            telemetry_hz=telemetry_hz if telemetry_hz is not None else self._telemetry_hz,
-        )
-        try:
-            connection.resolve_vessel(vessel_name)
-            handle = VesselHandle(
-                connection=connection,
-                vessel=connection.vessel,
-                controls=connection.controls,
-                control_hz=control_hz,
-                debug_provider=lambda: self._debug,
+        with self._lock:
+            if booster_id in self._boosters:
+                raise DuplicateBooster(f"duplicate booster id {booster_id!r}")
+            if self._started:
+                raise InvalidState("cannot add a booster after start()")
+            connection = KspConnection(
+                name=f"recovery-{booster_id}",
+                address=self._address,
+                rpc_port=self._rpc_port,
+                stream_port=self._stream_port,
+                telemetry_hz=telemetry_hz if telemetry_hz is not None else self._telemetry_hz,
             )
-        except Exception:
-            connection.close()
-            raise
-        self._boosters[booster_id] = handle
+            try:
+                connection.resolve_vessel(vessel_name)
+                handle = VesselHandle(
+                    connection=connection,
+                    vessel=connection.vessel,
+                    controls=connection.controls,
+                    control_hz=control_hz,
+                    debug_provider=lambda: self._debug,
+                )
+            except Exception:
+                connection.close()
+                raise
+            self._boosters[booster_id] = handle
         return handle
 
     def start(self) -> None:
@@ -117,9 +126,13 @@ class ConnectionManager:
 
         Call this once all boosters and targets have been registered.
         """
-        for handle in self._boosters.values():
+        with self._lock:
+            if self._started:
+                return
+            handles = list(self._boosters.values())
+            self._started = True
+        for handle in handles:
             handle.start()
-        self._started = True
 
     def close(self) -> None:
         """Stop telemetry, zero throttle, and close every connection.
@@ -128,10 +141,15 @@ class ConnectionManager:
         multiple times.  Registered as an ``atexit`` handler so it runs
         even if the user forgets to call it explicitly.
         """
-        for handle in self._boosters.values():
+        with self._lock:
+            handles = list(self._boosters.values())
+            debug = self._debug
+            self._debug = None
+            self._started = False
+        for handle in handles:
             handle.close()
-        self.disable_debug()
-        self._started = False
+        if debug is not None:
+            debug.close()
 
     def enable_debug(self) -> None:
         """Open a shared debug kRPC connection used by all vessels'
@@ -139,22 +157,25 @@ class ConnectionManager:
         is fine — the debug connection is independent of the control
         connections.
         """
-        if self._debug is not None:
-            return
-        self._debug = DebugConnection(
-            name="recovery-debug",
-            address=self._address,
-            rpc_port=self._rpc_port,
-            stream_port=self._stream_port,
-        )
+        with self._lock:
+            if self._debug is not None:
+                return
+            self._debug = DebugConnection(
+                name="recovery-debug",
+                address=self._address,
+                rpc_port=self._rpc_port,
+                stream_port=self._stream_port,
+            )
 
     def disable_debug(self) -> None:
         """Close the debug connection, removing all in-game drawn objects
         (kRPC automatically clears drawings when a client disconnects).
         """
-        if self._debug is not None:
-            self._debug.close()
+        with self._lock:
+            debug = self._debug
             self._debug = None
+        if debug is not None:
+            debug.close()
 
     def __enter__(self) -> ConnectionManager:
         return self
@@ -201,7 +222,9 @@ class ConnectionManager:
         """Emergency stop for every open connection: zero throttle and
         disengage autopilot.  Skips already-closed connections silently.
         """
-        for handle in self._boosters.values():
+        with self._lock:
+            handles = list(self._boosters.values())
+        for handle in handles:
             if handle.is_open:
                 handle.controls.cut_thrust()
 

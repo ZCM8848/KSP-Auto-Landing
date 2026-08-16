@@ -7,6 +7,7 @@ per-connection objects) using the same math as the control side.
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Sequence
 from typing import Any
 
@@ -44,6 +45,7 @@ class DebugConnection:
             name=name, address=address, rpc_port=rpc_port, stream_port=stream_port
         )
         self._closed = False
+        self._close_lock = threading.Lock()
 
     @property
     def client(self) -> Any:
@@ -59,10 +61,11 @@ class DebugConnection:
         """Close the debug connection.  kRPC automatically removes all
         drawn objects belonging to this client.  Idempotent.
         """
-        if self._closed:
-            return
-        self._closed = True
-        self._client.close()
+        with self._close_lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._client.close()
 
 
 class DebugLine:
@@ -282,6 +285,11 @@ class DebugProxy:
         self._debug_vessel: Any = None
         self._owned: list[Any] = []
         self._trajectories: dict[str, DebugTrajectory] = {}
+        # Guards the internal containers (_frames / _owned / _trajectories /
+        # _debug_vessel).  Multiple vessels' proxies share one debug
+        # connection and may be driven from several threads; an RLock keeps
+        # nested calls (e.g. trajectory() -> _frame()) safe.
+        self._lock = threading.RLock()
 
     def _resolve_debug_vessel(self) -> Any:
         """Lazily find this vessel on the debug connection by name."""
@@ -299,37 +307,39 @@ class DebugProxy:
         """Update the stored landing coordinates and bust the cached
         ``"target"`` frame so it will be recreated on next access.
         """
-        self._target_lon = lon
-        self._target_lat = lat
-        self._frames.pop("target", None)
+        with self._lock:
+            self._target_lon = lon
+            self._target_lat = lat
+            self._frames.pop("target", None)
 
     def _frame(self, frame_name: str) -> Any:
-        cached = self._frames.get(frame_name)
-        if cached is not None:
-            return cached
-        space_center = self._client.space_center
-        if frame_name == "target":
-            if self._target_lon is None or self._target_lat is None:
-                raise TargetNotRegistered("no target registered for this booster")
-            body = space_center.bodies[self._body_name]
-            frame = create_target_reference_frame(
-                space_center, body, self._target_lon, self._target_lat
-            )
-        elif frame_name == "body":
-            frame = space_center.bodies[self._body_name].reference_frame
-        elif frame_name == "vessel":
-            frame = self._resolve_debug_vessel().reference_frame
-        elif frame_name == "surface":
-            frame = self._resolve_debug_vessel().surface_reference_frame
-        elif frame_name == "orbital":
-            frame = self._resolve_debug_vessel().orbital_reference_frame
-        else:
-            raise KeyError(
-                f"unknown frame {frame_name!r}"
-                f" (available: target, body, vessel, surface, orbital)"
-            )
-        self._frames[frame_name] = frame
-        return frame
+        with self._lock:
+            cached = self._frames.get(frame_name)
+            if cached is not None:
+                return cached
+            space_center = self._client.space_center
+            if frame_name == "target":
+                if self._target_lon is None or self._target_lat is None:
+                    raise TargetNotRegistered("no target registered for this booster")
+                body = space_center.bodies[self._body_name]
+                frame = create_target_reference_frame(
+                    space_center, body, self._target_lon, self._target_lat
+                )
+            elif frame_name == "body":
+                frame = space_center.bodies[self._body_name].reference_frame
+            elif frame_name == "vessel":
+                frame = self._resolve_debug_vessel().reference_frame
+            elif frame_name == "surface":
+                frame = self._resolve_debug_vessel().surface_reference_frame
+            elif frame_name == "orbital":
+                frame = self._resolve_debug_vessel().orbital_reference_frame
+            else:
+                raise KeyError(
+                    f"unknown frame {frame_name!r}"
+                    f" (available: target, body, vessel, surface, orbital)"
+                )
+            self._frames[frame_name] = frame
+            return frame
 
     def reference_frame(self, *, frame_name: str = "target", length: float = 10.0) -> DebugMarker:
         """Draw the three axes of *frame_name* as red (x), green (y), and
@@ -424,27 +434,28 @@ class DebugProxy:
             ValueError: if *name* or *positions* are missing during
                 creation.
         """
-        if isinstance(positions, str):
-            return self._trajectories.get(positions)
-        if name is None:
-            raise ValueError("name is required when creating a trajectory")
-        if positions is None:
-            raise ValueError("positions are required when creating a trajectory")
-        trajectory = self._trajectories.get(name)
-        if trajectory is None:
-            trajectory = DebugTrajectory(
-                client=self._client,
-                frame=self._frame(frame_name),
-                name=name,
-                positions=positions,
-                color=color,
-                thickness=thickness,
-            )
-            self._trajectories[name] = trajectory
-            self._owned.append(trajectory)
-        else:
-            trajectory.update(positions)
-        return trajectory
+        with self._lock:
+            if isinstance(positions, str):
+                return self._trajectories.get(positions)
+            if name is None:
+                raise ValueError("name is required when creating a trajectory")
+            if positions is None:
+                raise ValueError("positions are required when creating a trajectory")
+            trajectory = self._trajectories.get(name)
+            if trajectory is None:
+                trajectory = DebugTrajectory(
+                    client=self._client,
+                    frame=self._frame(frame_name),
+                    name=name,
+                    positions=positions,
+                    color=color,
+                    thickness=thickness,
+                )
+                self._trajectories[name] = trajectory
+                self._owned.append(trajectory)
+            else:
+                trajectory.update(positions)
+            return trajectory
 
     @property
     def trajectories(self) -> dict[str, DebugTrajectory]:
@@ -453,18 +464,20 @@ class DebugProxy:
 
     def clear(self, name: str) -> None:
         """Remove the named trajectory and delete its registration."""
-        trajectory = self._trajectories.pop(name, None)
-        if trajectory is not None:
-            trajectory.clear()
-            if trajectory in self._owned:
-                self._owned.remove(trajectory)
+        with self._lock:
+            trajectory = self._trajectories.pop(name, None)
+            if trajectory is not None:
+                trajectory.clear()
+                if trajectory in self._owned:
+                    self._owned.remove(trajectory)
 
     def clear_all(self) -> None:
         """Remove **every** drawable owned by this proxy (reference frames,
         directions, lines, and trajectories), clearing the scene for
         this vessel.
         """
-        for drawable in self._owned:
-            drawable.clear()
-        self._owned = []
-        self._trajectories = {}
+        with self._lock:
+            for drawable in self._owned:
+                drawable.clear()
+            self._owned = []
+            self._trajectories = {}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -48,6 +49,12 @@ class VesselHandle:
         self._target_lon: float | None = None
         self._target_lat: float | None = None
         self._body_spec: BodySpec | None = None
+        # Guards the lazy initialisation of ``_body_spec`` / ``_debug_proxy``:
+        # several threads may race the first access (control threads, debug
+        # callers), and the expensive one-shot sampling / proxy construction
+        # must run exactly once.
+        self._body_spec_lock = threading.Lock()
+        self._debug_lock = threading.Lock()
 
     @property
     def name(self) -> str:
@@ -72,16 +79,20 @@ class VesselHandle:
         first; otherwise raises ``RuntimeError``.
         """
         if self._debug_proxy is None:
-            connection = self._debug_provider()
-            if connection is None:
-                raise DebugNotEnabled("debug not enabled; call ConnectionManager.enable_debug()")
-            self._debug_proxy = DebugProxy(
-                client=connection.client,
-                body_name=str(self._vessel.orbit.body.name),
-                vessel_name=str(self._vessel.name),
-                target_lon=self._target_lon,
-                target_lat=self._target_lat,
-            )
+            with self._debug_lock:
+                if self._debug_proxy is None:
+                    connection = self._debug_provider()
+                    if connection is None:
+                        raise DebugNotEnabled(
+                            "debug not enabled; call ConnectionManager.enable_debug()"
+                        )
+                    self._debug_proxy = DebugProxy(
+                        client=connection.client,
+                        body_name=str(self._vessel.orbit.body.name),
+                        vessel_name=str(self._vessel.name),
+                        target_lon=self._target_lon,
+                        target_lat=self._target_lat,
+                    )
         return self._debug_proxy
 
     @property
@@ -132,13 +143,17 @@ class VesselHandle:
             TargetNotRegistered: if ``register_target`` was not called first.
         """
         if self._body_spec is None:
-            lat = self._target_lat
-            lon = self._target_lon
-            if lat is None or lon is None:
-                raise TargetNotRegistered("no target registered; call register_target() first")
-            body = self._vessel.orbit.body
-            frame = self._connection.frame("target")
-            self._body_spec = sample_body_spec(body, frame, lat, lon)
+            with self._body_spec_lock:
+                if self._body_spec is None:
+                    lat = self._target_lat
+                    lon = self._target_lon
+                    if lat is None or lon is None:
+                        raise TargetNotRegistered(
+                            "no target registered; call register_target() first"
+                        )
+                    body = self._vessel.orbit.body
+                    frame = self._connection.frame("target")
+                    self._body_spec = sample_body_spec(body, frame, lat, lon)
         return self._body_spec
 
     def sample_predictor_specs(

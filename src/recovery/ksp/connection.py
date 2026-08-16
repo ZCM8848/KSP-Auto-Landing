@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 import krpc
@@ -56,6 +57,11 @@ class KspConnection:
         self._snapshot_frame: Any = None
         self._started = False
         self._closed = False
+        # Serialises the lifecycle state machine: exactly one thread may run
+        # ``start()`` / ``close()`` / ``register_target()`` at a time, so the
+        # plain ``_started`` / ``_closed`` flags are never read/written by two
+        # threads concurrently (e.g. atexit handler vs main thread).
+        self._lifecycle_lock = threading.Lock()
 
     @property
     def name(self) -> str:
@@ -127,12 +133,13 @@ class KspConnection:
         Raises:
             RuntimeError: if called after :meth:`start`.
         """
-        if self._started:
-            raise InvalidState("register_target must be called before start()")
-        body = self.vessel.orbit.body
-        self._target_frame = create_target_reference_frame(
-            self._client.space_center, body, lon, lat
-        )
+        with self._lifecycle_lock:
+            if self._started:
+                raise InvalidState("register_target must be called before start()")
+            body = self.vessel.orbit.body
+            self._target_frame = create_target_reference_frame(
+                self._client.space_center, body, lon, lat
+            )
 
     def start(self) -> None:
         """Register kRPC streams and launch the telemetry background thread.
@@ -141,21 +148,22 @@ class KspConnection:
         Raises:
             RuntimeError: if no vessel has been resolved.
         """
-        if self._started:
-            return
-        if self._vessel is None:
-            raise VesselNotResolved("no vessel resolved; call resolve_vessel first")
-        self._snapshot_frame = self._target_frame
-        if self._snapshot_frame is None:
-            self._snapshot_frame = self.vessel.surface_reference_frame
-        self._telemetry = Telemetry(
-            client=self._client,
-            vessel=self._vessel,
-            frame=self._snapshot_frame,
-            telemetry_hz=self._telemetry_hz,
-        )
-        self._telemetry.start()
-        self._started = True
+        with self._lifecycle_lock:
+            if self._started:
+                return
+            if self._vessel is None:
+                raise VesselNotResolved("no vessel resolved; call resolve_vessel first")
+            self._snapshot_frame = self._target_frame
+            if self._snapshot_frame is None:
+                self._snapshot_frame = self.vessel.surface_reference_frame
+            self._telemetry = Telemetry(
+                client=self._client,
+                vessel=self._vessel,
+                frame=self._snapshot_frame,
+                telemetry_hz=self._telemetry_hz,
+            )
+            self._telemetry.start()
+            self._started = True
 
     def snapshot(self) -> FlightState | None:
         """Return the latest frozen telemetry snapshot, or ``None`` when
@@ -193,16 +201,17 @@ class KspConnection:
         throttle value when a client disconnects (unlike other control
         inputs, which are automatically zeroed).
         """
-        if self._closed:
-            return
-        self._closed = True
-        if self._controls is not None:
-            try:
-                self._controls.cut_thrust()
-            except Exception:
-                pass
-        if self._telemetry is not None:
-            self._telemetry.stop()
-            self._telemetry = None
-        self._client.close()
-        self._started = False
+        with self._lifecycle_lock:
+            if self._closed:
+                return
+            self._closed = True
+            if self._controls is not None:
+                try:
+                    self._controls.cut_thrust()
+                except Exception:
+                    pass
+            if self._telemetry is not None:
+                self._telemetry.stop()
+                self._telemetry = None
+            self._client.close()
+            self._started = False
