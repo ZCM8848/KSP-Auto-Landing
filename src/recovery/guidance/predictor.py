@@ -77,7 +77,7 @@ class LandingPredictor:
         body_center: Sequence[float],
         body_radius: float,
         aero: AeroModel | None = None,
-        dt: float = 0.04,
+        dt: float = 0.1,
     ) -> None:
         if dt <= 0.0:
             raise ValueError(f"dt must be positive, got {dt}")
