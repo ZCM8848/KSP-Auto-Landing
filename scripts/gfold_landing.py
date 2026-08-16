@@ -21,14 +21,7 @@ import numpy as np
 
 sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
-from recovery.control import AutoPilot as LocalAP
-from recovery.control.control_utils import (
-    angle_between,
-    cross,
-    normalize,
-    pi,
-    rotate,
-)
+from recovery.control import LocalAttitudeController
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance.gfold import (
     GfoldParams,
@@ -38,7 +31,7 @@ from recovery.guidance.gfold import (
 )
 from recovery.guidance.tofnet import TofPredictor
 
-VESSEL = "RLV-VTVL"
+VESSEL = "RLV Probe 2"
 TARGET = LAUNCHPAD_JNSQ
 
 CONTROL_HZ = 30.0          # control-apply rate (Hz)
@@ -69,42 +62,6 @@ def _ang(v0, v1) -> float:
         return 0.0
     c = float(np.clip(np.dot(a, b) / (na * nb), -1.0, 1.0))
     return float(np.degrees(np.arccos(c)))
-
-
-def _roll(nose, bottom) -> float:
-    """Roll (rad) about the nose axis, matching the legacy AutoPilot convention.
-
-    *nose* is the vessel nose direction and *bottom* the vessel +z (bottom)
-    direction, both in the target frame (as returned by kRPC).
-    """
-    x0 = np.array((1.0, 0.0, 0.0))
-    nose = np.asarray(nose, dtype=float)
-    bottom = np.asarray(bottom, dtype=float)
-    rot_axis = cross(nose, x0)
-    if float(np.linalg.norm(rot_axis)) < 1e-12:
-        rot_axis = np.array((0.0, 0.0, 1.0))
-    rot_axis = normalize(rot_axis)
-    rot_ang = angle_between(nose, x0)
-    y0 = rotate(rot_axis, bottom, rot_ang)
-    ang1 = angle_between(y0, np.array((0.0, 1.0, 0.0)))
-    ang2 = angle_between(y0, np.array((0.0, 0.0, 1.0)))
-    roll = ang1
-    if ang2 > pi / 2:
-        roll = -roll
-    return float(roll)
-
-
-def _local_max_acc(vessel) -> tuple[float, float, float]:
-    """Per-axis max angular acceleration (rad/s^2) = (roll, yaw, pitch)."""
-    torques = [
-        np.abs(vessel.available_reaction_wheel_torque[0]),
-        np.abs(vessel.available_rcs_torque[0]),
-        np.abs(vessel.available_engine_torque[0]),
-        np.abs(vessel.available_control_surface_torque[0]),
-    ]
-    moi = np.array(vessel.moment_of_inertia)
-    acc = (sum(torques) / moi).tolist()
-    return (acc[1], acc[2], acc[0])
 
 
 def _make_arrow_lines(booster, n: int, color, thickness: float):
@@ -371,12 +328,10 @@ def main() -> None:
 
         # -- ignition: the coast loop already solved a braking trajectory -----
         # Switch from the kRPC server-side AutoPilot to the local client-side
-        # AutoPilot (stick-level control) to test whether the ~0.5 Hz attitude
-        # limit cycle comes from the kRPC AP's internal PID.
+        # attitude controller (snapshot-driven stick-level control).
         b.controls.disengage_auto_pilot()
         b.controls.apply(sas=False)
-        local_ap = LocalAP(settling_time=0.5)
-        local_ap.update_max_acc(_local_max_acc(b.raw))
+        local_ap = LocalAttitudeController(settling_time=0.5)
 
         slot = _CommandSlot()
         slot.set(traj, s.met, p, tf)
@@ -465,22 +420,13 @@ def main() -> None:
                     if n > 1e-12:
                         sm_dir = (sm_dir[0] / n, sm_dir[1] / n, sm_dir[2] / n)
 
-                nose = b.raw.direction(frame)
-                bottom = b.client.space_center.transform_direction(
-                    (0.0, 0.0, 1.0), b.raw.reference_frame, frame
-                )
-                avc = (s.angular_velocity.x, s.angular_velocity.y, s.angular_velocity.z)
-                ctrl_x, ctrl_y, ctrl_z = local_ap.update(
-                    (_roll(nose, bottom), nose[0], nose[1], nose[2]),
-                    (None, sm_dir[0], sm_dir[1], sm_dir[2]),
-                    (-avc[0], -avc[1], -avc[2]),
-                    rot_flag=-1,
-                )
+                nose = (s.direction.x, s.direction.y, s.direction.z)
+                sticks = local_ap.step(s, sm_dir)
                 b.controls.apply(
                     throttle=sm_thr,
-                    pitch=ctrl_z,
-                    yaw=ctrl_y,
-                    roll=ctrl_x,
+                    pitch=sticks.pitch,
+                    yaw=sticks.yaw,
+                    roll=sticks.roll,
                 )
 
             # publish for the drawer thread (cheap — no RPC here)
