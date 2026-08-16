@@ -12,6 +12,7 @@ from collections.abc import Sequence
 from typing import Literal, overload
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from .control_utils import angle_between, normalize, rotate
 from .dynamics import ApproachingModel
@@ -114,7 +115,8 @@ class AutoPilot:
         target_dir = np.array(target[1:4], dtype=float)
         ang_vel = np.array(angular_velocity)
         x = np.array((1.0, 0.0, 0.0))
-        y = np.array((0.0, math.cos(roll), math.sin(roll)))
+        # (0, cos(roll), sin(roll)) — the +y axis rotated about the nose axis.
+        y = Rotation.from_euler("x", roll).apply((0.0, 1.0, 0.0))
         x_ = normalize(cur_dir)
         ang = angle_between(x, x_)
         x_rot_axis = normalize(np.cross(x, x_))
@@ -137,7 +139,7 @@ class AutoPilot:
             acc_x = -v_x / self.settling_time
         else:
             roll_err = target_roll - roll
-            v_x_proj = np.dot(v_x, x_)
+            v_x_proj = float(np.dot(v_x, x_))
             if roll_err > math.pi:
                 roll_err -= math.pi * 2
             elif roll_err < -math.pi:

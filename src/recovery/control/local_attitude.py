@@ -13,10 +13,10 @@ from collections.abc import Sequence
 from typing import NamedTuple
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from ..types import FlightState, Vector3
 from .auto_pilot import AutoPilot
-from .control_utils import angle_between, normalize, rotate
 
 
 class StickCommand(NamedTuple):
@@ -33,14 +33,29 @@ def roll_from_axes(direction: Vector3, bottom: Vector3) -> float:
     *direction* is the vessel nose and *bottom* the vessel +z axis, both
     expressed in the snapshot frame.
     """
-    x = np.array(direction)
-    y = np.array(bottom)
+    x = np.asarray(direction, dtype=float)
+    y = np.asarray(bottom, dtype=float)
     x0 = np.array((1.0, 0.0, 0.0))
-    rot_axis = normalize(np.cross(x, x0))
-    rot_ang = angle_between(x, x0)
-    y0 = rotate(rot_axis, y, rot_ang)
-    ang1 = angle_between(y0, (0.0, 1.0, 0.0))
-    ang2 = angle_between(y0, (0.0, 0.0, 1.0))
+    # Rotation that aligns the nose *x* with the +x axis.
+    axis = np.cross(x, x0)
+    n = np.linalg.norm(axis)
+    if n < 1e-15:
+        # x is (anti-)parallel to +x: no rotation axis exists.  The legacy
+        # handwritten Rodrigues formula degenerates to a scaling by cos(ang):
+        #   cos(0) = +1 -> *bottom* unchanged ; cos(pi) = -1 -> *bottom* negated.
+        y0 = y if np.dot(x, x0) >= 0.0 else -y
+    else:
+        axis = axis / n
+        ang = float(
+            np.arccos(np.clip(np.dot(x, x0) / np.linalg.norm(x), -1.0, 1.0))
+        )
+        y0 = Rotation.from_rotvec(ang * axis).apply(y)
+    ang1 = float(
+        np.arccos(np.clip(np.dot(y0, (0.0, 1.0, 0.0)) / np.linalg.norm(y0), -1.0, 1.0))
+    )
+    ang2 = float(
+        np.arccos(np.clip(np.dot(y0, (0.0, 0.0, 1.0)) / np.linalg.norm(y0), -1.0, 1.0))
+    )
     roll = ang1
     if ang2 > math.pi / 2:
         roll = -roll

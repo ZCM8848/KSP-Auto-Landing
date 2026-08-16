@@ -8,8 +8,11 @@ exact same stick outputs.
 """
 
 import math
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
+import pytest
 
 from recovery.control import AutoPilot, LocalAttitudeController
 from recovery.control.control_utils import angle_between, normalize, rotate
@@ -20,7 +23,7 @@ from recovery.control.local_attitude import (
 from recovery.types import FlightState, Quaternion, Situation, TorquePair, Vector3
 
 
-def _ref_roll(direction, bottom):
+def _ref_roll(direction: Sequence[float], bottom: Sequence[float]) -> float:
     x = np.array(direction)
     y = np.array(bottom)
     x0 = np.array((1.0, 0.0, 0.0))
@@ -35,7 +38,7 @@ def _ref_roll(direction, bottom):
     return roll
 
 
-def _ref_max_acc(s):
+def _ref_max_acc(s: FlightState) -> tuple[float, float, float]:
     torques = [
         np.abs(s.available_reaction_wheel_torque.negative),
         np.abs(s.available_rcs_torque.negative),
@@ -47,29 +50,31 @@ def _ref_max_acc(s):
     return (acc[1], acc[2], acc[0])
 
 
-def _ref_step(s, target_dir, ap):
-    cur_dir = np.array(s.direction)
+def _ref_step(
+    s: FlightState,
+    target_dir: Sequence[float],
+    ap: AutoPilot,
+) -> tuple[float, float, float]:
     cur_roll = _ref_roll(s.direction, s.bottom_axis)
-    ang_vel = np.array(s.angular_velocity)
     return ap.update(
-        (cur_roll, *cur_dir),
+        (cur_roll, *s.direction),
         (None, *target_dir),
-        -ang_vel,
+        tuple(-c for c in s.angular_velocity),
         rot_flag=-1,
     )
 
 
 def _state(
     *,
-    ut,
-    direction,
-    bottom_axis,
-    angular_velocity,
-    rw=((1000.0, 800.0, 500.0), (1000.0, 800.0, 500.0)),
-    rcs=((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    eng=((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    cs=((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-    moi=(1000.0, 1000.0, 1000.0),
+    ut: float,
+    direction: Sequence[float],
+    bottom_axis: Sequence[float],
+    angular_velocity: Sequence[float],
+    rw: Sequence[Sequence[float]] = ((1000.0, 800.0, 500.0), (1000.0, 800.0, 500.0)),
+    rcs: Sequence[Sequence[float]] = ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    eng: Sequence[Sequence[float]] = ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    cs: Sequence[Sequence[float]] = ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    moi: Sequence[float] = (1000.0, 1000.0, 1000.0),
 ) -> FlightState:
     return FlightState(
         ut=ut,
@@ -119,7 +124,10 @@ def test_roll_from_axes_matches_reference() -> None:
     for direction, bottom in cases:
         got = roll_from_axes(Vector3(*direction), Vector3(*bottom))
         want = _ref_roll(direction, bottom)
-        assert float(got) == float(want)
+        # Production uses scipy Rotation while _ref_roll keeps the handwritten
+        # Rodrigues baseline; agreement is required to machine precision, not
+        # bit-for-bit (float64 rounding order differs).
+        assert float(got) == pytest.approx(float(want), abs=1e-12)
 
 
 def test_max_acc_from_snapshot_matches_reference() -> None:
@@ -140,7 +148,7 @@ def test_max_acc_from_snapshot_matches_reference() -> None:
 
 def test_step_matches_reference() -> None:
     target = (0.0, -1.0, 0.0)
-    cases = [
+    cases: list[dict[str, Any]] = [
         dict(
             ut=0.0, direction=(1.0, 0.0, 0.0), bottom_axis=(0.0, 1.0, 0.0),
             angular_velocity=(0.0, 0.0, 0.0),
@@ -167,15 +175,18 @@ def test_step_matches_reference() -> None:
         ap.update_max_acc(max_acc_from_snapshot(s))
         want = _ref_step(s, target, ap)
         got = ctrl.step(s, target)
-        np.testing.assert_array_equal(
-            np.asarray(got, dtype=float), np.asarray(want, dtype=float)
+        np.testing.assert_allclose(
+            np.asarray(got, dtype=float),
+            np.asarray(want, dtype=float),
+            rtol=1e-9,
+            atol=1e-12,
         )
 
 
 def test_step_retunes_max_acc_by_game_time() -> None:
     target = (0.0, -1.0, 0.0)
     ctrl = LocalAttitudeController(config_interval=0.5)
-    base = dict(
+    base: dict[str, Any] = dict(
         direction=(0.707, 0.707, 0.0), bottom_axis=(0.0, 0.0, 1.0),
         angular_velocity=(0.1, -0.2, 0.3),
     )
