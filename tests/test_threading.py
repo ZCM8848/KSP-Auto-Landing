@@ -159,3 +159,60 @@ def test_snapshot_while_close_does_not_raise(monkeypatch: pytest.MonkeyPatch) ->
     thread.join()
 
     assert errors == []
+
+
+def test_drawable_registration_atomic_with_clear_all(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A drawable created while ``clear_all()`` runs must never be orphaned.
+
+    The un-locked implementation appends to ``_owned`` outside the RLock:
+    if ``clear_all()`` replaces ``_owned = []`` while a draw is in flight, the
+    new drawable lands on the discarded list and can never be cleared.
+    """
+    vessel = FakeVessel(name="Booster 1")
+    client = _connect(monkeypatch, vessel)
+
+    km = ConnectionManager()
+    handle = km.add_booster("b1", "Booster 1")
+    km.register_target("b1", lon=-74.473, lat=-0.185)
+    km.enable_debug()
+    proxy = handle.debug
+
+    # Widen the window: hold the draw inside add_line so clear_all() can run
+    # and replace _owned while the drawable is still being created.
+    drawing = client.drawing
+    real_add_line = drawing.add_line
+
+    def slow_add_line(*args: Any, **kwargs: Any) -> Any:
+        time.sleep(0.02)
+        return real_add_line(*args, **kwargs)
+
+    monkeypatch.setattr(drawing, "add_line", slow_add_line)
+
+    barrier = threading.Barrier(2)
+    created: list[Any] = []
+
+    def drawer() -> None:
+        barrier.wait()
+        created.append(proxy.reference_frame(length=5.0))
+
+    def clearer() -> None:
+        barrier.wait()
+        proxy.clear_all()
+
+    t1 = threading.Thread(target=drawer)
+    t2 = threading.Thread(target=clearer)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    # Whatever the interleaving, the marker must be registered (either cleared
+    # by the racing clear_all or still tracked) — a final clear_all() must
+    # therefore remove every line from the scene.
+    proxy.clear_all()
+    assert all(line.removed for line in client.drawing.lines), (
+        "a drawable created during clear_all() was orphaned"
+    )
+    km.close()

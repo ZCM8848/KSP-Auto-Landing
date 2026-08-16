@@ -348,17 +348,21 @@ class DebugProxy:
         Returns a :class:`DebugMarker` whose :meth:`~DebugMarker.clear`
         removes all three axes.
         """
-        frame = self._frame(frame_name)
-        origin = (0.0, 0.0, 0.0)
-        ends: list[Vec3] = [(length, 0.0, 0.0), (0.0, length, 0.0), (0.0, 0.0, length)]
-        lines = [
-            DebugLine(self._client.drawing.add_line(origin, end, frame)) for end in ends
-        ]
-        for line, axis in zip(lines, "xyz", strict=True):
-            line.color = _AXIS_COLORS[axis]
-            line.thickness = 0.1
-        marker = DebugMarker(lines)
-        self._owned.append(marker)
+        # frame lookup + drawable creation + registration must be atomic with
+        # respect to clear_all(): a drawable appended outside the lock could be
+        # orphaned (never cleared) if clear_all() empties _owned in between.
+        with self._lock:
+            frame = self._frame(frame_name)
+            origin = (0.0, 0.0, 0.0)
+            ends: list[Vec3] = [(length, 0.0, 0.0), (0.0, length, 0.0), (0.0, 0.0, length)]
+            lines = [
+                DebugLine(self._client.drawing.add_line(origin, end, frame)) for end in ends
+            ]
+            for line, axis in zip(lines, "xyz", strict=True):
+                line.color = _AXIS_COLORS[axis]
+                line.thickness = 0.1
+            marker = DebugMarker(lines)
+            self._owned.append(marker)
         return marker
 
     def direction(
@@ -375,11 +379,14 @@ class DebugProxy:
         Returns a :class:`DebugLine` that can be toggled, recoloured, or
         removed later.
         """
-        frame = self._frame(frame_name)
-        line = DebugLine(self._client.drawing.add_direction(direction, frame, length=length))
-        line.color = color
-        line.thickness = thickness
-        self._owned.append(line)
+        with self._lock:
+            frame = self._frame(frame_name)
+            line = DebugLine(
+                self._client.drawing.add_direction(direction, frame, length=length)
+            )
+            line.color = color
+            line.thickness = thickness
+            self._owned.append(line)
         return line
 
     def line(
@@ -396,11 +403,12 @@ class DebugProxy:
 
         Returns a :class:`DebugLine`.
         """
-        frame = self._frame(frame_name)
-        line = DebugLine(self._client.drawing.add_line(start, end, frame))
-        line.color = color
-        line.thickness = thickness
-        self._owned.append(line)
+        with self._lock:
+            frame = self._frame(frame_name)
+            line = DebugLine(self._client.drawing.add_line(start, end, frame))
+            line.color = color
+            line.thickness = thickness
+            self._owned.append(line)
         return line
 
     def trajectory(
