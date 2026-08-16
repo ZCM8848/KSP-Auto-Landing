@@ -117,12 +117,20 @@ class FakeVessel:
         self.parts = FakeParts(engines if engines is not None else [FakeEngine(100000.0, 300.0)])
         self.orbit = FakeOrbit(FakeBody())
         self.situation = SimpleNamespace(name="flying")
+        self.available_reaction_wheel_torque = ((1000.0, 800.0, 500.0), (1000.0, 800.0, 500.0))
+        self.available_rcs_torque = ((500.0, 400.0, 300.0), (500.0, 400.0, 300.0))
+        self.available_engine_torque = ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+        self.available_control_surface_torque = ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+        self.moment_of_inertia = (1000.0, 1000.0, 1000.0)
 
     def position(self, frame: Any) -> Vector:
         return (10.0, 20.0, 30.0)
 
     def velocity(self, frame: Any) -> Vector:
         return (1.0, 2.0, 3.0)
+
+    def direction(self, frame: Any) -> Vector:
+        return (0.0, 1.0, 0.0)
 
     def rotation(self, frame: Any) -> tuple[float, float, float, float]:
         return (0.0, 0.0, 0.0, 1.0)
@@ -159,6 +167,9 @@ class FakeSpaceCenter:
         for vessel in vessels:
             body = vessel.orbit.body
             self.bodies[body.name] = body
+
+    def transform_direction(self, direction: Vector, from_: Any, to: Any) -> Vector:
+        return direction
 
 
 class FakeStream:

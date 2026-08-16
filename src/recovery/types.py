@@ -6,7 +6,7 @@ KSP isolation layer and the pure guidance/control layers.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, NamedTuple
 
@@ -31,6 +31,20 @@ class Quaternion(NamedTuple):
     y: float
     z: float
     w: float
+
+
+class TorquePair(NamedTuple):
+    """A torque/angular-acceleration limit returned by kRPC ``available_*``
+    properties.
+
+    kRPC returns these as a 2-tuple of 3-vectors: the torque available in the
+    negative and positive directions around the pitch/roll/yaw axes
+    respectively.  Components are ordered ``(pitch, roll, yaw)`` in the vessel
+    reference frame.
+    """
+
+    negative: Vector3
+    positive: Vector3
 
 
 class Situation(StrEnum):
@@ -96,6 +110,16 @@ class FlightState:
         landed: ``True`` when *situation* is LANDED, PRE_LAUNCH or SPLASHED.
         atmosphere_density: Ambient atmospheric density (kg/m³).
         frame: Opaque kRPC reference frame this snapshot is expressed in.
+        direction: Vessel nose (forward) direction in the snapshot frame
+            (equals ``Vessel.direction(frame)``).
+        bottom_axis: Vessel +z (bottom) axis in the snapshot frame
+            (equals ``transform_direction((0,0,1), vessel.reference_frame, frame)``),
+            used as the roll reference.
+        available_reaction_wheel_torque: Reaction-wheel torque limits (N·m).
+        available_rcs_torque: RCS torque limits (N·m).
+        available_engine_torque: Engine gimbal torque limits (N·m).
+        available_control_surface_torque: Control-surface torque limits (N·m).
+        moment_of_inertia: Vessel moment-of-inertia vector (kg·m²).
     """
 
     ut: float
@@ -122,3 +146,18 @@ class FlightState:
     landed: bool
     atmosphere_density: float
     frame: Any
+    direction: Vector3 = field(default_factory=lambda: Vector3(0.0, 0.0, 0.0))
+    bottom_axis: Vector3 = field(default_factory=lambda: Vector3(0.0, 0.0, 0.0))
+    available_reaction_wheel_torque: TorquePair = field(
+        default_factory=lambda: TorquePair(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
+    )
+    available_rcs_torque: TorquePair = field(
+        default_factory=lambda: TorquePair(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
+    )
+    available_engine_torque: TorquePair = field(
+        default_factory=lambda: TorquePair(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
+    )
+    available_control_surface_torque: TorquePair = field(
+        default_factory=lambda: TorquePair(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
+    )
+    moment_of_inertia: Vector3 = field(default_factory=lambda: Vector3(0.0, 0.0, 0.0))

@@ -7,7 +7,16 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from ..types import FlightState, Quaternion, Situation, Vector3
+from ..types import FlightState, Quaternion, Situation, TorquePair, Vector3
+
+
+def _torque_pair(value: Any) -> TorquePair:
+    """Convert a kRPC ``available_*_torque`` 2-tuple of 3-vectors to a
+    :class:`TorquePair`."""
+    return TorquePair(
+        Vector3(value[0][0], value[0][1], value[0][2]),
+        Vector3(value[1][0], value[1][1], value[1][2]),
+    )
 
 
 class Telemetry:
@@ -85,6 +94,14 @@ class Telemetry:
         add("velocity_surface", vessel.velocity, surface)
         add("rotation", vessel.rotation, self._frame)
         add("angular_velocity", vessel.angular_velocity, self._frame)
+        add("direction", vessel.direction, self._frame)
+        add(
+            "bottom_axis",
+            space_center.transform_direction,
+            (0.0, 0.0, 1.0),
+            vessel.reference_frame,
+            self._frame,
+        )
         add("altitude", getattr, flight, "mean_altitude")
         add("surface_altitude", getattr, flight, "surface_altitude")
         add("atmosphere_density", getattr, flight, "atmosphere_density")
@@ -95,6 +112,11 @@ class Telemetry:
         add("max_thrust", getattr, vessel, "max_thrust")
         add("max_vacuum_thrust", getattr, vessel, "max_vacuum_thrust")
         add("specific_impulse", getattr, vessel, "specific_impulse")
+        add("available_reaction_wheel_torque", getattr, vessel, "available_reaction_wheel_torque")
+        add("available_rcs_torque", getattr, vessel, "available_rcs_torque")
+        add("available_engine_torque", getattr, vessel, "available_engine_torque")
+        add("available_control_surface_torque", getattr, vessel, "available_control_surface_torque")
+        add("moment_of_inertia", getattr, vessel, "moment_of_inertia")
         add("throttle", getattr, vessel.control, "throttle")
         add("situation", getattr, vessel, "situation")
         add("loaded", getattr, vessel, "loaded")
@@ -134,6 +156,25 @@ class Telemetry:
                 values["angular_velocity"][0],
                 values["angular_velocity"][1],
                 values["angular_velocity"][2],
+            ),
+            direction=Vector3(
+                values["direction"][0],
+                values["direction"][1],
+                values["direction"][2],
+            ),
+            bottom_axis=Vector3(
+                values["bottom_axis"][0],
+                values["bottom_axis"][1],
+                values["bottom_axis"][2],
+            ),
+            available_reaction_wheel_torque=_torque_pair(values["available_reaction_wheel_torque"]),
+            available_rcs_torque=_torque_pair(values["available_rcs_torque"]),
+            available_engine_torque=_torque_pair(values["available_engine_torque"]),
+            available_control_surface_torque=_torque_pair(values["available_control_surface_torque"]),
+            moment_of_inertia=Vector3(
+                values["moment_of_inertia"][0],
+                values["moment_of_inertia"][1],
+                values["moment_of_inertia"][2],
             ),
             altitude=float(values["altitude"]),
             surface_altitude=float(values["surface_altitude"]),

@@ -22,7 +22,7 @@ from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import DragModel, LandingPredictor
 from recovery.ksp.sampling import sample_body_spec, sample_drag_spec
 
-VESSEL = "RLV Probe"
+VESSEL = "RLV Probe 2"
 
 MIN_ALT = 8000.0     # boosterback window (m)
 ROI_MISS = 50000.0   # ignore miss-increase below this threshold
