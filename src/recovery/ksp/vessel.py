@@ -5,10 +5,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from ..specs import BodySpec, DragSpec
 from ..types import FlightState
 from .control import VesselControls
 from .debug import DebugProxy
 from .exceptions import DebugNotEnabled
+from .sampling import sample_body_spec, sample_drag_spec
 
 if TYPE_CHECKING:
     from .connection import KspConnection
@@ -110,6 +112,42 @@ class VesselHandle:
         or ``"surface"``.
         """
         return self._connection.frame(name)
+
+    def sample_predictor_specs(
+        self,
+        *,
+        lat: float,
+        lon: float,
+        body: Any = None,
+        mass: float | None = None,
+        manual_beta: float | None = None,
+        altitude_samples: int = 64,
+    ) -> tuple[BodySpec, DragSpec]:
+        """One-shot sample of the specs needed to build a
+        :class:`~recovery.guidance.LandingPredictor`.
+
+        *body* defaults to the celestial body this vessel is currently on;
+        *mass* defaults to the vessel's current mass.  Both the body and the
+        drag spec are expressed in this vessel's ``"target"`` reference frame
+        (requires a prior :meth:`register_target`).  One-time RPC cost only —
+        do not call inside the control loop.
+        """
+        if body is None:
+            body = self._vessel.orbit.body
+        frame = self._connection.frame("target")
+        flight = self._vessel.flight(frame)
+        if mass is None:
+            mass = float(self._vessel.mass)
+        body_spec = sample_body_spec(body, frame, lat, lon)
+        drag_spec = sample_drag_spec(
+            body,
+            flight,
+            frame,
+            mass=mass,
+            manual_beta=manual_beta,
+            altitude_samples=altitude_samples,
+        )
+        return body_spec, drag_spec
 
     def register_target(self, *, lon: float, lat: float) -> None:
         """Register a landing-site target for this vessel.

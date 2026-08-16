@@ -24,9 +24,8 @@ from recovery.control import LocalAttitudeController
 from recovery.control.control_utils import angle_between
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import DragModel, LandingPredictor
-from recovery.ksp.sampling import sample_body_spec, sample_drag_spec
 
-VESSEL = "RLV Probe 2"
+VESSEL = "Booster 1"
 
 MIN_ALT = 8000.0     # boosterback window (m)
 ROI_MISS = 50000.0   # ignore miss-increase below this threshold
@@ -48,12 +47,9 @@ def main() -> None:
                 raise RuntimeError("telemetry not ready")
             time.sleep(0.02)
 
-        frame = km.frame("zem", "target")
-
-        body = b.raw.orbit.body
-        flight = b.raw.flight(frame)
-        body_spec = sample_body_spec(body, frame, LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
-        drag_spec = sample_drag_spec(body, flight, frame, mass=float(b.raw.mass))
+        body_spec, drag_spec = b.sample_predictor_specs(
+            lat=LAUNCHPAD_JNSQ.lat, lon=LAUNCHPAD_JNSQ.lon
+        )
         predictor = LandingPredictor.from_body_spec(
             body_spec, aero=DragModel.from_spec(drag_spec)
         )
