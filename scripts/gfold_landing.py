@@ -31,7 +31,7 @@ from recovery.guidance.gfold import (
 )
 from recovery.guidance.tofnet import TofPredictor
 
-VESSEL = "RLV Probe 2"
+VESSEL = "Booster 1"
 TARGET = LAUNCHPAD_JNSQ
 
 CONTROL_HZ = 30.0          # control-apply rate (Hz)
