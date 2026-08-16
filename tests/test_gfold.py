@@ -208,7 +208,7 @@ def test_solve_optimal_forces_tof_none(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("gfold.solve", _fake)
     traj = solve_optimal(_state(), G_SURF, GfoldParams(tof=20.0))
     assert traj is not None
-    data = json.loads(captured["cfg"].to_json())  # type: ignore[union-attr]
+    data = json.loads(captured["cfg"].to_json())  # type: ignore[attr-defined]
     assert data["solver"]["time_of_flight"] is None
 
 
@@ -222,5 +222,5 @@ def test_replan_passes_shrinking_tof(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("gfold.solve", _fake)
     traj = replan(_state(), G_SURF, GfoldParams(), tof=3.2)
     assert traj is not None
-    data = json.loads(captured["cfg"].to_json())  # type: ignore[union-attr]
+    data = json.loads(captured["cfg"].to_json())  # type: ignore[attr-defined]
     assert data["solver"]["time_of_flight"] == 3.2

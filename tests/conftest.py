@@ -1,7 +1,7 @@
 import pytest
 
 
-def pytest_collection_modifyitems(config, items) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     selected = config.getoption("-m") or ""
     if "live" in selected:
         return

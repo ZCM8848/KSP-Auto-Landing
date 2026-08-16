@@ -4,14 +4,14 @@ from recovery.ksp import ConnectionManager
 from tests.fakes import FakeClient, FakeVessel
 
 
-def _connect(monkeypatch, *vessels) -> FakeClient:
+def _connect(monkeypatch: pytest.MonkeyPatch, *vessels: FakeVessel) -> FakeClient:
     client = FakeClient(list(vessels))
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
     monkeypatch.setattr("recovery.ksp.debug.krpc.connect", lambda **kw: client)
     return client
 
 
-def test_debug_requires_enable(monkeypatch) -> None:
+def test_debug_requires_enable(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _connect(monkeypatch, FakeVessel(name="Booster 1"))
     km = ConnectionManager()
     km.add_booster("b1", "Booster 1")
@@ -21,7 +21,7 @@ def test_debug_requires_enable(monkeypatch) -> None:
     assert client.closed is True
 
 
-def test_reference_frame_axes(monkeypatch) -> None:
+def test_reference_frame_axes(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _connect(monkeypatch, FakeVessel(name="Booster 1"))
     with ConnectionManager() as km:
         km.add_booster("b1", "Booster 1")
@@ -35,7 +35,7 @@ def test_reference_frame_axes(monkeypatch) -> None:
         assert all(line.removed for line in client.drawing.lines)
 
 
-def test_trajectory_create_update_clear(monkeypatch) -> None:
+def test_trajectory_create_update_clear(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _connect(monkeypatch, FakeVessel(name="Booster 1"))
     with ConnectionManager() as km:
         booster = km.add_booster("b1", "Booster 1")
@@ -57,7 +57,7 @@ def test_trajectory_create_update_clear(monkeypatch) -> None:
         assert proxy.trajectory("predicted") is None
 
 
-def test_trajectory_numpy_input(monkeypatch) -> None:
+def test_trajectory_numpy_input(monkeypatch: pytest.MonkeyPatch) -> None:
     import numpy as np
 
     client = _connect(monkeypatch, FakeVessel(name="Booster 1"))
@@ -72,7 +72,7 @@ def test_trajectory_numpy_input(monkeypatch) -> None:
         assert lines[0].start == (0.0, 0.0, 0.0)
 
 
-def test_direction_and_line(monkeypatch) -> None:
+def test_direction_and_line(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _connect(monkeypatch, FakeVessel(name="Booster 1"))
     with ConnectionManager() as km:
         booster = km.add_booster("b1", "Booster 1")
@@ -88,7 +88,7 @@ def test_direction_and_line(monkeypatch) -> None:
         assert client.drawing.lines[0].removed is True
 
 
-def test_clear_all(monkeypatch) -> None:
+def test_clear_all(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _connect(monkeypatch, FakeVessel(name="Booster 1"))
     with ConnectionManager() as km:
         booster = km.add_booster("b1", "Booster 1")
@@ -102,7 +102,7 @@ def test_clear_all(monkeypatch) -> None:
         assert proxy.trajectories == {}
 
 
-def test_unknown_frame(monkeypatch) -> None:
+def test_unknown_frame(monkeypatch: pytest.MonkeyPatch) -> None:
     _connect(monkeypatch, FakeVessel(name="Booster 1"))
     with ConnectionManager() as km:
         booster = km.add_booster("b1", "Booster 1")
@@ -111,7 +111,7 @@ def test_unknown_frame(monkeypatch) -> None:
             booster.debug.reference_frame(frame_name="bogus")
 
 
-def test_trajectory_requires_name(monkeypatch) -> None:
+def test_trajectory_requires_name(monkeypatch: pytest.MonkeyPatch) -> None:
     _connect(monkeypatch, FakeVessel(name="Booster 1"))
     with ConnectionManager() as km:
         booster = km.add_booster("b1", "Booster 1")
@@ -120,7 +120,7 @@ def test_trajectory_requires_name(monkeypatch) -> None:
             booster.debug.trajectory([(0, 0, 0), (1, 1, 1)])
 
 
-def test_target_required_before_draw(monkeypatch) -> None:
+def test_target_required_before_draw(monkeypatch: pytest.MonkeyPatch) -> None:
     _connect(monkeypatch, FakeVessel(name="Booster 1"))
     with ConnectionManager() as km:
         booster = km.add_booster("b1", "Booster 1")
@@ -129,7 +129,7 @@ def test_target_required_before_draw(monkeypatch) -> None:
             booster.debug.reference_frame(frame_name="target")
 
 
-def test_vessel_surface_orbital_frames(monkeypatch) -> None:
+def test_vessel_surface_orbital_frames(monkeypatch: pytest.MonkeyPatch) -> None:
     vessel = FakeVessel(name="Booster 1")
     client = _connect(monkeypatch, vessel)
     with ConnectionManager() as km:

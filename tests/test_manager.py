@@ -19,7 +19,7 @@ def _pump(client: FakeClient, predicate: Callable[[], Any], timeout: float = 3.0
     return None
 
 
-def test_snapshot_pipeline_and_controls(monkeypatch) -> None:
+def test_snapshot_pipeline_and_controls(monkeypatch: pytest.MonkeyPatch) -> None:
     vessel = FakeVessel(name="Booster 1")
     client = FakeClient([vessel], ut=1234.0)
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
@@ -40,7 +40,7 @@ def test_snapshot_pipeline_and_controls(monkeypatch) -> None:
     assert client.closed is True
 
 
-def test_abort_all(monkeypatch) -> None:
+def test_abort_all(monkeypatch: pytest.MonkeyPatch) -> None:
     vessel_a = FakeVessel(name="Booster 1")
     vessel_b = FakeVessel(name="Booster 2")
     client = FakeClient([vessel_a, vessel_b])
@@ -61,7 +61,7 @@ def test_abort_all(monkeypatch) -> None:
     km.close()
 
 
-def test_unknown_vessel_raises_and_closes(monkeypatch) -> None:
+def test_unknown_vessel_raises_and_closes(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient([FakeVessel(name="Booster 1")])
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
     km = ConnectionManager()
@@ -71,7 +71,7 @@ def test_unknown_vessel_raises_and_closes(monkeypatch) -> None:
     km.close()
 
 
-def test_duplicate_booster_id(monkeypatch) -> None:
+def test_duplicate_booster_id(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient([FakeVessel(name="A"), FakeVessel(name="B")])
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
     km = ConnectionManager()
@@ -81,7 +81,7 @@ def test_duplicate_booster_id(monkeypatch) -> None:
     km.close()
 
 
-def test_unknown_booster_id(monkeypatch) -> None:
+def test_unknown_booster_id(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient([FakeVessel(name="A")])
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
     km = ConnectionManager()
@@ -91,7 +91,7 @@ def test_unknown_booster_id(monkeypatch) -> None:
     km.close()
 
 
-def test_target_frame_registration(monkeypatch) -> None:
+def test_target_frame_registration(monkeypatch: pytest.MonkeyPatch) -> None:
     vessel = FakeVessel(name="Booster 1")
     client = FakeClient([vessel])
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
@@ -105,7 +105,7 @@ def test_target_frame_registration(monkeypatch) -> None:
             km.frame("b1", "bogus")
 
 
-def test_abort_all_after_close_is_noop(monkeypatch) -> None:
+def test_abort_all_after_close_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     vessel = FakeVessel(name="Booster 1")
     client = FakeClient([vessel])
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
@@ -116,7 +116,7 @@ def test_abort_all_after_close_is_noop(monkeypatch) -> None:
     km.abort_all()
 
 
-def test_close_cuts_thrust(monkeypatch) -> None:
+def test_close_cuts_thrust(monkeypatch: pytest.MonkeyPatch) -> None:
     vessel = FakeVessel(name="Booster 1")
     client = FakeClient([vessel])
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
@@ -132,7 +132,7 @@ def test_close_cuts_thrust(monkeypatch) -> None:
     assert vessel.auto_pilot.engaged is False
 
 
-def test_target_registration_after_start_rejected(monkeypatch) -> None:
+def test_target_registration_after_start_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     vessel = FakeVessel(name="Booster 1")
     client = FakeClient([vessel])
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)

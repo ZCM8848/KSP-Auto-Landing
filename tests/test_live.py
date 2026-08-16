@@ -12,11 +12,14 @@ import time
 import pytest
 
 from recovery.ksp import ConnectionManager
+from recovery.types import FlightState
 
 pytestmark = pytest.mark.live
 
 
-def _wait_for_snapshot(km: ConnectionManager, booster_id: str, timeout: float = 10.0):
+def _wait_for_snapshot(
+    km: ConnectionManager, booster_id: str, timeout: float = 10.0
+) -> FlightState | None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         state = km.snapshot(booster_id)
@@ -32,6 +35,7 @@ def test_snapshot_control_and_abort() -> None:
         booster = km.add_booster("b1", vessel_name)
         km.start()
         state = _wait_for_snapshot(km, "b1")
+        assert state is not None
         assert state.mass > 0.0
         assert state.frame is not None
         booster.controls.apply(throttle=0.0)

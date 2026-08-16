@@ -2,6 +2,7 @@
 
 import json
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -96,7 +97,7 @@ def _fake_session() -> MagicMock:
 
 
 def test_predictor_load_and_predict(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """TofPredictor loads metadata and runs inference through the session."""
     sess = _fake_session()

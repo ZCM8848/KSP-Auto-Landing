@@ -12,7 +12,7 @@ def test_hz_validation() -> None:
         FramePacer(hz=-1)
 
 
-def test_tick_paces_to_frame_boundaries(monkeypatch) -> None:
+def test_tick_paces_to_frame_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
     times = iter([0.0, 0.10, 0.35, 0.60])
     monkeypatch.setattr(time, "monotonic", lambda: next(times))
     monkeypatch.setattr(time, "sleep", lambda seconds: None)

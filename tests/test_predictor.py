@@ -18,7 +18,7 @@ G0 = MU / (R * R)  # ~9.81 m/s^2
 
 
 @pytest.fixture
-def predictor_no_rotation():
+def predictor_no_rotation() -> LandingPredictor:
     return LandingPredictor(
         mu=MU,
         omega=(0.0, 0.0, 0.0),
@@ -27,7 +27,7 @@ def predictor_no_rotation():
     )
 
 
-def test_straight_drop(predictor_no_rotation):
+def test_straight_drop(predictor_no_rotation: LandingPredictor) -> None:
     """From altitude h with zero velocity — should land directly below."""
     h = 1000.0
     r0 = (0.0, 0.0, h)
@@ -41,7 +41,7 @@ def test_straight_drop(predictor_no_rotation):
     assert result.time == pytest.approx(t_freefall, rel=0.01)
 
 
-def test_horizontal_throw(predictor_no_rotation):
+def test_horizontal_throw(predictor_no_rotation: LandingPredictor) -> None:
     """Launch horizontally from altitude — verify x displacement."""
     h = 500.0
     vx = 200.0
@@ -56,7 +56,7 @@ def test_horizontal_throw(predictor_no_rotation):
     assert result.position[2] == pytest.approx(0.0, abs=abs(expected_x * 0.01))
 
 
-def test_not_hitting_surface(predictor_no_rotation):
+def test_not_hitting_surface(predictor_no_rotation: LandingPredictor) -> None:
     """Upward velocity prevents impact within t_max."""
     r0 = (0.0, 0.0, 5000.0)
     v0 = (0.0, 0.0, 0.0)
@@ -64,7 +64,7 @@ def test_not_hitting_surface(predictor_no_rotation):
     assert result is None
 
 
-def test_with_rotation():
+def test_with_rotation() -> None:
     """Coriolis deflects for a falling object."""
     omega = (0.0, 0.0001, 0.0)
     predictor = LandingPredictor(
@@ -83,7 +83,7 @@ def test_with_rotation():
     assert deflected_x or deflected_y
 
 
-def test_rtol_accuracy():
+def test_rtol_accuracy() -> None:
     """Stricter tolerance gives more precise result."""
     predictor = LandingPredictor(
         mu=MU, omega=(0.0, 0.0, 0.0), body_center=(0.0, 0.0, -R), body_radius=R
@@ -97,7 +97,7 @@ def test_rtol_accuracy():
     assert r_loose.position[2] == pytest.approx(r_tight.position[2], abs=0.5)
 
 
-def test_predict_from_snapshot(predictor_no_rotation):
+def test_predict_from_snapshot(predictor_no_rotation: LandingPredictor) -> None:
     """predict_from accepts a FlightState directly."""
     state = FlightState(
         ut=0, met=0,
