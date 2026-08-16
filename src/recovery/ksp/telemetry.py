@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import threading
-import time
 from collections.abc import Callable
 from typing import Any
 
@@ -17,6 +16,18 @@ def _torque_pair(value: Any) -> TorquePair:
         Vector3(value[0][0], value[0][1], value[0][2]),
         Vector3(value[1][0], value[1][1], value[1][2]),
     )
+
+
+def _vec3(values: dict[str, Any], name: str) -> Vector3:
+    """Extract a 3-vector stream value as a :class:`Vector3`."""
+    v = values[name]
+    return Vector3(float(v[0]), float(v[1]), float(v[2]))
+
+
+def _quat(values: dict[str, Any], name: str) -> Quaternion:
+    """Extract a quaternion stream value as a :class:`Quaternion`."""
+    q = values[name]
+    return Quaternion(float(q[0]), float(q[1]), float(q[2]), float(q[3]))
 
 
 class Telemetry:
@@ -124,12 +135,13 @@ class Telemetry:
 
     def _run(self) -> None:
         while not self._stop.is_set():
-            time.sleep(self._telemetry_interval)
-            if self._stop.is_set():
-                break
             snapshot = self._build_snapshot()
             with self._lock:
                 self._snapshot = snapshot
+            # Block until the next frame boundary.  ``Event.wait`` (unlike
+            # ``time.sleep``) is woken immediately by ``stop()``, so shutdown
+            # is not delayed by up to one full telemetry interval.
+            self._stop.wait(self._telemetry_interval)
 
     def _build_snapshot(self) -> FlightState:
         values = {name: stream() for name, stream in self._streams}
@@ -139,43 +151,18 @@ class Telemetry:
         return FlightState(
             ut=float(values["ut"]),
             met=float(values["met"]),
-            position=Vector3(values["position"][0], values["position"][1], values["position"][2]),
-            velocity=Vector3(values["velocity"][0], values["velocity"][1], values["velocity"][2]),
-            velocity_surface=Vector3(
-                values["velocity_surface"][0],
-                values["velocity_surface"][1],
-                values["velocity_surface"][2],
-            ),
-            rotation=Quaternion(
-                values["rotation"][0],
-                values["rotation"][1],
-                values["rotation"][2],
-                values["rotation"][3],
-            ),
-            angular_velocity=Vector3(
-                values["angular_velocity"][0],
-                values["angular_velocity"][1],
-                values["angular_velocity"][2],
-            ),
-            direction=Vector3(
-                values["direction"][0],
-                values["direction"][1],
-                values["direction"][2],
-            ),
-            bottom_axis=Vector3(
-                values["bottom_axis"][0],
-                values["bottom_axis"][1],
-                values["bottom_axis"][2],
-            ),
+            position=_vec3(values, "position"),
+            velocity=_vec3(values, "velocity"),
+            velocity_surface=_vec3(values, "velocity_surface"),
+            rotation=_quat(values, "rotation"),
+            angular_velocity=_vec3(values, "angular_velocity"),
+            direction=_vec3(values, "direction"),
+            bottom_axis=_vec3(values, "bottom_axis"),
             available_reaction_wheel_torque=_torque_pair(values["available_reaction_wheel_torque"]),
             available_rcs_torque=_torque_pair(values["available_rcs_torque"]),
             available_engine_torque=_torque_pair(values["available_engine_torque"]),
             available_control_surface_torque=_torque_pair(values["available_control_surface_torque"]),
-            moment_of_inertia=Vector3(
-                values["moment_of_inertia"][0],
-                values["moment_of_inertia"][1],
-                values["moment_of_inertia"][2],
-            ),
+            moment_of_inertia=_vec3(values, "moment_of_inertia"),
             altitude=float(values["altitude"]),
             surface_altitude=float(values["surface_altitude"]),
             mass=mass,

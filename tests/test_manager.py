@@ -61,6 +61,70 @@ def test_abort_all(monkeypatch: pytest.MonkeyPatch) -> None:
     km.close()
 
 
+def test_telemetry_first_frame_without_waiting_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Work-first telemetry: the first snapshot appears well before one interval.
+
+    With ``telemetry_hz=1.0`` (1 s interval) the old sleep-first loop could not
+    publish anything before a full second; the work-first loop publishes
+    immediately after the thread starts.
+    """
+    vessel = FakeVessel(name="Booster 1")
+    client = FakeClient([vessel])
+    monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
+    with ConnectionManager(telemetry_hz=1.0) as km:
+        km.add_booster("b1", "Booster 1")
+        km.start()
+        # 300 ms << 1 s interval; thread startup + one snapshot build is ms-scale.
+        state = _pump(client, lambda: km.snapshot("b1"), timeout=0.3)
+        assert state is not None
+    assert client.closed is True
+
+
+def test_telemetry_paces_via_event_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The telemetry loop paces with ``Event.wait(interval)`` so ``stop()``
+    can wake it immediately instead of sleeping out the interval."""
+    import threading
+
+    from recovery.ksp.telemetry import Telemetry
+
+    vessel = FakeVessel(name="Booster 1")
+    client = FakeClient([vessel])
+    waited: list[float | None] = []
+
+    class FakeEvent:
+        def __init__(self) -> None:
+            self._set = False
+
+        def is_set(self) -> bool:
+            return self._set
+
+        def set(self) -> None:
+            self._set = True
+
+        def wait(self, timeout: float | None = None) -> bool:
+            waited.append(timeout)
+            return self._set
+
+    monkeypatch.setattr(threading, "Event", FakeEvent)
+    tel = Telemetry(
+        client=client,
+        vessel=vessel,
+        frame=vessel.surface_reference_frame,
+        telemetry_hz=50.0,
+    )
+    tel.start()
+    time.sleep(0.01)  # let the loop run a few non-blocking iterations
+    tel.stop()
+    # Thread.start() internally creates and waits on its own Event() without a
+    # timeout — filter that out; the telemetry loop's waits must all use the
+    # telemetry interval.
+    paced = [w for w in waited if w is not None]
+    assert paced, "telemetry loop never paced via Event.wait"
+    assert all(w == pytest.approx(1.0 / 50.0) for w in paced)
+
+
 def test_unknown_vessel_raises_and_closes(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient([FakeVessel(name="Booster 1")])
     monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
