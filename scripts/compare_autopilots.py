@@ -3,6 +3,7 @@
 Both tests start from the SAME initial orientation, then command a re-point
 to TARGET_DIR.  Error convergence is logged side by side.
 """
+import math
 import sys
 import time
 
@@ -11,13 +12,7 @@ import numpy as np
 sys.path.insert(0, "src")
 from recovery import ConnectionManager, FramePacer
 from recovery.control import AutoPilot as LocalAP
-from recovery.control.control_utils import (
-    angle_between,
-    cross,
-    normalize,
-    pi,
-    rotate,
-)
+from recovery.control.control_utils import angle_between, normalize, rotate
 from recovery.data.targets import LAUNCHPAD_JNSQ
 
 VESSEL = "VTVL-Cam"
@@ -32,13 +27,13 @@ def _roll_from_direction(vessel, space_center, frame):
         space_center.transform_direction((0.0, 0.0, 1.0), vessel.reference_frame, frame)
     )
     x0 = np.array((1.0, 0.0, 0.0))
-    rot_axis = normalize(cross(x, x0))
+    rot_axis = normalize(np.cross(x, x0))
     rot_ang = angle_between(x, x0)
     y0 = rotate(rot_axis, y, rot_ang)
     ang1 = angle_between(y0, (0.0, 1.0, 0.0))
     ang2 = angle_between(y0, (0.0, 0.0, 1.0))
     roll = ang1
-    if ang2 > pi / 2:
+    if ang2 > math.pi / 2:
         roll = -roll
     return roll
 

@@ -7,10 +7,12 @@ guard that the extraction into :class:`LocalAttitudeController` reproduces the
 exact same stick outputs.
 """
 
+import math
+
 import numpy as np
 
 from recovery.control import AutoPilot, LocalAttitudeController
-from recovery.control.control_utils import angle_between, cross, normalize, pi, rotate
+from recovery.control.control_utils import angle_between, normalize, rotate
 from recovery.control.local_attitude import (
     max_acc_from_snapshot,
     roll_from_axes,
@@ -22,13 +24,13 @@ def _ref_roll(direction, bottom):
     x = np.array(direction)
     y = np.array(bottom)
     x0 = np.array((1.0, 0.0, 0.0))
-    rot_axis = normalize(cross(x, x0))
+    rot_axis = normalize(np.cross(x, x0))
     rot_ang = angle_between(x, x0)
     y0 = rotate(rot_axis, y, rot_ang)
     ang1 = angle_between(y0, (0.0, 1.0, 0.0))
     ang2 = angle_between(y0, (0.0, 0.0, 1.0))
     roll = ang1
-    if ang2 > pi / 2:
+    if ang2 > math.pi / 2:
         roll = -roll
     return roll
 

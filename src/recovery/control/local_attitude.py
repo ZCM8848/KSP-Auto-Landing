@@ -8,6 +8,7 @@ and the loop timing (the orchestration scheduler).
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from typing import NamedTuple
 
@@ -15,7 +16,7 @@ import numpy as np
 
 from ..types import FlightState, Vector3
 from .auto_pilot import AutoPilot
-from .control_utils import angle_between, cross, normalize, pi, rotate
+from .control_utils import angle_between, normalize, rotate
 
 
 class StickCommand(NamedTuple):
@@ -35,13 +36,13 @@ def roll_from_axes(direction: Vector3, bottom: Vector3) -> float:
     x = np.array(direction)
     y = np.array(bottom)
     x0 = np.array((1.0, 0.0, 0.0))
-    rot_axis = normalize(cross(x, x0))
+    rot_axis = normalize(np.cross(x, x0))
     rot_ang = angle_between(x, x0)
     y0 = rotate(rot_axis, y, rot_ang)
     ang1 = angle_between(y0, (0.0, 1.0, 0.0))
     ang2 = angle_between(y0, (0.0, 0.0, 1.0))
     roll = ang1
-    if ang2 > pi / 2:
+    if ang2 > math.pi / 2:
         roll = -roll
     return roll
 

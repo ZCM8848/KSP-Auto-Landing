@@ -21,7 +21,7 @@ mypy                         # typecheck (strict)
 - `src/recovery/ksp/` is the **only** place that imports `krpc`. All KSP I/O goes through this layer (`ConnectionManager`, `VesselHandle`, `VesselControls`) plus `ksp/sampling.py` — the sole producer of the pure-data specs that guidance consumes. Guidance/control/data must stay KSP-free.
 - `src/recovery/types.py` — shared value types (`FlightState`, `Vector3`, `Quaternion`, `Situation`). `src/recovery/specs.py` — pure-data sampling specs (`BodySpec`, `DragSpec`).
 - `src/recovery/guidance/` — impact predictor (`LandingPredictor`, scipy RK45 + numba RK4 fast path), aero models (`DragModel` offline, `KrpcAeroModel` per-step RPC). Pure — imports only `types`/`specs`, never `ksp`.
-- `src/recovery/control/` — local PID, `AutoPilot` (client-side stick control), `ApproachingModel`.
+- `src/recovery/control/` — local PID, `AutoPilot` (client-side stick control), `ApproachingModel`, `LocalAttitudeController`/`StickCommand` (snapshot-driven attitude wrapper), and `control_utils` vector math. Pure — imports only `types`, never `ksp`.
 - `src/recovery/data/targets.py` — frozen `LandingSite` coordinates (STOCK and JNSQ).
 - `main.py` and `scripts/*.py` are live demo/diagnostic entrypoints, not library code.
 
@@ -30,13 +30,13 @@ mypy                         # typecheck (strict)
 - Lifecycle order matters: `add_booster()` → `register_target()` → `start()`. `register_target` after `start()` raises; frame `"target"` requires it.
 - `snapshot()` returns `None` until the telemetry thread produces its first frame — poll for readiness before driving a control loop.
 - Snapshots are frozen `FlightState` objects (thread-safe reads). Control loop reads snapshots; only throttle/attitude setters do RPCs.
-- Building a predictor is a two-step compose: `sample_body_spec()` + `sample_drag_spec()` (in `ksp/sampling.py`, one-time ~25 ms RPC) → `LandingPredictor.from_body_spec()` + `DragModel.from_spec()` (pure). `predict()` after that is pure local and safe at control-loop rates.
+- Building a predictor: `b.sample_predictor_specs()` → `(BodySpec, DragSpec)` (the body part is the cached `b.body_spec`, one-time ~25 ms RPC) → `LandingPredictor.from_body_spec()` + `DragModel.from_spec()` (pure). `predict()` after that is pure local and safe at control-loop rates.
 - The `"target"` reference-frame axis convention is inherited verbatim from the legacy implementation (`reference_frames.py` says "do not reinterpret these axes"). Don't "fix" it.
 - `abort_all()`/`close()` must run **inside** the `with` block; commanding a closed connection raises `OSError` (WinError 10038).
 
 ## Lint / type config quirks
 
-- `src/recovery/control/{auto_pilot,control_utils,dynamics}.py` are **excluded** from ruff and mypy (legacy-ported code) — don't "clean them up" to match lint without checking behavior.
+- The control layer (`auto_pilot`, `control_utils`, `dynamics`, `local_attitude`) is fully typed and linted; its control law is guarded bit-for-bit by `tests/test_local_attitude.py`.
 - `recovery.guidance._numba` is mypy-ignored (numba typing); `predictor`/`aerodynamics` typecheck under strict mypy.
 
 ## Key docs
