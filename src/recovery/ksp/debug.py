@@ -12,7 +12,7 @@ from typing import Any
 
 import krpc
 
-from .exceptions import TargetNotRegistered
+from .exceptions import TargetNotRegistered, VesselNotFound
 from .reference_frames import create_target_reference_frame
 
 Vec3 = tuple[float, float, float]
@@ -289,7 +289,7 @@ class DebugProxy:
             if vessel.name == self._vessel_name:
                 self._debug_vessel = vessel
                 return vessel
-        raise RuntimeError(
+        raise VesselNotFound(
             f"no vessel named {self._vessel_name!r} found on debug connection"
         )
 

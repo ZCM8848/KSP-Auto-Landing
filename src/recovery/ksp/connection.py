@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 import krpc
@@ -10,7 +9,9 @@ import krpc
 from ..types import FlightState
 from .control import VesselControls
 from .exceptions import (
+    AmbiguousVesselName,
     InvalidState,
+    TargetNotRegistered,
     VesselNotFound,
     VesselNotResolved,
 )
@@ -98,20 +99,12 @@ class KspConnection:
         Raises:
             InvalidState: if a vessel is already resolved.
             VesselNotFound: if no vessel with *vessel_name* exists.
-
-        Warns:
             AmbiguousVesselName: if multiple vessels share *vessel_name*.
         """
         if self._vessel is not None:
             raise InvalidState("a vessel is already resolved")
-        matches: list[str] = []
-        for vessel in self._client.space_center.vessels:
-            if vessel.name == vessel_name:
-                if self._vessel is None:
-                    self._vessel = vessel
-                    self._controls = VesselControls(vessel)
-                matches.append(vessel.situation.name)
-        if self._vessel is None:
+        matches = [v for v in self._client.space_center.vessels if v.name == vessel_name]
+        if not matches:
             available = ", ".join(
                 v.name for v in self._client.space_center.vessels
             )
@@ -119,11 +112,11 @@ class KspConnection:
                 f"no vessel named {vessel_name!r} found (available: {available})"
             )
         if len(matches) > 1:
-            warnings.warn(
-                f"ambiguous name '{vessel_name}': {len(matches)} matches "
-                f"({', '.join(matches)})",
-                stacklevel=2,
+            raise AmbiguousVesselName(
+                vessel_name, [v.situation.name for v in matches]
             )
+        self._vessel = matches[0]
+        self._controls = VesselControls(matches[0])
 
     def register_target(self, *, lon: float, lat: float) -> None:
         """Build a landing-site reference frame at (*lon*, *lat*) on the
@@ -180,12 +173,13 @@ class KspConnection:
                 first) or ``"surface"`` (surface-relative frame).
 
         Raises:
-            KeyError: if *name* is unrecognised or ``"target"`` was never
-                registered.
+            TargetNotRegistered: if ``"target"`` is requested but
+                ``register_target`` was never called.
+            KeyError: if *name* is unrecognised.
         """
         if name == "target":
             if self._target_frame is None:
-                raise KeyError("no target frame registered")
+                raise TargetNotRegistered("no target frame registered")
             return self._target_frame
         if name == "surface":
             return self.vessel.surface_reference_frame

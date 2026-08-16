@@ -9,7 +9,7 @@ from ..specs import BodySpec, DragSpec
 from ..types import FlightState
 from .control import VesselControls
 from .debug import DebugProxy
-from .exceptions import DebugNotEnabled
+from .exceptions import DebugNotEnabled, TargetNotRegistered
 from .sampling import sample_body_spec, sample_drag_spec
 
 if TYPE_CHECKING:
@@ -111,6 +111,11 @@ class VesselHandle:
 
         *name* must be ``"target"`` (requires a prior ``register_target``)
         or ``"surface"``.
+
+        Raises:
+            TargetNotRegistered: if ``"target"`` is requested without a prior
+                ``register_target``.
+            KeyError: if *name* is unrecognised.
         """
         return self._connection.frame(name)
 
@@ -124,13 +129,13 @@ class VesselHandle:
         access, safe at control-loop rates.
 
         Raises:
-            KeyError: if ``register_target`` was not called first.
+            TargetNotRegistered: if ``register_target`` was not called first.
         """
         if self._body_spec is None:
             lat = self._target_lat
             lon = self._target_lon
             if lat is None or lon is None:
-                raise KeyError("no target registered; call register_target() first")
+                raise TargetNotRegistered("no target registered; call register_target() first")
             body = self._vessel.orbit.body
             frame = self._connection.frame("target")
             self._body_spec = sample_body_spec(body, frame, lat, lon)

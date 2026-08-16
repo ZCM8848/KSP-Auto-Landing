@@ -351,11 +351,12 @@ compatibility.
 | Scenario | Exception |
 |---|---|
 | Vessel name not found | `VesselNotFound` (`ValueError`) |
-| Duplicate names (≥ 2) | `warnings.warn`, non-blocking (first one wins) |
+| Duplicate names (≥ 2) | `AmbiguousVesselName` (`ValueError`) |
 | Duplicate `booster_id` | `DuplicateBooster` (`ValueError`) |
 | `vessel`/`controls` accessed before `resolve_vessel` | `VesselNotResolved` (`RuntimeError`) |
 | `add_booster` / `register_target` after `start()` | `InvalidState` (`RuntimeError`) |
 | Debug not enabled | `DebugNotEnabled` (`RuntimeError`) |
+| `frame("target")` / `body_spec` before `register_target` | `TargetNotRegistered` (`RuntimeError`) |
 | Unknown `booster_id` | `KeyError` |
 | `target_direction` missing `reference_frame` / zero vector | `ValueError` |
 | Unknown frame name | `KeyError` |
