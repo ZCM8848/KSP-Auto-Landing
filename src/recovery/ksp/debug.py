@@ -11,12 +11,14 @@ from collections.abc import Sequence
 from typing import Any
 
 import krpc
+import numpy as np
 
 from .exceptions import TargetNotRegistered, VesselNotFound
 from .reference_frames import create_target_reference_frame
 
 Vec3 = tuple[float, float, float]
 RGB = tuple[float, float, float]
+Points = Sequence[Any] | np.ndarray
 
 _AXIS_COLORS: dict[str, RGB] = {
     "x": (1.0, 0.0, 0.0),
@@ -25,7 +27,7 @@ _AXIS_COLORS: dict[str, RGB] = {
 }
 
 
-def _points(positions: Sequence[Any]) -> list[Vec3]:
+def _points(positions: Points) -> list[Vec3]:
     return [tuple(position) for position in positions]
 
 
@@ -163,7 +165,7 @@ class DebugTrajectory:
         client: Any,
         frame: Any,
         name: str,
-        positions: Sequence[Any],
+        positions: Points,
         color: RGB,
         thickness: float,
     ) -> None:
@@ -207,7 +209,7 @@ class DebugTrajectory:
         for line in self._lines:
             line.thickness = value
 
-    def update(self, positions: Sequence[Any]) -> None:
+    def update(self, positions: Points) -> None:
         """Replace the trajectory with a new set of waypoints.
 
         If the number of waypoints has not changed, existing line segments
@@ -393,7 +395,7 @@ class DebugProxy:
 
     def trajectory(
         self,
-        positions: Sequence[Any] | str | None = None,
+        positions: Points | str | None = None,
         *,
         name: str | None = None,
         frame_name: str = "target",
