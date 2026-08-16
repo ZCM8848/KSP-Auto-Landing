@@ -109,7 +109,10 @@ class LandingPredictor:
             position: Current position in the target frame (m).
             velocity: Current velocity in the target frame (m/s).
             t_max: Maximum integration time (s).
-            rtol, atol: scipy RK45 tolerances (ignored by numba path).
+            rtol: Relative tolerance for the scipy RK45 path (ignored by
+                the numba path).
+            atol: Absolute tolerance for the scipy RK45 path (ignored by
+                the numba path).
 
         Returns:
             ``ImpactResult``, or ``None`` if the surface is never reached

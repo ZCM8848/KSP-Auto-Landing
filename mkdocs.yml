@@ -1,0 +1,49 @@
+site_name: KSP Auto-Landing
+site_description: Multi-booster kRPC rocket recovery framework
+repo_url: https://github.com/ZCM8848/KSP-Auto-Landing
+
+# The vendored kRPC reference under docs/krpc/ is not part of this site.
+exclude_docs: |
+  krpc/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - admonition
+  - toc:
+      permalink: true
+
+nav:
+  - Gateway API: ksp-gateway-api.md

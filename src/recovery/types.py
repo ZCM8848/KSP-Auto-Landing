@@ -84,7 +84,7 @@ class FlightState:
     opaque kRPC reference frame handle, typically the registered target frame
     or the vessel surface frame).
 
-    Fields:
+    Attributes:
         ut: Universal time in seconds (kRPC ``SpaceCenter.ut``).
         met: Mission elapsed time in seconds (``Vessel.met``).
         position: Position in the snapshot frame (m).

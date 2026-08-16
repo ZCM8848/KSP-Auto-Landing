@@ -9,6 +9,8 @@ python -m pytest              # unit tests — no KSP needed (fake kRPC client)
 python -m pytest -m live      # live integration — needs KSP + kRPC server running
 ruff check .                  # lint
 mypy                         # typecheck (strict)
+mkdocs build                 # build the docs site (site/)
+mkdocs serve                 # live-reload docs server (http://127.0.0.1:8000)
 ```
 
 - Tests import the package from `src/` (`pythonpath = ["src"]` in pyproject). No install needed, but scripts outside pytest do `sys.path.insert(0, "src")` manually — keep that pattern when adding scripts.
@@ -41,7 +43,7 @@ mypy                         # typecheck (strict)
 
 ## Key docs
 
-- `docs/ksp-gateway-api.md` — authoritative (Chinese) API reference for the KSP layer: lifecycle, coordinate frames, thread model, debug drawing, guidance usage. Read it before changing `src/recovery/ksp/`.
+- `docs/ksp-gateway-api.md` — authoritative API reference for the KSP layer (English narrative + auto-generated reference from source docstrings via mkdocstrings): lifecycle, coordinate frames, thread model, debug drawing, guidance usage. Read it before changing `src/recovery/ksp/`. The docstrings in `src/` are the single source of truth for API details.
 - `docs/krpc/` and `gfold_Python_API文档.md` — vendored kRPC / gfold reference material.
 
 ## Conventions

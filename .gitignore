@@ -7,6 +7,7 @@ build/
 dist/
 .eggs/
 src/*.egg-info/
+site/
 .vscode/
 .idea/
 /KSP-Auto-Landing-main

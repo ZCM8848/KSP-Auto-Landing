@@ -210,7 +210,9 @@ class VesselControls:
 
         Keyword Args:
             throttle: Main throttle (0.0 … 1.0, clamped automatically).
-            pitch, yaw, roll: Raw stick inputs (-1.0 … 1.0).
+            pitch: Raw pitch stick input (-1.0 … 1.0).
+            yaw: Raw yaw stick input (-1.0 … 1.0).
+            roll: Raw roll stick input (-1.0 … 1.0).
             target_direction: Nose direction vector (normalised
                 automatically).  When provided the kRPC AutoPilot is
                 engaged and SAS is turned off by the server.
@@ -222,7 +224,10 @@ class VesselControls:
             reference_frame: kRPC reference frame that *target_direction*
                 and *up* are expressed in.  **Required** if
                 *target_direction* is given, otherwise ignored.
-            sas, rcs, legs, gear: Boolean system toggles.
+            sas: SAS state toggle.
+            rcs: RCS state toggle.
+            legs: Landing-legs deployment toggle.
+            gear: Landing-gear/wheels deployment toggle.
 
         Raises:
             ValueError: if *target_direction* is given but
