@@ -27,7 +27,9 @@ class FramePacer:
         *max_dt* optionally caps the *dt* returned by :meth:`tick` — a frame
         that stalls for longer (GC pause, debugger breakpoint) reports
         ``max_dt`` instead of the true elapsed time, protecting downstream
-        integrators from a single huge step.
+        integrators from a single huge step.  Note the **first** tick always
+        returns ``period`` (there is no previous frame to measure a stall
+        against) and is therefore not capped.
 
         Raises:
             ValueError: if *hz* is not positive.
