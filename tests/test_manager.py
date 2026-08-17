@@ -82,32 +82,20 @@ def test_telemetry_first_frame_without_waiting_interval(
     assert client.closed is True
 
 
-def test_telemetry_paces_via_event_wait(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The telemetry loop paces with ``Event.wait(interval)`` so ``stop()``
-    can wake it immediately instead of sleeping out the interval."""
-    import threading
-
+def test_telemetry_paces_via_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The telemetry loop paces with ``time.sleep(interval)``."""
     from recovery.ksp.telemetry import Telemetry
 
     vessel = FakeVessel(name="Booster 1")
     client = FakeClient([vessel])
-    waited: list[float | None] = []
+    real_sleep = time.sleep
+    slept: list[float] = []
 
-    class FakeEvent:
-        def __init__(self) -> None:
-            self._set = False
+    def fake_sleep(seconds: float) -> None:
+        slept.append(seconds)
+        real_sleep(seconds)
 
-        def is_set(self) -> bool:
-            return self._set
-
-        def set(self) -> None:
-            self._set = True
-
-        def wait(self, timeout: float | None = None) -> bool:
-            waited.append(timeout)
-            return self._set
-
-    monkeypatch.setattr(threading, "Event", FakeEvent)
+    monkeypatch.setattr("recovery.ksp.telemetry.time.sleep", fake_sleep)
     tel = Telemetry(
         client=client,
         vessel=vessel,
@@ -115,14 +103,13 @@ def test_telemetry_paces_via_event_wait(monkeypatch: pytest.MonkeyPatch) -> None
         telemetry_hz=50.0,
     )
     tel.start()
-    time.sleep(0.01)  # let the loop run a few non-blocking iterations
+    time.sleep(0.05)  # let the loop run a few iterations
     tel.stop()
-    # Thread.start() internally creates and waits on its own Event() without a
-    # timeout — filter that out; the telemetry loop's waits must all use the
-    # telemetry interval.
-    paced = [w for w in waited if w is not None]
-    assert paced, "telemetry loop never paced via Event.wait"
-    assert all(w == pytest.approx(1.0 / 50.0) for w in paced)
+    # The test thread's own 0.05s sleep is also recorded; filter to the
+    # telemetry interval the loop must pace with.
+    paced = [s for s in slept if s == pytest.approx(1.0 / 50.0)]
+    assert paced, "telemetry loop never paced via time.sleep"
+    assert all(s == pytest.approx(1.0 / 50.0) for s in paced)
 
 
 def test_unknown_vessel_raises_and_closes(monkeypatch: pytest.MonkeyPatch) -> None:

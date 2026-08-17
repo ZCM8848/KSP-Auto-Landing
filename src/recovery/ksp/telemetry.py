@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -73,9 +74,11 @@ class Telemetry:
         """Signal the background thread to exit, join it, and remove all
         streams from the server.
 
-        If the thread does not exit within the join timeout (e.g. stuck on a
-        blocked stream read), the streams are left in place rather than
-        removed concurrently with a live read.
+        If the thread is mid-``sleep`` when the stop flag is set, ``join``
+        waits up to one extra telemetry interval for it to wake.  If the
+        thread does not exit within the join timeout (e.g. stuck on a blocked
+        stream read), the streams are left in place rather than removed
+        concurrently with a live read.
         """
         self._stop.set()
         thread = self._thread
@@ -145,10 +148,11 @@ class Telemetry:
             snapshot = self._build_snapshot()
             with self._lock:
                 self._snapshot = snapshot
-            # Block until the next frame boundary.  ``Event.wait`` (unlike
-            # ``time.sleep``) is woken immediately by ``stop()``, so shutdown
-            # is not delayed by up to one full telemetry interval.
-            self._stop.wait(self._telemetry_interval)
+            # Block until the next frame boundary.  ``time.sleep`` paces far
+            # more accurately on Windows than ``Event.wait`` (which rounds up
+            # to ~15.6 ms timer-resolution ticks).  The cost: ``stop()`` may
+            # wait up to one full telemetry interval for the sleep to finish.
+            time.sleep(self._telemetry_interval)
 
     def _build_snapshot(self) -> FlightState:
         values = {name: stream() for name, stream in self._streams}
