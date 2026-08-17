@@ -185,7 +185,7 @@ def solve(config: gfold.Config) -> Trajectory | None:
     """
     try:
         return cast(Trajectory | None, gfold.solve(config))
-    except ValueError:
+    except (ValueError, RuntimeError):
         return None
 
 

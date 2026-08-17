@@ -224,3 +224,11 @@ def test_replan_passes_shrinking_tof(monkeypatch: pytest.MonkeyPatch) -> None:
     assert traj is not None
     data = json.loads(captured["cfg"].to_json())  # type: ignore[attr-defined]
     assert data["solver"]["time_of_flight"] == 3.2
+
+
+def test_solve_returns_none_on_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(cfg: object) -> None:
+        raise RuntimeError("numerical failure")
+
+    monkeypatch.setattr("gfold.solve", boom)
+    assert solve(object()) is None
