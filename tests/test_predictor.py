@@ -314,7 +314,6 @@ def test_sample_drag_spec_far() -> None:
     )
     far_proxy = MagicMock()
     far_proxy.far_available = True
-    mock_body.space_center = far_proxy
 
     mock_flight = MagicMock()
     mock_flight.ballistic_coefficient = 1500.0
@@ -323,6 +322,7 @@ def test_sample_drag_spec_far() -> None:
         body=mock_body,
         flight=mock_flight,
         target_frame=MagicMock(),
+        space_center=far_proxy,
         altitude_samples=32,
     )
     model = DragModel.from_spec(spec)
@@ -346,7 +346,6 @@ def test_sample_drag_spec_no_far_estimation() -> None:
     mock_body.position.return_value = (0.0, 0.0, -float(R))
     far_proxy = MagicMock()
     far_proxy.far_available = False
-    mock_body.space_center = far_proxy
     mock_body.density_at.return_value = 1.0
 
     mock_flight = MagicMock()
@@ -362,6 +361,7 @@ def test_sample_drag_spec_no_far_estimation() -> None:
         body=mock_body,
         flight=mock_flight,
         target_frame=MagicMock(),
+        space_center=far_proxy,
         mass=30000.0,
         altitude_samples=32,
     )
@@ -398,7 +398,6 @@ def test_sample_drag_spec_uses_local_sea_level_radius() -> None:
 
     far_proxy = MagicMock()
     far_proxy.far_available = True
-    mock_body.space_center = far_proxy
 
     mock_flight = MagicMock()
     mock_flight.ballistic_coefficient = 1500.0
@@ -407,6 +406,7 @@ def test_sample_drag_spec_uses_local_sea_level_radius() -> None:
         body=mock_body,
         flight=mock_flight,
         target_frame=MagicMock(),
+        space_center=far_proxy,
         lat=-0.185,
         lon=-74.473,
         altitude_samples=32,

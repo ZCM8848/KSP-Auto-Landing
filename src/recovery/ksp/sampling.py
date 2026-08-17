@@ -60,6 +60,7 @@ def sample_drag_spec(
     flight: Any,
     target_frame: Any,
     *,
+    space_center: Any | None = None,
     lat: float | None = None,
     lon: float | None = None,
     mass: float | None = None,
@@ -67,6 +68,9 @@ def sample_drag_spec(
     altitude_samples: int = 64,
 ) -> DragSpec:
     """Sample atmosphere density profile and ballistic coefficient.
+
+    *space_center* is the kRPC ``SpaceCenter`` service root; its
+    ``far_available`` flag selects the FAR ballistic-coefficient path.
 
     **One-time RPC cost:** ~25 ms for 64 samples (measured on Kerbin).
 
@@ -92,7 +96,7 @@ def sample_drag_spec(
         [float(body.density_at(float(h))) for h in alts], dtype=float
     )
 
-    beta = _resolve_beta(body, flight, mass, manual_beta)
+    beta = _resolve_beta(space_center, flight, mass, manual_beta)
 
     return DragSpec(
         ballistic_coefficient=beta,
@@ -104,7 +108,7 @@ def sample_drag_spec(
 
 
 def _resolve_beta(
-    body: Any,
+    space_center: Any | None,
     flight: Any,
     mass: float | None,
     manual_beta: float | None,
@@ -112,7 +116,7 @@ def _resolve_beta(
     """Ballistic coefficient via manual override, FAR, or drag-force estimate."""
     if manual_beta is not None:
         return float(manual_beta)
-    if getattr(getattr(body, "space_center", None), "far_available", False):
+    if space_center is not None and getattr(space_center, "far_available", False):
         return float(getattr(flight, "ballistic_coefficient", 0.0))
     if mass is not None:
         rho = float(flight.atmosphere_density)

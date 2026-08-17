@@ -184,6 +184,7 @@ class VesselHandle:
             body,
             flight,
             frame,
+            space_center=self._connection.client.space_center,
             lat=lat,
             lon=lon,
             mass=mass,
