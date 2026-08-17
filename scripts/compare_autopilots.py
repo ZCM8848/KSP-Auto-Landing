@@ -13,7 +13,7 @@ from recovery.control import AutoPilot as LocalAP
 from recovery.control.control_utils import angle_between, normalize, rotate
 from recovery.data.targets import LAUNCHPAD_JNSQ
 
-VESSEL = "VTVL-Cam"
+VESSEL = "Booster 1"
 DURATION = 5.0
 TARGET_DIR = (0.0, 0.0, 1.0)          # nose-up  in target frame  (where we want to go)
 START_DIR = (0.0, 0.0, -1.0)           # nose-down in target frame  (initial, far away)
