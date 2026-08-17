@@ -12,6 +12,7 @@ from recovery.guidance.gfold import (
     build_config,
     command,
     command_at_time,
+    features_of,
     replan,
     solve,
     solve_optimal,
@@ -232,3 +233,40 @@ def test_solve_returns_none_on_runtime_error(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr("gfold.solve", boom)
     assert solve(object()) is None
+
+
+def test_build_config_rejects_non_positive_isp() -> None:
+    with pytest.raises(ValueError, match="specific_impulse"):
+        build_config(_state(specific_impulse=0.0), G_SURF, GfoldParams())
+
+
+def test_features_of_rejects_non_positive_isp() -> None:
+    with pytest.raises(ValueError, match="specific_impulse"):
+        features_of(_state(specific_impulse=0.0), GfoldParams())
+
+
+def test_solve_re_raises_non_infeasible_value_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def bad(cfg: object) -> None:
+        raise ValueError("unexpected config field")
+
+    monkeypatch.setattr("gfold.solve", bad)
+    with pytest.raises(ValueError, match="unexpected config field"):
+        solve(build_config(_state(), G_SURF, GfoldParams()))
+
+
+def test_build_config_rejects_nan_isp() -> None:
+    with pytest.raises(ValueError, match="specific_impulse"):
+        build_config(_state(specific_impulse=float("nan")), G_SURF, GfoldParams())
+
+
+def test_features_of_rejects_nan_isp() -> None:
+    with pytest.raises(ValueError, match="specific_impulse"):
+        features_of(_state(specific_impulse=float("nan")), GfoldParams())
+
+
+def test_solve_infeasible_tof_search_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fail(_cfg: object) -> None:
+        raise ValueError("infeasible: no feasible time-of-flight in [320.156, 294199.500]")
+
+    monkeypatch.setattr("gfold.solve", _fail)
+    assert solve(build_config(_state(), G_SURF, GfoldParams())) is None

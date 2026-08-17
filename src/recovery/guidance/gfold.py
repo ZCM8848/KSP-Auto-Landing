@@ -18,6 +18,7 @@ axis permutation.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Protocol, cast
@@ -30,6 +31,22 @@ from ..types import FlightState
 G0 = 9.80665
 """Standard gravity (m/s^2), used to convert specific impulse to the
 ``fuel_consumption`` mass-flow coefficient ``1 / (Isp * G0)``."""
+
+
+def _require_positive_isp(isp: float) -> float:
+    """Return *isp* as a float, raising if it is not a positive finite value.
+
+    A non-positive (or non-finite, e.g. NaN) specific impulse means the
+    active engines are not firing (or the telemetry stream is stale).
+    ``1 / (Isp * G0)`` would then either divide by zero or silently fabricate
+    a nonsensical mass-flow rate, so we fail loudly instead of guessing a
+    fallback.
+    """
+    isp = float(isp)
+    if not math.isfinite(isp) or isp <= 0.0:
+        raise ValueError(f"specific_impulse must be a positive finite value, got {isp}")
+    return isp
+
 
 Vec3 = tuple[float, float, float]
 
@@ -106,7 +123,7 @@ def features_of(state: FlightState, params: GfoldParams) -> list[float]:
     """
     p = state.position
     v = state.velocity
-    isp = state.specific_impulse if state.specific_impulse > 0.0 else 1.0
+    isp = _require_positive_isp(state.specific_impulse)
     thrust = state.available_thrust if state.available_thrust > 0.0 else state.max_thrust
     return [
         p.x,
@@ -144,7 +161,7 @@ def build_config(
     """
     g = float(g0)
     available = state.available_thrust if state.available_thrust > 0.0 else state.max_thrust
-    isp = state.specific_impulse if state.specific_impulse > 0.0 else 1.0
+    isp = _require_positive_isp(state.specific_impulse)
 
     spacecraft = gfold.Spacecraft(
         wet_mass=float(state.mass),
@@ -181,11 +198,17 @@ def solve(config: gfold.Config) -> Trajectory | None:
     ``gfold.solve`` raises :class:`ValueError` (e.g. ``"solver status:
     PrimalInfeasible"``) when no trajectory exists — callers rely on the
     ``None`` return as the "no solution yet" signal for the landing-burn
-    trigger.
+    trigger.  A :class:`ValueError` carrying any *other* message is a genuine
+    programming error (e.g. a malformed config) and is re-raised rather than
+    masked as "no solution".
     """
     try:
         return cast(Trajectory | None, gfold.solve(config))
-    except (ValueError, RuntimeError):
+    except ValueError as exc:
+        if "infeasible" in str(exc).lower():
+            return None
+        raise
+    except RuntimeError:
         return None
 
 
