@@ -3,6 +3,12 @@
 Ported from the legacy control layer; the control law is preserved
 bit-for-bit.  Typically driven through the snapshot-friendly
 :class:`~recovery.control.local_attitude.LocalAttitudeController`.
+
+Roll convention (kRPC-aligned): ``roll == 0`` aligns the vessel dorsal
+axis with the component of *up* perpendicular to the nose; positive roll
+banks right.  The body basis is built from ``-u_perp`` (the bottom axis at
+roll 0) rotated by ``-roll``, compensating KSP's left-handed roll while
+``scipy`` rotations are right-handed.
 """
 
 from __future__ import annotations
@@ -16,6 +22,8 @@ from scipy.spatial.transform import Rotation
 
 from .control_utils import angle_between, normalize, rotate
 from .dynamics import ApproachingModel
+
+DEFAULT_UP = (1.0, 0.0, 0.0)  # kRPC default up_reference = frame +x
 
 
 class AutoPilot:
@@ -71,6 +79,8 @@ class AutoPilot:
         target: Sequence[float | None],
         angular_velocity: Sequence[float],
         rot_flag: float = 1.0,
+        roll_flag: float = 1.0,
+        up: Sequence[float] = DEFAULT_UP,
         debug: Literal[False] = False,
     ) -> tuple[float, float, float]: ...
 
@@ -81,6 +91,8 @@ class AutoPilot:
         target: Sequence[float | None],
         angular_velocity: Sequence[float],
         rot_flag: float = 1.0,
+        roll_flag: float = 1.0,
+        up: Sequence[float] = DEFAULT_UP,
         debug: Literal[True] = True,
     ) -> tuple[float, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]: ...
 
@@ -90,6 +102,8 @@ class AutoPilot:
         target: Sequence[float | None],
         angular_velocity: Sequence[float],
         rot_flag: float = 1.0,
+        roll_flag: float = 1.0,
+        up: Sequence[float] = DEFAULT_UP,
         debug: bool = False,
     ) -> tuple[float, float, float] | tuple[
         float, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray
@@ -97,11 +111,18 @@ class AutoPilot:
         """Compute stick-level acceleration commands.
 
         Args:
-            cur: ``(roll, nose_x, nose_y, nose_z)`` — current attitude.
+            cur: ``(roll, nose_x, nose_y, nose_z)`` — current attitude
+                (``roll`` in radians, kRPC convention).
             target: ``(roll_target | None, dir_x, dir_y, dir_z)`` — desired
                 attitude; a ``None`` roll target only damps the roll rate.
             angular_velocity: Current angular velocity (rad/s).
             rot_flag: Sign multiplier for the pointing-error rotation axis.
+            roll_flag: Sign multiplier for the roll error (kRPC-convention
+                sign; independent of ``rot_flag`` so each channel can be
+                calibrated separately against the live vessel).
+            up: Roll reference direction in the same frame as *cur*.
+                Default ``(1, 0, 0)`` = frame +x (kRPC default
+                ``up_reference``).
             debug: When true, also return the computed basis vectors and the
                 target direction.
 
@@ -115,11 +136,28 @@ class AutoPilot:
         target_dir = np.array(target[1:4], dtype=float)
         ang_vel = np.array(angular_velocity)
         x = np.array((1.0, 0.0, 0.0))
-        # (0, cos(roll), sin(roll)) — the +y axis rotated about the nose axis.
-        y = Rotation.from_euler("x", roll).apply((0.0, 1.0, 0.0))
         x_ = normalize(cur_dir)
         ang = angle_between(x, x_)
         x_rot_axis = normalize(np.cross(x, x_))
+        # Roll basis: bottom axis at roll 0 is -u_perp (dorsal aligns with
+        # u_perp).  u_perp is projected to the canonical frame (nose = +x),
+        # then rotated by -roll about the nose to compensate KSP's
+        # left-handed roll sign against scipy's right-handed rotation.
+        u = normalize(np.asarray(up, dtype=float))
+        u_perp = u - np.dot(u, x_) * x_
+        n_up = np.linalg.norm(u_perp)
+        if n_up < 1e-9:
+            # up parallel to nose: roll undefined.  Pick an arbitrary
+            # perpendicular basis so the yaw/pitch channels stay defined;
+            # the caller is expected to have degraded roll_target to None.
+            fb = np.cross(x_, np.array((0.0, 1.0, 0.0)))
+            if np.linalg.norm(fb) < 1e-9:
+                fb = np.cross(x_, np.array((0.0, 0.0, 1.0)))
+            u_perp = normalize(fb)
+        else:
+            u_perp = u_perp / n_up
+        u_perp_c = rotate(x_rot_axis, u_perp, -ang)
+        y = Rotation.from_euler("x", -roll).apply(-u_perp_c)
         y_ = rotate(x_rot_axis, y, ang)
         z_ = np.cross(x_, y_)
         dir_ang = angle_between(cur_dir, target_dir)
@@ -144,7 +182,7 @@ class AutoPilot:
                 roll_err -= math.pi * 2
             elif roll_err < -math.pi:
                 roll_err += math.pi * 2
-            roll_err *= rot_flag
+            roll_err *= roll_flag
             acc_x = self.roll_model.next_acc(roll_err, v_x_proj, self.settling_time) * x_
         max_acc = self.max_acc
         if max_acc is None:

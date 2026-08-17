@@ -1,7 +1,8 @@
 """Point RLV-VTVL at the zenith using the local AutoPilot (live KSP).
 
 Commands the nose toward the zenith direction in the target frame and
-logs the pointing error / legacy roll reading / angular-rate magnitude.
+logs the pointing error / roll reading (kRPC convention: 0 = dorsal
+aligned with frame +x) / angular-rate magnitude.
 
 Zenith in the target frame is +z (empirically confirmed by
 ``demo_debug_target_frame.py``: zenith=(0,0,1), north=(1,0,0), east=(0,1,0)).
@@ -49,7 +50,7 @@ def main() -> None:
         while time.monotonic() - start < DURATION_S:
             pacer.tick()
             s = booster.snapshot()
-            cmd = ctrl.step(s, ZENITH, roll_target=0.0)  # hold legacy roll 0
+            cmd = ctrl.step(s, ZENITH, roll_target=0.0)  # hold roll 0° (degrees, kRPC convention)
             raw.control.roll = cmd.roll
             raw.control.yaw = cmd.yaw
             raw.control.pitch = cmd.pitch

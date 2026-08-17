@@ -1,10 +1,12 @@
 """Regression tests for the snapshot-driven local attitude controller.
 
-The reference helpers below are independent, verbatim copies of the inline
-logic that previously lived in ``scripts/zem_boosterback_local.py`` (and, for
-``_ref_max_acc``/``_ref_roll``, the legacy ``Rocket.update_ap`` math).  They
-guard that the extraction into :class:`LocalAttitudeController` reproduces the
-exact same stick outputs.
+The roll convention is kRPC-aligned: ``roll == 0`` aligns the vessel dorsal
+axis with the *up* reference (default frame +x), positive roll banks right,
+and ``LocalAttitudeController.step`` takes ``roll_target`` in **degrees**.
+
+``_ref_roll`` is an independent reference implementation (arccos + signed
+axis projection) used to cross-check ``roll_from_axes`` (atan2 form); both
+must agree on the kRPC test cases and on sampled poses.
 """
 
 import math
@@ -15,7 +17,7 @@ import numpy as np
 import pytest
 
 from recovery.control import AutoPilot, LocalAttitudeController
-from recovery.control.control_utils import angle_between, normalize, rotate
+from recovery.control.control_utils import normalize
 from recovery.control.local_attitude import (
     max_acc_from_snapshot,
     roll_from_axes,
@@ -23,19 +25,34 @@ from recovery.control.local_attitude import (
 from recovery.types import FlightState, Quaternion, Situation, TorquePair, Vector3
 
 
-def _ref_roll(direction: Sequence[float], bottom: Sequence[float]) -> float:
-    x = np.array(direction)
-    y = np.array(bottom)
-    x0 = np.array((1.0, 0.0, 0.0))
-    rot_axis = normalize(np.cross(x, x0))
-    rot_ang = angle_between(x, x0)
-    y0 = rotate(rot_axis, y, rot_ang)
-    ang1 = angle_between(y0, (0.0, 1.0, 0.0))
-    ang2 = angle_between(y0, (0.0, 0.0, 1.0))
-    roll = ang1
-    if ang2 > math.pi / 2:
-        roll = -roll
-    return roll
+def _ref_roll(
+    direction: Sequence[float],
+    bottom: Sequence[float],
+    up: Sequence[float] = (1.0, 0.0, 0.0),
+) -> float | None:
+    """Independent roll reference: arccos of the alignment plus the signed
+    rotation direction about the nose (kRPC convention)."""
+    nose = np.asarray(direction, dtype=float)
+    n = np.linalg.norm(nose)
+    if n == 0.0:
+        return None
+    nose = nose / n
+    dorsal = -np.asarray(bottom, dtype=float)
+    # Same perpendicular projection as the production formula: the nose
+    # component of the dorsal axis does not contribute to roll.
+    dorsal = dorsal - np.dot(dorsal, nose) * nose
+    dorsal = dorsal / np.linalg.norm(dorsal)
+    u = np.asarray(up, dtype=float)
+    u_perp = u - np.dot(u, nose) * nose
+    n_up = np.linalg.norm(u_perp)
+    if n_up < 1e-9:
+        return None
+    u_perp = u_perp / n_up
+    ang = math.acos(np.clip(np.dot(u_perp, dorsal), -1.0, 1.0))
+    sgn = np.sign(np.dot(np.cross(dorsal, u_perp), nose))
+    if sgn == 0.0:
+        sgn = 1.0
+    return float(ang * sgn)
 
 
 def _ref_max_acc(s: FlightState) -> tuple[float, float, float]:
@@ -48,20 +65,6 @@ def _ref_max_acc(s: FlightState) -> tuple[float, float, float]:
     moi = np.array(s.moment_of_inertia)
     acc = (sum(torques) / moi).tolist()
     return (acc[1], acc[2], acc[0])
-
-
-def _ref_step(
-    s: FlightState,
-    target_dir: Sequence[float],
-    ap: AutoPilot,
-) -> tuple[float, float, float]:
-    cur_roll = _ref_roll(s.direction, s.bottom_axis)
-    return ap.update(
-        (cur_roll, *s.direction),
-        (None, *target_dir),
-        tuple(-c for c in s.angular_velocity),
-        rot_flag=-1,
-    )
 
 
 def _state(
@@ -111,23 +114,42 @@ def _state(
     )
 
 
+def test_roll_from_axes_krpc_cases() -> None:
+    """kRPC-convention anchor cases (nose = +z, default up = +x)."""
+    # bottom = -x -> dorsal = +x (north, aligned with up) -> roll 0
+    assert roll_from_axes((0.0, 0.0, 1.0), (-1.0, 0.0, 0.0)) == pytest.approx(0.0, abs=1e-9)
+    # bottom = +x -> dorsal = -x -> ±180
+    assert abs(roll_from_axes((0.0, 0.0, 1.0), (1.0, 0.0, 0.0))) == pytest.approx(math.pi, abs=1e-9)
+    # bottom = +y -> dorsal = -y -> +90 (kRPC positive roll)
+    assert roll_from_axes((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)) == pytest.approx(math.pi / 2, abs=1e-9)
+    # bottom = -y -> dorsal = +y -> -90
+    assert roll_from_axes((0.0, 0.0, 1.0), (0.0, -1.0, 0.0)) == pytest.approx(-math.pi / 2, abs=1e-9)
+
+
+def test_roll_from_axes_up_parallel_nose_returns_none() -> None:
+    assert roll_from_axes((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), up=(1.0, 0.0, 0.0)) is None
+    assert roll_from_axes((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), up=(-1.0, 0.0, 0.0)) is None
+
+
 def test_roll_from_axes_matches_reference() -> None:
     cases = [
-        ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
-        ((1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
-        ((0.0, 0.0, -1.0), (0.0, 1.0, 0.0)),
-        ((0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
+        ((0.0, 0.0, 1.0), (0.0, -1.0, 0.0)),
+        ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)),
+        ((0.0, 0.0, 1.0), (-1.0, 0.0, 0.0)),
+        ((0.0, 0.0, 1.0), (0.5, 0.5, 0.0)),
         ((0.5, 0.5, 0.0), (0.0, 0.0, 1.0)),
-        ((0.0, 0.0, 1.0), (1.0, 0.0, 0.0)),
+        ((0.0, 1.0, 0.0), (1.0, 0.0, 0.0)),
         ((-0.3, 0.4, 0.9), (0.1, 0.2, -0.5)),
+        ((0.7, -0.2, 0.6), (-0.4, 0.8, 0.1)),
     ]
     for direction, bottom in cases:
-        got = roll_from_axes(Vector3(*direction), Vector3(*bottom))
+        got = roll_from_axes(direction, bottom)
         want = _ref_roll(direction, bottom)
-        # Production uses scipy Rotation while _ref_roll keeps the handwritten
-        # Rodrigues baseline; agreement is required to machine precision, not
-        # bit-for-bit (float64 rounding order differs).
-        assert float(got) == pytest.approx(float(want), abs=1e-12)
+        if want is None:
+            assert got is None
+        else:
+            assert got is not None
+            assert float(got) == pytest.approx(float(want), abs=1e-9)
 
 
 def test_max_acc_from_snapshot_matches_reference() -> None:
@@ -144,43 +166,6 @@ def test_max_acc_from_snapshot_matches_reference() -> None:
     got = max_acc_from_snapshot(s)
     want = _ref_max_acc(s)
     assert tuple(got) == tuple(float(v) for v in want)
-
-
-def test_step_matches_reference() -> None:
-    target = (0.0, -1.0, 0.0)
-    cases: list[dict[str, Any]] = [
-        dict(
-            ut=0.0, direction=(1.0, 0.0, 0.0), bottom_axis=(0.0, 1.0, 0.0),
-            angular_velocity=(0.0, 0.0, 0.0),
-        ),
-        dict(
-            ut=0.5, direction=(0.707, 0.707, 0.0), bottom_axis=(0.0, 0.0, 1.0),
-            angular_velocity=(0.1, -0.2, 0.3),
-        ),
-        dict(
-            ut=1.0, direction=(0.0, 0.0, -1.0), bottom_axis=(0.0, 1.0, 0.0),
-            angular_velocity=(-0.4, 0.5, 0.1),
-            rw=((2000.0, 1500.0, 900.0), (2000.0, 1500.0, 900.0)),
-            moi=(500.0, 800.0, 1200.0),
-        ),
-        dict(
-            ut=1.5, direction=(-0.3, 0.4, 0.9), bottom_axis=(0.1, 0.2, -0.5),
-            angular_velocity=(0.7, -0.1, -0.6),
-        ),
-    ]
-    ctrl = LocalAttitudeController()
-    ap = AutoPilot(settling_time=0.5)
-    for case in cases:
-        s = _state(**case)
-        ap.update_max_acc(max_acc_from_snapshot(s))
-        want = _ref_step(s, target, ap)
-        got = ctrl.step(s, target)
-        np.testing.assert_allclose(
-            np.asarray(got, dtype=float),
-            np.asarray(want, dtype=float),
-            rtol=1e-9,
-            atol=1e-12,
-        )
 
 
 def test_step_retunes_max_acc_by_game_time() -> None:
@@ -209,9 +194,68 @@ def test_step_roll_target_switches_branch() -> None:
     target = (0.0, -1.0, 0.0)
     ctrl = LocalAttitudeController()
     s = _state(
-        ut=0.0, direction=(1.0, 0.0, 0.0), bottom_axis=(0.0, 0.0, 1.0),
-        angular_velocity=(0.3, 0.0, 0.0),
-    )
+        ut=0.0, direction=(0.0, 0.0, 1.0), bottom_axis=(0.0, 1.0, 0.0),
+        angular_velocity=(0.0, 0.0, 0.0),
+    )  # dorsal = -y -> current roll = +90°, zero roll rate
     damp = ctrl.step(s, target)
     hold = ctrl.step(s, target, roll_target=0.0)
-    assert damp.roll != hold.roll
+    # damping branch sees no roll rate -> no roll command; the angle-hold
+    # branch must actively roll back toward 0°.
+    assert damp.roll == pytest.approx(0.0, abs=1e-9)
+    assert hold.roll != pytest.approx(0.0, abs=1e-9)
+
+
+def test_step_roll_target_degrees_convention() -> None:
+    """roll_target is in degrees; 90° rolls toward +90, 0° holds at zero."""
+    target = (0.0, 0.0, 1.0)
+    ctrl = LocalAttitudeController()
+    s = _state(
+        ut=0.0,
+        direction=(0.0, 0.0, 1.0),   # nose at +z (zenith)
+        bottom_axis=(-1.0, 0.0, 0.0),  # dorsal = +x (north) -> current roll = 0°
+        angular_velocity=(0.0, 0.0, 0.0),
+    )
+    hold_zero = ctrl.step(s, target, roll_target=0.0)
+    hold_90 = ctrl.step(s, target, roll_target=90.0)
+    hold_neg90 = ctrl.step(s, target, roll_target=-90.0)
+    # Roll stick sign follows the commanded direction; zero target is the
+    # smallest command.
+    assert abs(hold_zero.roll) < abs(hold_90.roll)
+    assert hold_90.roll > 0.0
+    assert hold_neg90.roll < 0.0
+
+
+def test_step_up_parallel_nose_warns_and_degrades() -> None:
+    """up parallel to the nose degrades the roll channel to rate-only."""
+    target = (0.0, 0.0, 1.0)
+    ctrl = LocalAttitudeController()
+    s = _state(
+        ut=0.0,
+        direction=(1.0, 0.0, 0.0),   # nose = +x = default up -> singular
+        bottom_axis=(0.0, 1.0, 0.0),
+        angular_velocity=(0.5, 0.0, 0.0),
+    )
+    with pytest.warns(RuntimeWarning, match="parallel to the nose"):
+        cmd_hold = ctrl.step(s, target, roll_target=45.0)
+    cmd_damp = ctrl.step(s, target)  # no second warning
+    # Degraded: the commanded roll angle must be ignored (rate-only), so
+    # both calls produce the same roll stick.
+    assert cmd_hold.roll == pytest.approx(cmd_damp.roll)
+
+
+def test_update_basis_zero_roll_aligns_dorsal_with_up() -> None:
+    """AutoPilot.update builds y_ (bottom) = -u_perp at roll 0."""
+    ap = AutoPilot()
+    ap.update_max_acc((1.0, 1.0, 1.0))
+    # nose = +z, up = +x -> u_perp = +x; at roll 0 bottom basis = -x
+    out = ap.update(
+        (0.0, 0.0, 0.0, 1.0),
+        (None, 0.0, 0.0, 1.0),
+        (0.0, 0.0, 0.0),
+        rot_flag=-1,
+        roll_flag=1.0,
+        up=(1.0, 0.0, 0.0),
+        debug=True,
+    )
+    _, y_, _, _ = out[3], out[4], out[5], out[6]
+    np.testing.assert_allclose(y_, (-1.0, 0.0, 0.0), atol=1e-9)
