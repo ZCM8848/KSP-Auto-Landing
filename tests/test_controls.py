@@ -100,3 +100,14 @@ def test_staging_and_action_groups() -> None:
     assert controls.get_action_group(1) is True
     controls.toggle_action_group(1)
     assert controls.get_action_group(1) is False
+
+
+def test_reference_frame_switches_on_change() -> None:
+    vessel = FakeVessel()
+    controls = VesselControls(vessel)
+    frame_a = object()
+    frame_b = object()
+    controls.apply(target_direction=(0.0, 1.0, 0.0), reference_frame=frame_a)
+    assert vessel.auto_pilot.reference_frame is frame_a
+    controls.apply(target_direction=(0.0, 0.0, 1.0), reference_frame=frame_b)
+    assert vessel.auto_pilot.reference_frame is frame_b

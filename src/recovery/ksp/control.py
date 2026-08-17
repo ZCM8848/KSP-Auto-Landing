@@ -38,7 +38,7 @@ class VesselControls:
         self._vessel = vessel
         self._control = vessel.control
         self._auto_pilot = vessel.auto_pilot
-        self._ref_frame_sent: bool = False
+        self._last_ref_frame: Any = None
 
     @property
     def raw(self) -> Any:
@@ -265,9 +265,9 @@ class VesselControls:
     ) -> None:
         if reference_frame is None:
             raise ValueError("reference_frame is required when commanding target_direction")
-        if not self._ref_frame_sent:
-            self._auto_pilot.reference_frame = reference_frame  # RPC — once
-            self._ref_frame_sent = True
+        if reference_frame != self._last_ref_frame:
+            self._auto_pilot.reference_frame = reference_frame  # RPC — only on frame change
+            self._last_ref_frame = reference_frame
         norm = sqrt(sum(component * component for component in direction))
         if norm == 0:
             raise ValueError("target_direction must be non-zero")
