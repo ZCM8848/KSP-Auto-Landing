@@ -216,3 +216,44 @@ def test_drawable_registration_atomic_with_clear_all(
         "a drawable created during clear_all() was orphaned"
     )
     km.close()
+
+
+def test_telemetry_stop_skips_remove_if_thread_stuck() -> None:
+    from recovery.ksp.telemetry import Telemetry
+
+    release = threading.Event()
+
+    class BlockingStream:
+        def __init__(self) -> None:
+            self.started = False
+            self.removed = False
+
+        def start(self) -> None:
+            self.started = True
+
+        def remove(self) -> None:
+            self.removed = True
+
+        def __call__(self) -> tuple[float, float, float]:
+            release.wait(5.0)
+            return (1.0, 2.0, 3.0)
+
+    client = FakeClient([FakeVessel(name="Booster 1")])
+    vessel = client.space_center.vessels[0]
+    telemetry = Telemetry(client=client, vessel=vessel, frame=object(), telemetry_hz=20.0)
+    telemetry._register_streams()  # 真实完整注册（FakeClient 流）
+    stream = BlockingStream()
+    telemetry._streams.append(("block", stream))  # 追加一个阻塞流，卡住 _build_snapshot
+
+    telemetry.start()
+    time.sleep(0.2)
+    thread = telemetry._thread
+    assert thread is not None and thread.is_alive()
+
+    telemetry.stop()
+
+    assert thread.is_alive(), "stuck telemetry thread must still be alive"
+    assert stream.removed is False, "stream must not be removed while thread reads it"
+
+    release.set()
+    thread.join(timeout=2.0)

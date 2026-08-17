@@ -72,11 +72,18 @@ class Telemetry:
     def stop(self) -> None:
         """Signal the background thread to exit, join it, and remove all
         streams from the server.
+
+        If the thread does not exit within the join timeout (e.g. stuck on a
+        blocked stream read), the streams are left in place rather than
+        removed concurrently with a live read.
         """
         self._stop.set()
-        if self._thread is not None:
-            self._thread.join(timeout=2.0)
+        thread = self._thread
+        if thread is not None:
+            thread.join(timeout=2.0)
             self._thread = None
+            if thread.is_alive():
+                return
         for _, stream in self._streams:
             stream.remove()
         self._streams.clear()
