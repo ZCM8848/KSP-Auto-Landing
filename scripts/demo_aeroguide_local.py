@@ -1,19 +1,30 @@
-"""Aerodynamic guidance: steer a free-falling rocket to the landing target.
+"""Aerodynamic guidance using the LOCAL AutoPilot: steer a free-falling
+rocket to the landing target with roll held wind-aligned.
 
-Main engine OFF.  The rocket tilts its body to generate aerodynamic lift,
-shifting the predicted impact point toward the launch pad.  Roll is kept
-wind-aligned (belly into the airflow) via the ``up`` parameter.
+Same scenario as :doc:`demo_aeroguide` but driven through
+:class:`~recovery.control.local_attitude.LocalAttitudeController`
+(Python-side control law) instead of the kRPC server-side AutoPilot.
+Main engine OFF; the body is tilted to generate aerodynamic lift and
+shift the predicted impact point toward the launch pad; ``roll_target=0``
+with ``up=roof`` keeps the belly into the airflow (the ``up`` parameter
+carries the same semantics as the kRPC ``up_reference``).
+
+Run from the repo root with the KRPC conda env:
+
+    PYTHONPATH=src /d/miniforge3/envs/KRPC/python.exe scripts/demo_aeroguide_local.py
 """
+import math
 import time
 
 import numpy as np
 
 from recovery import ConnectionManager, FramePacer
+from recovery.control.local_attitude import LocalAttitudeController, roll_from_axes
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import LandingPredictor
 from recovery.ksp.sampling import sample_body_spec
 
-VESSEL = "RLV-VTVL"   # renamed to match the current vessel in KSP
+VESSEL = "Booster 1"
 MAX_AOA = 20.0       # degrees — max angle of attack for body lift
 AOA_GAIN = 0.02      # deg per metre of horizontal miss distance
 
@@ -60,20 +71,20 @@ def _nose_for_lift(velocity, miss_xy, max_aoa_deg, gain_deg_per_m):
 
 def main():
     with ConnectionManager(address="127.0.0.1") as km:
-        b = km.add_booster("aero", VESSEL)
-        km.register_target("aero", lon=LAUNCHPAD_JNSQ.lon, lat=LAUNCHPAD_JNSQ.lat)
+        b = km.add_booster("aero-local", VESSEL)
+        km.register_target("aero-local", lon=LAUNCHPAD_JNSQ.lon, lat=LAUNCHPAD_JNSQ.lat)
         km.enable_debug()
         km.start()
 
         deadline = time.monotonic() + 5.0
-        while km.snapshot("aero") is None:
+        while km.snapshot("aero-local") is None:
             if time.monotonic() > deadline:
                 raise RuntimeError("telemetry not ready")
             time.sleep(0.02)
 
         raw = b.raw
         body = raw.orbit.body
-        frame = km.frame("aero", "target")
+        frame = km.frame("aero-local", "target")
 
         # build predictor
         body_spec = sample_body_spec(body, frame, LAUNCHPAD_JNSQ.lat, LAUNCHPAD_JNSQ.lon)
@@ -83,11 +94,14 @@ def main():
         b.debug.reference_frame(frame_name="target", length=10)
         b.debug.reference_frame(frame_name="vessel", length=5)
 
-        b.controls.target_smoothing_time = 0.3
-        b.controls.apply(throttle=0.0, roll_angle=0.0)       # engine OFF, roll reference locked
+        # local AP owns the sticks — make sure the kRPC AutoPilot is not
+        # fighting us, and the engine stays off.
+        b.controls.disengage_auto_pilot()
+        raw.control.throttle = 0.0
 
+        ctrl = LocalAttitudeController(settling_time=0.5)
         pacer = FramePacer(hz=20)
-        print("t(s)    miss-xy(m)  aoa(deg)  time-to-impact(s)  pred(x,y)")
+        print("t(s)    miss-xy(m)  aoa(deg)  tti(s)  roll(°)  rr(°/s)   rS    yS    pS")
         start = time.monotonic()
 
         while True:
@@ -102,15 +116,14 @@ def main():
             result = predictor.predict_from(s)
             if result is None:
                 print(f"{elapsed:6.1f}  no impact predicted")
-                s = float(np.linalg.norm(vel))
-                v_dir = vel / s if s > 1e-6 else np.array([0.0, 0.0, 1.0])
+                sp = float(np.linalg.norm(vel))
+                v_dir = vel / sp if sp > 1e-6 else np.array([0.0, 0.0, 1.0])
                 nose = tuple(-v_dir)
-                b.controls.apply(
-                    target_direction=nose,
-                    reference_frame=frame,
-                    up=_wind_up(nose, vel),
-                    throttle=0.0,
-                )
+                roof = _wind_up(nose, vel)
+                sticks = ctrl.step(s, nose, roll_target=0.0, up=roof)
+                raw.control.roll = sticks.roll
+                raw.control.yaw = sticks.yaw
+                raw.control.pitch = sticks.pitch
                 continue
 
             miss_x = float(result.position[0])
@@ -122,16 +135,21 @@ def main():
             nose = _nose_for_lift(vel, miss, MAX_AOA, AOA_GAIN)
             roof = _wind_up(nose, vel)
 
-            b.controls.apply(
-                target_direction=nose,
-                reference_frame=frame,
-                up=roof,
-                throttle=0.0,
+            sticks = ctrl.step(s, nose, roll_target=0.0, up=roof)
+            raw.control.roll = sticks.roll
+            raw.control.yaw = sticks.yaw
+            raw.control.pitch = sticks.pitch
+
+            cur_roll = roll_from_axes(s.direction, s.bottom_axis, roof)
+            cur_roll_deg = float("nan") if cur_roll is None else math.degrees(cur_roll)
+            rr = float(
+                np.degrees(np.dot(np.asarray(s.angular_velocity), np.asarray(s.direction)))
             )
 
             print(
                 f"{elapsed:6.1f}  {miss_dist:10.1f}  {aoa_deg:7.1f}"
-                f"  {result.time:16.2f}  ({miss_x:6.0f}, {miss_y:6.0f})"
+                f"  {result.time:7.2f}  {cur_roll_deg:+7.1f}  {rr:+7.1f}"
+                f"  {sticks.roll:+5.2f}  {sticks.yaw:+5.2f}  {sticks.pitch:+5.2f}"
             )
 
             if s.altitude < 500 and miss_dist < 10:

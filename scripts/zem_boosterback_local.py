@@ -121,9 +121,11 @@ def main() -> None:
                 target_dir = np.array((-mx / miss, -my / miss, 0.0))
 
             # ---------- local AutoPilot step ---------------------------------
-            # roll_target is in degrees (kRPC convention): 0° = dorsal aligned
-            # with the default up (frame +x), positive banks right.
-            sticks = ctrl.step(s, target_dir, roll_target=0.0)
+            # Boosterback: roll is NOT constrained (rate-only damping).  In a
+            # vigorous slew the roll channel cannot fight the coupling roll
+            # anyway (Kimi review 2026-08-18); the roll convention is
+            # exercised by demo_aeroguide_local.py instead.
+            sticks = ctrl.step(s, target_dir, roll_target=None)
             b.controls.apply(roll=sticks.roll, yaw=sticks.yaw, pitch=sticks.pitch)
             # -----------------------------------------------------------------
 
