@@ -206,3 +206,23 @@ def test_target_registration_after_start_rejected(monkeypatch: pytest.MonkeyPatc
     with pytest.raises(RuntimeError):
         km.register_target("b1", lon=0.0, lat=0.0)
     km.close()
+
+
+def test_abort_all_returns_failed_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    vessel_a = FakeVessel(name="Booster 1")
+    vessel_b = FakeVessel(name="Booster 2")
+    client = FakeClient([vessel_a, vessel_b])
+    monkeypatch.setattr("recovery.ksp.connection.krpc.connect", lambda **kw: client)
+    km = ConnectionManager()
+    km.add_booster("b1", "Booster 1")
+    handle_b = km.add_booster("b2", "Booster 2")
+    km.start()
+
+    assert km.abort_all() == []
+
+    def boom() -> None:
+        raise OSError("WinError 10038: socket operation on non-socket")
+
+    handle_b.controls.cut_thrust = boom  # type: ignore[method-assign]
+    assert km.abort_all() == ["b2"]
+    km.close()

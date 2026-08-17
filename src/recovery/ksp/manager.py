@@ -201,7 +201,9 @@ class ConnectionManager:
         """Return a ``{booster_id: FlightState | None}`` mapping for all
         registered boosters.
         """
-        return {booster_id: handle.snapshot() for booster_id, handle in self._boosters.items()}
+        with self._lock:
+            boosters = list(self._boosters.items())
+        return {booster_id: handle.snapshot() for booster_id, handle in boosters}
 
     def frame(self, booster_id: str, name: str = "target") -> Any:
         """Return a kRPC reference frame handle for *booster_id*.
@@ -218,15 +220,23 @@ class ConnectionManager:
         """
         self._require(booster_id).register_target(lon=lon, lat=lat)
 
-    def abort_all(self) -> None:
+    def abort_all(self) -> list[str]:
         """Emergency stop for every open connection: zero throttle and
-        disengage autopilot.  Skips already-closed connections silently.
+        disengage autopilot.  Returns the ids of boosters that could not be
+        aborted (their connection died mid-flight); already-closed boosters
+        are skipped silently.
         """
         with self._lock:
-            handles = list(self._boosters.values())
-        for handle in handles:
-            if handle.is_open:
+            handles = list(self._boosters.items())
+        failed: list[str] = []
+        for booster_id, handle in handles:
+            if not handle.is_open:
+                continue
+            try:
                 handle.controls.cut_thrust()
+            except OSError:
+                failed.append(booster_id)
+        return failed
 
     def _require(self, booster_id: str) -> VesselHandle:
         try:
