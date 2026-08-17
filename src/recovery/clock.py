@@ -80,6 +80,10 @@ class FramePacer:
         """
         now = time.monotonic()
         elapsed = now - self._origin
+        # The tiny ``1e-12`` epsilon guards against floating-point round-off
+        # landing just below an exact frame boundary (``elapsed * hz`` ending
+        # in .999…9), which would otherwise make ``int()`` silently drop a
+        # frame.
         frame = int(elapsed * self._hz + 1e-12) + 1
         target = self._origin + frame * self.period
         delay = target - now

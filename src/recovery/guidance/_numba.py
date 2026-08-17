@@ -27,6 +27,12 @@ def rk4_fixed(
 
     Returns ``(x, y, z, t_hit)`` or ``None`` if the surface is not reached.
     """
+    # The explicit per-component ``r[0] / r[1] / r[2]`` indexing below (rather
+    # than a vectorised ``r += dt/6 * (k1 + 2*k2 + 2*k3 + k4)``) is
+    # deliberate: numba compiles scalar loads/stores far more efficiently than
+    # temporary array allocations inside the hot loop, and this kernel runs
+    # ~6k+ steps per prediction.  Keep the expansion unless a benchmark proves
+    # a vectorised form faster.
     r = np.empty(3, dtype=np.float64)
     v = np.empty(3, dtype=np.float64)
     r[0] = r0[0]
