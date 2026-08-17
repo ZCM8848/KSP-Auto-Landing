@@ -50,8 +50,9 @@ with ConnectionManager(address="127.0.0.1") as km:
 
 > `abort_all()` / `close()` must run **inside** the `with` block — after the
 > block exits the connection is closed, and commanding a closed connection
-> raises `OSError` (WinError 10038). `abort_all()` silently skips connections
-> that are already closed.
+> raises `OSError` (WinError 10038). `abort_all()` returns the ids of boosters
+> it could not abort (their connection died mid-flight); already-closed
+> boosters are skipped silently.
 
 ## Lifecycle (three forms)
 
@@ -409,6 +410,7 @@ from recovery.ksp.sampling import sample_body_spec, sample_drag_spec
 body_spec = sample_body_spec(body, target_frame, lat, lon)
 drag_spec = sample_drag_spec(
     body, flight, target_frame,
+    space_center=conn.space_center,  # optional; enables FAR auto-detection
     mass=vessel.mass,            # for β back-calculation when not using FAR
     manual_beta=None,            # force β, None = auto
     altitude_samples=64,         # adaptive floor = max(32, depth/500)

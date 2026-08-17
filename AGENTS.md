@@ -35,7 +35,7 @@ mkdocs serve                 # live-reload docs server (http://127.0.0.1:8000)
 - Snapshots are frozen `FlightState` objects (thread-safe reads). Control loop reads snapshots; only throttle/attitude setters do RPCs.
 - Building a predictor: `b.sample_predictor_specs()` → `(BodySpec, DragSpec)` (the body part is the cached `b.body_spec`, one-time ~25 ms RPC) → `LandingPredictor.from_body_spec()` + `DragModel.from_spec()` (pure). `predict()` after that is pure local and safe at control-loop rates.
 - The `"target"` reference-frame axis convention is inherited verbatim from the legacy implementation (`reference_frames.py` says "do not reinterpret these axes"). Don't "fix" it.
-- `abort_all()`/`close()` must run **inside** the `with` block; commanding a closed connection raises `OSError` (WinError 10038).
+- `abort_all()`/`close()` must run **inside** the `with` block; `abort_all()` returns the ids of boosters it could not abort (connection died mid-flight) and silently skips already-closed ones.
 
 ## Lint / type config quirks
 
