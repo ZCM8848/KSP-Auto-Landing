@@ -111,3 +111,6 @@ def test_reference_frame_switches_on_change() -> None:
     assert vessel.auto_pilot.reference_frame is frame_a
     controls.apply(target_direction=(0.0, 0.0, 1.0), reference_frame=frame_b)
     assert vessel.auto_pilot.reference_frame is frame_b
+    # 回切 b → a，确保双向切换都生效
+    controls.apply(target_direction=(1.0, 0.0, 0.0), reference_frame=frame_a)
+    assert vessel.auto_pilot.reference_frame is frame_a

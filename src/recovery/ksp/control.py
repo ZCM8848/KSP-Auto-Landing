@@ -265,6 +265,9 @@ class VesselControls:
     ) -> None:
         if reference_frame is None:
             raise ValueError("reference_frame is required when commanding target_direction")
+        # kRPC remote objects compare by server object id via ``__eq__`` (each
+        # attribute access returns a fresh proxy), so ``!=`` — not ``is`` — is
+        # required to detect an actual reference-frame change.
         if reference_frame != self._last_ref_frame:
             self._auto_pilot.reference_frame = reference_frame  # RPC — only on frame change
             self._last_ref_frame = reference_frame
