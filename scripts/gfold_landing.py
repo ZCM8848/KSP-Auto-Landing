@@ -13,6 +13,7 @@ and the rocket simply follows the last solved trajectory to touchdown.
 """
 
 import csv
+import math
 import threading
 import time
 
@@ -20,6 +21,7 @@ import numpy as np
 
 from recovery import ConnectionManager, FramePacer
 from recovery.control import LocalAttitudeController
+from recovery.control.local_attitude import roll_from_axes
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance.gfold import (
     GfoldParams,
@@ -29,7 +31,7 @@ from recovery.guidance.gfold import (
 )
 from recovery.guidance.tofnet import TofPredictor
 
-VESSEL = "Booster 1"
+VESSEL = "Booster 2"
 TARGET = LAUNCHPAD_JNSQ
 
 CONTROL_HZ = 30.0          # control-apply rate (Hz)
@@ -39,6 +41,8 @@ DEAD_ZONE_ALT = 200.0      # below this altitude, stop replanning and follow the
 THROTTLE_SMOOTH = 0.25     # per-tick low-pass alpha on throttle (at CONTROL_HZ)
 THROTTLE_MAX_STEP = 0.04   # max throttle change per tick (rate limit, at CONTROL_HZ)
 DIRECTION_SMOOTH = 0.30    # per-tick lerp alpha on the nose direction
+ROLL_HOLD_DEG = 0.0        # roll target (deg, kRPC convention) held by the local AP
+#                            during powered descent; set to None for rate-damping only
 
 DRAW_HZ = 30.0             # debug-drawing rate (Hz)
 ACC_ARROW_LEN = 40.0       # waypoint acceleration-arrow length (m)
@@ -360,6 +364,7 @@ def main() -> None:
             "nx", "ny", "nz", "avx", "avy", "avz",
             "ang_err_deg", "elapsed", "p", "tf",
             "u0mag", "mass", "thrust",
+            "roll_deg", "aR", "nM",
         ])
 
         # -- control loop: apply freshest command until landed ---------------
@@ -418,7 +423,10 @@ def main() -> None:
                         sm_dir = (sm_dir[0] / n, sm_dir[1] / n, sm_dir[2] / n)
 
                 nose = (s.direction.x, s.direction.y, s.direction.z)
-                sticks = local_ap.step(s, sm_dir)
+                # Hold roll at ROLL_HOLD_DEG (not rate-damping) during powered
+                # descent — exercises the roll channel and the self-tuner
+                # (Plan A) through the coupled ignition slew.
+                sticks = local_ap.step(s, sm_dir, roll_target=ROLL_HOLD_DEG)
                 b.controls.apply(
                     throttle=sm_thr,
                     pitch=sticks.pitch,
@@ -438,6 +446,14 @@ def main() -> None:
             ds = sm_dir if sm_dir is not None else (0.0, 0.0, 0.0)
             dr = dir_raw if dir_raw is not None else (0.0, 0.0, 0.0)
             u0mag = float(np.linalg.norm(traj.u_values[0])) if traj is not None else 0.0
+            # Roll diagnostics (kRPC convention, mirrors the boosterback log):
+            # roll_deg = roll_from_axes reading, aR = effective roll max_acc
+            # (self-tuned once latched, else the theoretical fallback), nM =
+            # self-tuner measurement count.
+            _roll = roll_from_axes(s.direction, s.bottom_axis)
+            cur_roll_deg = float("nan") if _roll is None else math.degrees(_roll)
+            est_roll_acc = local_ap.roll_max_acc
+            n_meas = local_ap.roll_authority_measurements
             csvw.writerow([
                 f"{s.met:.3f}", f"{s.surface_altitude:.2f}",
                 f"{s.velocity.x:.3f}", f"{s.velocity.y:.3f}", f"{s.velocity.z:.3f}",
@@ -448,6 +464,7 @@ def main() -> None:
                 f"{av[0]:.4f}", f"{av[1]:.4f}", f"{av[2]:.4f}",
                 f"{ang_err:.3f}", f"{elapsed:.3f}", f"{p:.4f}", f"{tf:.4f}",
                 f"{u0mag:.3f}", f"{s.mass:.1f}", f"{s.available_thrust:.1f}",
+                f"{cur_roll_deg:.3f}", f"{est_roll_acc:.4f}", f"{n_meas}",
             ])
 
             now = time.monotonic()
