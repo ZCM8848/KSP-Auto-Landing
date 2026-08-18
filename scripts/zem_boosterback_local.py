@@ -22,7 +22,7 @@ import numpy as np
 from recovery import ConnectionManager, FramePacer
 from recovery.control import LocalAttitudeController
 from recovery.control.control_utils import angle_between
-from recovery.control.local_attitude import roll_from_axes
+from recovery.control.local_attitude import max_acc_from_snapshot, roll_from_axes
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import DragModel, LandingPredictor
 
@@ -75,7 +75,7 @@ def main() -> None:
             f"  {'miss':>8s}  {'tti':>6s}  {'err(deg)':>9s}"
             f"  {'roll(°)':>8s}  {'rr(°/s)':>8s}"
             f"  {'rS':>6s}  {'yS':>6s}  {'pS':>6s}"
-            f"  {'kN':>8s}"
+            f"  {'aR':>7s}  {'uP':>6s}  {'kN':>8s}"
         )
         print(header, flush=True)
         print(header, file=log)
@@ -121,11 +121,11 @@ def main() -> None:
                 target_dir = np.array((-mx / miss, -my / miss, 0.0))
 
             # ---------- local AutoPilot step ---------------------------------
-            # Boosterback: roll is NOT constrained (rate-only damping).  In a
-            # vigorous slew the roll channel cannot fight the coupling roll
-            # anyway (Kimi review 2026-08-18); the roll convention is
-            # exercised by demo_aeroguide_local.py instead.
-            sticks = ctrl.step(s, target_dir, roll_target=None)
+            # roll_target is in degrees (kRPC convention): 0° = dorsal aligned
+            # with the default up (frame +x).  Re-enabled after the roll-axis
+            # max_acc derate (ROLL_MAX_ACC_DERATE) restored real roll authority
+            # (2026-08-18).
+            sticks = ctrl.step(s, target_dir, roll_target=0.0)
             b.controls.apply(roll=sticks.roll, yaw=sticks.yaw, pitch=sticks.pitch)
             # -----------------------------------------------------------------
 
@@ -135,6 +135,24 @@ def main() -> None:
             cur_roll_deg = float("nan") if cur_roll is None else math.degrees(cur_roll)
             roll_rate_deg = float(
                 np.degrees(np.dot(np.asarray(s.angular_velocity), np.asarray(s.direction)))
+            )
+
+            # Diagnostic columns for the roll-oscillation review: aR = the
+            # roll max_acc estimate (rad/s²) the controller adopts every
+            # 0.5 s (raw snapshot estimate); uP = |u_perp|, the proximity of
+            # the nose to the roll reference (frame +x).  uP -> 0 means
+            # roll_from_axes is near its singularity and the reading jitters.
+            est_roll_acc = max_acc_from_snapshot(s)[0]
+            _nose = np.asarray(s.direction, dtype=float)
+            _nn = float(np.dot(_nose, _nose))
+            u_perp_norm = (
+                0.0
+                if _nn == 0.0
+                else float(
+                    np.linalg.norm(
+                        (1.0, 0.0, 0.0) - (np.dot((1.0, 0.0, 0.0), _nose) / _nn) * _nose
+                    )
+                )
             )
 
             loop_us = (time.perf_counter_ns() - t_loop) // 1000
@@ -150,6 +168,8 @@ def main() -> None:
                 f"{sticks.roll:+6.2f}  "
                 f"{sticks.yaw:+6.2f}  "
                 f"{sticks.pitch:+6.2f}  "
+                f"{est_roll_acc:7.3f}  "
+                f"{u_perp_norm:6.3f}  "
                 f"{s.thrust * 1e-3:8.0f}"
             )
             buf.append(line)

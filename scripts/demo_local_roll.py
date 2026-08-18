@@ -34,7 +34,7 @@ from recovery.control.local_attitude import (
 )
 from recovery.data.targets import LAUNCHPAD_JNSQ
 
-VESSEL = "RLV-VTVL"
+VESSEL = "Booster 1"
 TARGET_DIR = (0.0, 0.0, 1.0)  # nose direction in the target frame
 SETTLE_S = 8.0  # wait after commanding a kRPC AP pose (RLV-VTVL rolls slowly)
 ACT_S = 8.0  # duration of each local-AP act

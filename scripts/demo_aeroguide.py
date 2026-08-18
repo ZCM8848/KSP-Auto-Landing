@@ -13,7 +13,7 @@ from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import LandingPredictor
 from recovery.ksp.sampling import sample_body_spec
 
-VESSEL = "RLV-VTVL"   # renamed to match the current vessel in KSP
+VESSEL = "Booster 1"   # renamed to match the current vessel in KSP
 MAX_AOA = 20.0       # degrees — max angle of attack for body lift
 AOA_GAIN = 0.02      # deg per metre of horizontal miss distance
 
