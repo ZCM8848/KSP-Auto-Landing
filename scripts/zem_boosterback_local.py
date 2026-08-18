@@ -22,11 +22,12 @@ import numpy as np
 from recovery import ConnectionManager, FramePacer
 from recovery.control import LocalAttitudeController
 from recovery.control.control_utils import angle_between
-from recovery.control.local_attitude import max_acc_from_snapshot, roll_from_axes
+from recovery.control.local_attitude import roll_from_axes
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import DragModel, LandingPredictor
 
-VESSEL = "Booster 1"
+VESSEL = "Booster 2"
+# VESSEL = "RLV Probe"  # renamed to match the current vessel in KSP
 
 MIN_ALT = 8000.0     # boosterback window (m)
 ROI_MISS = 50000.0   # ignore miss-increase below this threshold
@@ -75,7 +76,7 @@ def main() -> None:
             f"  {'miss':>8s}  {'tti':>6s}  {'err(deg)':>9s}"
             f"  {'roll(°)':>8s}  {'rr(°/s)':>8s}"
             f"  {'rS':>6s}  {'yS':>6s}  {'pS':>6s}"
-            f"  {'aR':>7s}  {'uP':>6s}  {'kN':>8s}"
+            f"  {'aR':>7s}  {'uP':>6s}  {'nM':>5s}  {'kN':>8s}"
         )
         print(header, flush=True)
         print(header, file=log)
@@ -138,11 +139,14 @@ def main() -> None:
             )
 
             # Diagnostic columns for the roll-oscillation review: aR = the
-            # roll max_acc estimate (rad/s²) the controller adopts every
-            # 0.5 s (raw snapshot estimate); uP = |u_perp|, the proximity of
-            # the nose to the roll reference (frame +x).  uP -> 0 means
-            # roll_from_axes is near its singularity and the reading jitters.
-            est_roll_acc = max_acc_from_snapshot(s)[0]
+            # effective roll max_acc (rad/s²) the controller is using right
+            # now — self-tuned from in-flight authority measurements once the
+            # estimator has latched (see nM), else the theoretical fallback.
+            # uP = |u_perp|, the proximity of the nose to the roll reference
+            # (frame +x); uP -> 0 means roll_from_axes is near its singularity
+            # and the reading jitters.  nM = self-tuner measurement count.
+            est_roll_acc = ctrl.roll_max_acc
+            n_meas = ctrl.roll_authority_measurements
             _nose = np.asarray(s.direction, dtype=float)
             _nn = float(np.dot(_nose, _nose))
             u_perp_norm = (
@@ -170,6 +174,7 @@ def main() -> None:
                 f"{sticks.pitch:+6.2f}  "
                 f"{est_roll_acc:7.3f}  "
                 f"{u_perp_norm:6.3f}  "
+                f"{n_meas:5d}  "
                 f"{s.thrust * 1e-3:8.0f}"
             )
             buf.append(line)

@@ -106,6 +106,93 @@ def max_acc_from_snapshot(s: FlightState) -> tuple[float, float, float]:
     return (acc[1], acc[2], acc[0])
 
 
+class RollAuthorityEstimator:
+    """Online roll-axis max-acceleration estimator (self-tuning, "Plan A").
+
+    Measures the angular acceleration the vessel actually delivers about its
+    nose and, whenever the roll command is large enough and the vessel is
+    rotating the commanded way, folds the implied authority
+    (``|acc| / |stick|``) into an EMA.  A few seconds of hard slew therefore
+    converge the roll channel's ``max_acc`` from the (over-estimated)
+    theoretical torque sum down to the vessel's real roll authority — no
+    per-vessel derate constant required, and a vessel whose theoretical
+    estimate is already correct is left effectively unchanged.
+
+    The rate is measured in the *controller* convention
+    (``v = -dot(angular_velocity, direction)``), the same quantity the
+    control law damps, so the stick sign aligns with ``dv/dt`` directly.
+
+    ``estimate`` is ``None`` until the first accepted measurement; the caller
+    owns the fallback (the theoretical estimate).  The estimator is
+    deliberately silent — a missed tick (telemetry stall, deadband coast)
+    is a normal, expected event, not an error; the ``measurements`` and
+    ``skipped`` counters are exposed so callers can surface "never latched"
+    as a diagnostic if they choose.
+    """
+
+    def __init__(
+        self,
+        *,
+        stick_threshold: float = 0.5,
+        tau: float = 0.5,
+        max_dt: float = 0.25,
+        min_estimate: float = 1e-3,
+    ) -> None:
+        self._stick_threshold = float(stick_threshold)
+        self._tau = float(tau)
+        self._max_dt = float(max_dt)
+        self._min_estimate = float(min_estimate)
+        self._estimate: float | None = None
+        self._prev_rate: float | None = None
+        self._prev_ut: float | None = None
+        self.measurements = 0
+        self.skipped = 0
+
+    @property
+    def estimate(self) -> float | None:
+        return self._estimate
+
+    def update(self, ut: float, rate: float, stick: float) -> float | None:
+        """Feed one tick of telemetry plus the just-computed roll stick.
+
+        Args:
+            ut: Game time of the snapshot (s).
+            rate: Controller-convention roll rate (rad/s),
+                ``-dot(angular_velocity, direction)``.
+            stick: Raw roll command for this tick (clipped to ±1).
+
+        Returns:
+            The current estimate (rad/s²), or ``None`` until the first
+            accepted measurement.
+        """
+        stick = float(np.clip(float(stick), -1.0, 1.0))
+        if self._prev_ut is None:
+            self._prev_ut = float(ut)
+            self._prev_rate = float(rate)
+            return self._estimate
+        dt = float(ut) - self._prev_ut
+        prev_rate = self._prev_rate
+        self._prev_ut = float(ut)
+        self._prev_rate = float(rate)
+        if not 0.0 < dt <= self._max_dt:
+            self.skipped += 1
+            return self._estimate
+        acc = (float(rate) - prev_rate) / dt
+        # Accept only while the vessel is rotating the commanded way under a
+        # meaningful command; the ratio is otherwise dominated by noise (a
+        # coast in the deadband, or a command the craft is not yet tracking).
+        if abs(stick) >= self._stick_threshold and acc * stick > 0.0:
+            implied = abs(acc) / abs(stick)
+            alpha = 1.0 - math.exp(-dt / self._tau)
+            if self._estimate is None:
+                self._estimate = implied
+            else:
+                self._estimate += alpha * (implied - self._estimate)
+            self._estimate = max(self._estimate, self._min_estimate)
+            self.measurements += 1
+        return self._estimate
+
+
 class LocalAttitudeController:
     """Pure, snapshot-driven wrapper around :class:`AutoPilot`.
 
@@ -119,11 +206,14 @@ class LocalAttitudeController:
         *,
         settling_time: float = 0.5,
         config_interval: float = 0.5,
+        self_tune_roll: bool = True,
     ) -> None:
         self._ap = AutoPilot(settling_time=settling_time)
         self._config_interval = float(config_interval)
         self._last_cfg_ut = float("-inf")
         self._warned_singular = False
+        self._self_tune_roll = bool(self_tune_roll)
+        self._roll_est = RollAuthorityEstimator()
 
     def step(
         self,
@@ -151,7 +241,13 @@ class LocalAttitudeController:
         warning) when *up* is parallel to the nose, where roll is undefined.
         """
         if s.ut - self._last_cfg_ut >= self._config_interval:
-            self._ap.update_max_acc(max_acc_from_snapshot(s))
+            theo = max_acc_from_snapshot(s)
+            if self._self_tune_roll:
+                est = self._roll_est.estimate
+                roll_acc = theo[0] if est is None else est
+            else:
+                roll_acc = theo[0]
+            self._ap.update_max_acc((roll_acc, theo[1], theo[2]))
             self._last_cfg_ut = s.ut
 
         up_v = np.asarray(DEFAULT_UP if up is None else up, dtype=float)
@@ -186,4 +282,25 @@ class LocalAttitudeController:
             roll_flag=1.0,
             up=up_v,
         )
+        if self._self_tune_roll:
+            nose = np.asarray(s.direction, dtype=float)
+            n = float(np.linalg.norm(nose))
+            if n > 0.0:
+                self._roll_est.update(
+                    s.ut,
+                    -float(np.dot(np.asarray(s.angular_velocity), nose / n)),
+                    ctrl_x,
+                )
         return StickCommand(float(ctrl_x), float(ctrl_y), float(ctrl_z))
+
+    @property
+    def roll_max_acc(self) -> float:
+        """Roll-axis ``max_acc`` currently in effect (rad/s²); NaN if unset."""
+        acc = self._ap.max_acc
+        return float(acc[0]) if acc is not None else float("nan")
+
+    @property
+    def roll_authority_measurements(self) -> int:
+        """In-flight roll-authority measurements the self-tuner has accepted
+        (0 while it is still on the theoretical fallback)."""
+        return self._roll_est.measurements

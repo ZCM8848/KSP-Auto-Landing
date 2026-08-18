@@ -19,6 +19,7 @@ import pytest
 from recovery.control import AutoPilot, LocalAttitudeController
 from recovery.control.control_utils import normalize
 from recovery.control.local_attitude import (
+    RollAuthorityEstimator,
     max_acc_from_snapshot,
     roll_from_axes,
 )
@@ -259,3 +260,63 @@ def test_update_basis_zero_roll_aligns_dorsal_with_up() -> None:
     )
     _, y_, _, _ = out[3], out[4], out[5], out[6]
     np.testing.assert_allclose(y_, (-1.0, 0.0, 0.0), atol=1e-9)
+
+
+def test_roll_authority_estimator_recovers_max_acc_from_saturated_ramp() -> None:
+    """A saturated slew (stick=±1, rate ramping at the real authority) lets
+    the estimator recover the true max angular acceleration."""
+    est = RollAuthorityEstimator(stick_threshold=0.5, tau=0.2)
+    real = 3.0  # rad/s² the vessel actually delivers
+    rate = 0.0
+    ut = 0.0
+    dt = 0.02
+    est.update(ut, rate, 1.0)  # seed previous tick
+    for _ in range(200):  # 4 s saturated ramp
+        ut += dt
+        rate += real * dt
+        est.update(ut, rate, 1.0)
+    assert est.estimate == pytest.approx(real, rel=0.02)
+    assert est.measurements > 0
+
+
+def test_roll_authority_estimator_ignores_coast_and_sign_mismatch() -> None:
+    """Small commands, sign mismatches and telemetry gaps must not feed the
+    estimate — those ratios are noise, not authority."""
+    est = RollAuthorityEstimator()
+    assert est.update(0.0, 0.0, 0.0) is None  # seeds prev tick
+    assert est.update(0.02, 0.01, 0.05) is None  # |stick| < threshold
+    assert est.update(0.04, 0.02, -0.5) is None  # acc & stick sign disagree
+    assert est.update(0.30, 0.02, 0.8) is None  # dt > max_dt (stall)
+    assert est.measurements == 0
+    assert est.skipped == 1
+
+
+def test_step_self_tunes_roll_authority_from_large_slew() -> None:
+    """Plan A: a large roll error saturates the stick, the self-tuner measures
+    the real roll authority in flight, and the overrated theoretical estimate
+    converges to it — closing the gain gap the limit cycle needs."""
+    real = 3.0  # rad/s² the vessel actually delivers (Booster 1 order)
+    theo = 10.0  # overrated theoretical estimate (~3x)
+    ctrl = LocalAttitudeController(self_tune_roll=True)
+    theta = math.radians(130.0)  # boosterback-sized initial roll error
+    theta_dot = 0.0
+    dt = 1.0 / 50.0
+    ut = 0.0
+    target = (0.0, 0.0, 1.0)
+    rw = ((1000.0, 1000.0 * theo, 500.0), (1000.0, 1000.0 * theo, 500.0))
+    for _ in range(int(30.0 / dt)):
+        ut += dt
+        dorsal = (math.cos(theta), -math.sin(theta), 0.0)
+        s = _state(
+            ut=ut,
+            direction=(0.0, 0.0, 1.0),
+            bottom_axis=(-dorsal[0], -dorsal[1], 0.0),
+            angular_velocity=(0.0, 0.0, -theta_dot),
+            rw=rw,
+        )
+        cmd = ctrl.step(s, target, roll_target=0.0)
+        theta_dot += cmd.roll * real * dt
+        theta += theta_dot * dt
+    assert ctrl.roll_authority_measurements > 0
+    assert ctrl.roll_max_acc == pytest.approx(real, rel=0.1)
+    assert abs(theta) < math.radians(1.0)
