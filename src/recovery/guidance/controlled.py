@@ -1,0 +1,264 @@
+"""Controlled trajectory predictor (virtual control -> full trajectory).
+
+:class:`ControlledPredictor` propagates a vessel under a piecewise-constant
+:class:`~recovery.guidance.control.VirtualControl` — engine events (throttle /
+engine-set thrust / Isp changes at time or altitude triggers) plus a rule-based
+steering law — and returns the *entire* state trajectory as feedback, not just
+the impact point.
+
+This is an independent implementation: it does not reuse the script-layer
+``binary_burn_landing`` predictor, and it supersedes the ballistic-only
+:class:`~recovery.guidance.LandingPredictor` for anything that involves thrust
+or attitude.  The heavy lifting is the numba kernel
+:func:`~recovery.guidance._numba.rk4_controlled`.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from collections.abc import Sequence
+
+import numpy as np
+
+from ..specs import BodySpec
+from ..types import Vector3
+from ._numba import rk4_controlled
+from .aerodynamics import DragModel
+from .control import NoseRule, NoseRuleKind, ThrottleRuleKind, TriggerKind, VirtualControl
+from .predictor import ImpactResult
+
+# NoseRuleKind -> kernel code (see _numba._nose_jit).
+_NOSE_CODE = {
+    NoseRuleKind.RETROGRADE: 0,
+    NoseRuleKind.UP: 1,
+    NoseRuleKind.FIXED: 2,
+    NoseRuleKind.TOWARD_TARGET: 3,
+}
+# ThrottleRuleKind -> kernel code (see _numba._throttle_jit).
+_THROTTLE_CODE = {
+    ThrottleRuleKind.CONSTANT: 0,
+    ThrottleRuleKind.ENERGY: 1,
+    ThrottleRuleKind.CONSTANT_DECEL: 2,
+}
+# TriggerKind -> kernel code.
+_TRIGGER_CODE = {TriggerKind.TIME: 0, TriggerKind.ALTITUDE: 1}
+
+
+@dataclass
+class Trajectory:
+    """The full predicted state history returned as feedback.
+
+    All arrays are aligned: row ``i`` is the state at ``times[i]``.  ``impact``
+    is populated (with the exact crossing state) only when the surface was
+    reached within ``t_max``.
+    """
+
+    times: np.ndarray
+    """Time at each step (s)."""
+
+    positions: np.ndarray
+    """Positions (m) in the target frame, shape ``(N, 3)``."""
+
+    velocities: np.ndarray
+    """Velocities (m/s) in the target frame, shape ``(N, 3)``."""
+
+    masses: np.ndarray
+    """Masses (kg), shape ``(N,)``."""
+
+    impact: ImpactResult | None
+    """Surface-crossing state, or ``None`` if no impact within ``t_max``."""
+
+    hit: bool
+    """Whether the surface sphere was reached."""
+
+    @property
+    def n(self) -> int:
+        """Number of recorded steps."""
+        return int(self.times.shape[0])
+
+    @property
+    def final_position(self) -> np.ndarray:
+        return self.positions[-1]
+
+    @property
+    def final_velocity(self) -> np.ndarray:
+        return self.velocities[-1]
+
+    @property
+    def final_mass(self) -> float:
+        return float(self.masses[-1])
+
+
+class ControlledPredictor:
+    """Propagate a :class:`VirtualControl` to a full trajectory.
+
+    Keyword Args:
+        mu: Standard gravitational parameter (m^3/s^2).
+        omega: Planet rotation vector in the target frame (rad/s).
+        body_center: Body-centre position in the target frame (m).
+        body_radius: Surface radius at the landing target (m).
+        drag: Optional :class:`DragModel` supplying the ballistic drag term.
+        dt: Fixed integration step (s).
+        t_max: Maximum propagation time (s).
+    """
+
+    def __init__(
+        self,
+        *,
+        mu: float,
+        omega: Sequence[float],
+        body_center: Sequence[float],
+        body_radius: float,
+        drag: DragModel | None = None,
+        dt: float = 0.1,
+        t_max: float = 600.0,
+    ) -> None:
+        if dt <= 0.0:
+            raise ValueError(f"dt must be positive, got {dt}")
+        self._mu = float(mu)
+        self._omega = np.asarray(omega, dtype=float)
+        self._center = np.asarray(body_center, dtype=float)
+        self._radius = float(body_radius)
+        self._drag = drag
+        self._dt = float(dt)
+        self._t_max = float(t_max)
+
+        c = float(np.linalg.norm(self._center))
+        self._up = (-self._center / c) if c > 1e-9 else np.array([0.0, 0.0, 1.0])
+
+        # drag params for the kernel (beta<=0 or inf -> no drag)
+        params = drag.numba_params if drag is not None else None
+        if params is not None:
+            beta, alts, vals, sea_r = params
+            self._beta = float(beta)
+            self._alts = np.asarray(alts, dtype=float)
+            self._vals = np.asarray(vals, dtype=float)
+            self._sea_r = float(sea_r)
+        else:
+            self._beta = 0.0
+            self._alts = np.zeros(1, dtype=float)
+            self._vals = np.zeros(1, dtype=float)
+            self._sea_r = float(self._radius)
+
+    @classmethod
+    def from_body_spec(
+        cls,
+        spec: BodySpec,
+        drag: DragModel | None = None,
+        *,
+        dt: float = 0.1,
+        t_max: float = 600.0,
+    ) -> "ControlledPredictor":
+        """Construct from a pure-data :class:`BodySpec` (no network calls)."""
+        return cls(
+            mu=spec.mu,
+            omega=spec.omega,
+            body_center=spec.body_center,
+            body_radius=spec.body_radius,
+            drag=drag,
+            dt=dt,
+            t_max=t_max,
+        )
+
+    @property
+    def up(self) -> np.ndarray:
+        """Local up direction at the target, in the target frame."""
+        return self._up
+
+    def predict(
+        self,
+        position: Vector3 | Sequence[float],
+        velocity: Vector3 | Sequence[float],
+        mass: float,
+        control: VirtualControl,
+        *,
+        dt: float | None = None,
+        t_max: float | None = None,
+    ) -> Trajectory:
+        """Propagate *control* from the given state and return the trajectory.
+
+        Args:
+            position: Initial position in the target frame (m).
+            velocity: Initial velocity in the target frame (m/s).
+            mass: Initial total mass (kg).
+            control: The virtual control to follow.
+            dt: Override the fixed integration step (s).
+            t_max: Override the maximum propagation time (s).
+        """
+        if mass <= 0.0:
+            raise ValueError(f"mass must be positive, got {mass}")
+
+        r0 = np.asarray(position, dtype=float)
+        v0 = np.asarray(velocity, dtype=float)
+        use_dt = self._dt if dt is None else float(dt)
+        use_tmax = self._t_max if t_max is None else float(t_max)
+        if use_dt <= 0.0:
+            raise ValueError(f"dt must be positive, got {use_dt}")
+        max_n = int(use_tmax / use_dt) + 1
+
+        segs = control.segments
+        n_seg = len(segs)
+        seg_trigger_val = np.zeros(n_seg, dtype=float)
+        seg_trigger_kind = np.zeros(n_seg, dtype=np.int8)
+        seg_throttle_kind = np.zeros(n_seg, dtype=np.int8)
+        seg_throttle_p1 = np.zeros(n_seg, dtype=float)
+        seg_throttle_p2 = np.zeros(n_seg, dtype=float)
+        seg_thrust = np.zeros(n_seg, dtype=float)
+        seg_isp = np.zeros(n_seg, dtype=float)
+        seg_nose_kind = np.zeros(n_seg, dtype=np.int8)
+        seg_nose_fixed = np.zeros((n_seg, 3), dtype=float)
+
+        for i, seg in enumerate(segs):
+            seg_throttle_kind[i] = _THROTTLE_CODE[seg.throttle.kind]
+            seg_throttle_p1[i] = seg.throttle.value
+            seg_throttle_p2[i] = seg.throttle.reference_altitude
+            seg_thrust[i] = seg.max_thrust
+            seg_isp[i] = seg.isp
+            seg_nose_kind[i] = _NOSE_CODE[seg.nose.kind]
+            seg_nose_fixed[i, 0] = seg.nose.direction[0]
+            seg_nose_fixed[i, 1] = seg.nose.direction[1]
+            seg_nose_fixed[i, 2] = seg.nose.direction[2]
+            if i == 0:
+                # initial segment: active from t=0, trigger unused
+                seg_trigger_val[i] = 0.0
+                seg_trigger_kind[i] = 0
+            else:
+                trig = seg.trigger
+                if trig is None:
+                    raise ValueError("non-initial segments require a trigger")
+                seg_trigger_val[i] = trig.value
+                seg_trigger_kind[i] = _TRIGGER_CODE[trig.kind]
+
+        out = np.empty((max_n, 8), dtype=float)
+        n_steps, hit = rk4_controlled(
+            r0, v0, float(mass),
+            self._mu, self._omega, self._center, self._radius,
+            self._beta, self._alts, self._vals, self._sea_r,
+            seg_trigger_val, seg_trigger_kind, seg_throttle_kind,
+            seg_throttle_p1, seg_throttle_p2, seg_thrust,
+            seg_isp, seg_nose_kind, seg_nose_fixed, self._up,
+            float(control.dry_mass), float(control.g0),
+            use_dt, max_n, out,
+        )
+
+        times = out[:n_steps, 0]
+        positions = out[:n_steps, 1:4]
+        velocities = out[:n_steps, 4:7]
+        masses = out[:n_steps, 7]
+
+        impact = None
+        if hit == 1:
+            impact = ImpactResult(
+                position=(float(positions[-1, 0]), float(positions[-1, 1]),
+                          float(positions[-1, 2])),
+                time=float(times[-1]),
+            )
+
+        return Trajectory(
+            times=times,
+            positions=positions,
+            velocities=velocities,
+            masses=masses,
+            impact=impact,
+            hit=bool(hit == 1),
+        )
