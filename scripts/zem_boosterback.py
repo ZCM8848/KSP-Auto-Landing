@@ -19,7 +19,7 @@ from recovery import ConnectionManager, FramePacer
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import DragModel, LandingPredictor
 
-VESSEL = "Booster 1"
+VESSEL = "Booster 2"
 
 MIN_ALT = 8000.0     # boosterback window (m)
 ROI_MISS = 50000.0   # ignore miss-increase below this threshold
