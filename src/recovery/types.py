@@ -109,6 +109,9 @@ class FlightState:
         packed: Whether the vessel is on-rails (no physics simulation).
         landed: ``True`` when *situation* is LANDED, PRE_LAUNCH or SPLASHED.
         atmosphere_density: Ambient atmospheric density (kg/m³).
+        atmosphere_depth: Height of the atmosphere above sea level (m),
+            from kRPC ``body.atmosphere_depth``.  A vessel is "in atmosphere"
+            when its altitude is below this value.
         frame: Opaque kRPC reference frame this snapshot is expressed in.
         direction: Vessel nose (forward) direction in the snapshot frame
             (equals ``Vessel.direction(frame)``).
@@ -145,6 +148,7 @@ class FlightState:
     packed: bool
     landed: bool
     atmosphere_density: float
+    atmosphere_depth: float
     frame: Any
     direction: Vector3 = field(default_factory=lambda: Vector3(0.0, 0.0, 0.0))
     bottom_axis: Vector3 = field(default_factory=lambda: Vector3(0.0, 0.0, 0.0))

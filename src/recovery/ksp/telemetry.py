@@ -126,6 +126,7 @@ class Telemetry:
         add("altitude", getattr, flight, "mean_altitude")
         add("surface_altitude", getattr, flight, "surface_altitude")
         add("atmosphere_density", getattr, flight, "atmosphere_density")
+        add("atmosphere_depth", getattr, vessel.orbit.body, "atmosphere_depth")
         add("mass", getattr, vessel, "mass")
         add("dry_mass", getattr, vessel, "dry_mass")
         add("thrust", getattr, vessel, "thrust")
@@ -190,5 +191,6 @@ class Telemetry:
             packed=bool(values["packed"]),
             landed=situation in (Situation.LANDED, Situation.PRE_LAUNCH, Situation.SPLASHED),
             atmosphere_density=float(values["atmosphere_density"]),
+            atmosphere_depth=float(values["atmosphere_depth"]),
             frame=self._frame,
         )

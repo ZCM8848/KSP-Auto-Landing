@@ -13,6 +13,7 @@ from math import sqrt
 from typing import Any
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from ..specs import BodySpec, DragSpec
 
@@ -130,3 +131,107 @@ def _resolve_beta(
         "Cannot determine ballistic coefficient: "
         "FAR not installed, no manual_beta, and no mass for estimation"
     )
+
+
+def _nose_quat(
+    nose: np.ndarray,
+    velocity: np.ndarray,
+    world_up: np.ndarray,
+) -> tuple[float, float, float, float]:
+    """Return a quaternion rotating the vessel nose (+Y) onto *nose*.
+
+    The roof reference (roll about the nose) is chosen perpendicular to both
+    the nose and ``world_up`` — the same roll convention as
+    :func:`recovery.guidance.aerodynamics._retrograde_quaternion`, expressed
+    in the frame of *velocity*.
+    """
+    n = nose / float(np.linalg.norm(nose))
+    up = world_up / float(np.linalg.norm(world_up))
+    if abs(float(np.dot(n, up))) > 0.999:
+        up = np.array([1.0, 0.0, 0.0])
+    roof = np.cross(up, n)
+    roof /= float(np.linalg.norm(roof))
+    rot, _ = Rotation.align_vectors([n, roof], [[0.0, 1.0, 0.0], [0.0, 0.0, -1.0]])
+    q = rot.as_quat()
+    return (float(q[0]), float(q[1]), float(q[2]), float(q[3]))
+
+
+def sample_lift_model(
+    body: Any,
+    flight: Any,
+    target_frame: Any,
+    *,
+    position: tuple[float, float, float],
+    velocity: tuple[float, float, float],
+    alpha_max_deg: float = 15.0,
+    n_alpha: int = 16,
+) -> tuple[float, float, float]:
+    """Fit lift/drag coefficients by sweeping angle-of-attack.
+
+    At a caller-supplied *reference state* (``position`` / ``velocity`` in
+    *target_frame*, representing the flight regime the aero segment will fly
+    in), the AoA is swept from 0 to *alpha_max_deg*.  At each AoA the kRPC
+    ``Flight.simulate_aerodynamic_force_at`` measures the aerodynamic force,
+    which is decomposed into drag (along ``-velocity``) and lift (along the
+    tilt side).  The three coefficients of :class:`LiftDragModel` are then
+    least-squares fitted against
+
+        D(α) = q · cd0_area · (1 + k·α²)        (q = ½ρv²)
+        L(α) = q · cl_area · α
+
+    Returns ``(cd0_area, cl_area, k_ind)`` in m², m²/rad and 1/rad².
+
+    **One-time RPC cost:** ``n_alpha`` force simulations (~10--20 ms).
+    Call once at startup, never inside a hot loop.
+    """
+    center = np.asarray(body.position(target_frame), dtype=float)
+    r = np.asarray(position, dtype=float)
+    v = np.asarray(velocity, dtype=float)
+    speed = float(np.linalg.norm(v))
+    if speed < 1e-9:
+        raise ValueError("sample_lift_model requires non-zero reference velocity")
+
+    height = float(np.linalg.norm(r - center)) - float(body.equatorial_radius)
+    rho = float(body.density_at(max(height, 0.0)))
+    q = 0.5 * rho * speed * speed
+    if q < 1e-9:
+        raise ValueError(
+            "reference state is outside the atmosphere (q≈0); "
+            "pick a lower-altitude reference to fit lift"
+        )
+
+    vhat = v / speed
+    # tilt direction: local up projected onto the plane perpendicular to v
+    up = -center / float(np.linalg.norm(center))
+    side = up - np.dot(up, vhat) * vhat
+    side_n = float(np.linalg.norm(side))
+    if side_n < 1e-6:  # velocity vertical -> pick any perpendicular direction
+        perp = np.array([0.0, 1.0, 0.0]) if abs(vhat[0]) < 0.9 else np.array([0.0, 0.0, 1.0])
+        side = perp - np.dot(perp, vhat) * vhat
+        side_n = float(np.linalg.norm(side))
+    side /= side_n
+
+    alphas = np.radians(np.linspace(0.0, alpha_max_deg, n_alpha))
+    drag = np.empty_like(alphas)
+    lift = np.empty_like(alphas)
+    pos = tuple(float(x) for x in r)
+    vel = tuple(float(x) for x in v)
+    for i, a in enumerate(alphas):
+        nose = -vhat * float(np.cos(a)) + side * float(np.sin(a))
+        quat = _nose_quat(nose, v, up)
+        F = np.asarray(flight.simulate_aerodynamic_force_at(body, pos, vel, quat), dtype=float)
+        drag[i] = -float(np.dot(F, vhat))
+        lift[i] = float(np.dot(F, side))
+
+    cd0_area = float(drag[0]) / q if q > 0 else 0.0
+    # cl_area:  L = q·cl_area·α  ->  normal equations (L·α)/(q·α²)
+    cl_area = float(np.sum(lift * alphas)) / float(q * np.sum(alphas * alphas))
+    # k_ind:  D = q·cd0_area·(1 + k·α²)  ->  k = mean( (D/q/cd0_area - 1)/α² ) for α>0
+    idx = (alphas > 1e-9) & (cd0_area > 1e-12)
+    if np.any(idx):
+        k_ind = float(np.mean((drag[idx] / (q * cd0_area) - 1.0) / (alphas[idx] ** 2)))
+    else:
+        k_ind = 0.0
+    k_ind = max(k_ind, 0.0)
+
+    return (cd0_area, cl_area, k_ind)
