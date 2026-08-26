@@ -1,6 +1,6 @@
 """Guidance algorithms: impact prediction, GFOLD solver, trajectory workers."""
 
-from .aerodynamics import AeroModel, DragModel, KrpcAeroModel, LiftDragModel
+from .aerodynamics import AeroModel, DragModel, KrpcAeroModel, LiftDragModel, LiftTableModel
 from .control import (
     BrakeToThrottle,
     ConstantThrottle,
@@ -43,6 +43,7 @@ __all__ = [
     "KrpcAeroModel",
     "LandingPredictor",
     "LiftDragModel",
+    "LiftTableModel",
     "NoseRule",
     "RetrogradeNose",
     "TofPredictor",

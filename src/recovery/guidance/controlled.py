@@ -22,7 +22,7 @@ import numpy as np
 from ..specs import BodySpec
 from ..types import Vector3
 from ._numba import rk4_controlled
-from .aerodynamics import LiftDragModel
+from .aerodynamics import LiftDragModel, LiftTableModel
 from .control import (
     BrakeToThrottle,
     ConstantThrottle,
@@ -100,7 +100,7 @@ class ControlledPredictor:
         omega: Sequence[float],
         body_center: Sequence[float],
         body_radius: float,
-        aero: LiftDragModel | None = None,
+        aero: LiftDragModel | LiftTableModel | None = None,
         dt: float = 0.1,
         t_max: float = 600.0,
     ) -> None:
@@ -120,18 +120,18 @@ class ControlledPredictor:
         # attitude-dependent aero params for the kernel (empty -> no aero)
         params = aero.numba_params if aero is not None else None
         if params is not None:
-            cd0_area, cl_area, k_ind, clamp_aoa, alts, vals, sea_r = params
-            self._cd0a = float(cd0_area)
-            self._cla = float(cl_area)
-            self._kind = float(k_ind)
+            alpha_pts, cl_table, cd_table, clamp_aoa, alts, vals, sea_r = params
+            self._alpha_pts = np.asarray(alpha_pts, dtype=float)
+            self._cl_table = np.asarray(cl_table, dtype=float)
+            self._cd_table = np.asarray(cd_table, dtype=float)
             self._clamp = float(clamp_aoa)
             self._alts = np.asarray(alts, dtype=float)
             self._vals = np.asarray(vals, dtype=float)
             self._sea_r = float(sea_r)
         else:
-            self._cd0a = 0.0
-            self._cla = 0.0
-            self._kind = 0.0
+            self._alpha_pts = np.zeros(0, dtype=float)
+            self._cl_table = np.zeros(0, dtype=float)
+            self._cd_table = np.zeros(0, dtype=float)
             self._clamp = 1.0
             self._alts = np.zeros(1, dtype=float)
             self._vals = np.zeros(1, dtype=float)
@@ -141,7 +141,7 @@ class ControlledPredictor:
     def from_body_spec(
         cls,
         spec: BodySpec,
-        aero: LiftDragModel | None = None,
+        aero: LiftDragModel | LiftTableModel | None = None,
         *,
         dt: float = 0.1,
         t_max: float = 600.0,
@@ -244,7 +244,7 @@ class ControlledPredictor:
         n_steps, hit = rk4_controlled(
             r0, v0, float(mass),
             self._mu, self._omega, self._center, self._radius,
-            self._cd0a, self._cla, self._kind, self._clamp,
+            self._clamp, self._alpha_pts, self._cl_table, self._cd_table,
             self._alts, self._vals, self._sea_r,
             seg_trigger_val, seg_trigger_kind, seg_throttle_kind,
             seg_throttle_p1, seg_throttle_p2, seg_thrust,

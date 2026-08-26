@@ -196,6 +196,27 @@ def _interp_jit(x: float, xp: np.ndarray, fp: np.ndarray) -> float:
     return 0.0
 
 
+@njit(cache=True)
+def _interp_lin(x: float, xp: np.ndarray, fp: np.ndarray) -> float:
+    """Linear interpolation with clamped boundaries (lift/drag coefficient
+    tables).  Unlike :func:`_interp_jit` (density, returns 0 above the top),
+    this clamps to the endpoint values so a table evaluated at its extremes
+    stays defined.
+    """
+    n = len(xp)
+    if n == 0:
+        return 0.0
+    if x <= xp[0]:
+        return float(fp[0])
+    if x >= xp[n - 1]:
+        return float(fp[n - 1])
+    for i in range(n - 1):
+        if xp[i] <= x <= xp[i + 1]:
+            t = (x - xp[i]) / (xp[i + 1] - xp[i])
+            return float(fp[i] + t * (fp[i + 1] - fp[i]))
+    return float(fp[n - 1])
+
+
 # ---------------------------------------------------------------------------
 # Controlled propagation (virtual control + engine events)
 # ---------------------------------------------------------------------------
@@ -236,8 +257,9 @@ def _accel_ctrl_jit(rx: float, ry: float, rz: float,
                     thr: float, thrust: float, isp: float,
                     nx: float, ny: float, nz: float,
                     mu: float, omega: np.ndarray, center: np.ndarray,
-                    cd0_area: float, cl_area: float, k_ind: float,
-                    clamp_aoa: float, alts: np.ndarray, densities: np.ndarray,
+                    clamp_aoa: float, alpha_pts: np.ndarray,
+                    cl_table: np.ndarray, cd_table: np.ndarray,
+                    alts: np.ndarray, densities: np.ndarray,
                     sea_r: float, use_aero: bool) -> tuple[float, float, float]:
     """Gravity + Coriolis + centrifugal + attitude-dependent aero + thrust.
 
@@ -287,12 +309,14 @@ def _accel_ctrl_jit(rx: float, ry: float, rz: float,
                 if alpha > clamp_aoa:
                     alpha = clamp_aoa
                 q = 0.5 * rho * v_mag * v_mag
-                # drag along -v, with induced drag
-                drag = q * cd0_area * (1.0 + k_ind * alpha * alpha) / m
+                # interpolate lift/drag coefficients (m^2) at this alpha
+                cl = _interp_lin(alpha, alpha_pts, cl_table)
+                cd = _interp_lin(alpha, alpha_pts, cd_table)
+                drag = q * cd / m
                 a0 -= drag * vhx
                 a1 -= drag * vhy
                 a2 -= drag * vhz
-                # lift toward the nose-deflection side
+                # lift toward the nose-deflection side (cl_table carries the sign)
                 if alpha > 1e-4:
                     nv = nx * vhx + ny * vhy + nz * vhz
                     latx = nx - nv * vhx
@@ -300,7 +324,7 @@ def _accel_ctrl_jit(rx: float, ry: float, rz: float,
                     latz = nz - nv * vhz
                     ln = sqrt(latx * latx + laty * laty + latz * latz)
                     if ln > 1e-9:
-                        lift = q * cl_area * alpha / m
+                        lift = q * cl / m
                         a0 += lift * latx / ln
                         a1 += lift * laty / ln
                         a2 += lift * latz / ln
@@ -354,10 +378,10 @@ def rk4_controlled(
     omega: np.ndarray,
     center: np.ndarray,
     radius: float,
-    cd0_area: float,
-    cl_area: float,
-    k_ind: float,
     clamp_aoa: float,
+    alpha_pts: np.ndarray,
+    cl_table: np.ndarray,
+    cd_table: np.ndarray,
     alts: np.ndarray,
     densities: np.ndarray,
     sea_r: float,
@@ -411,7 +435,7 @@ def rk4_controlled(
     dt2 = dt / 2.0
     dt6 = dt / 6.0
     t = 0.0
-    use_aero = cd0_area > 0.0 or cl_area > 0.0
+    use_aero = alpha_pts.size > 0
 
     for step in range(max_n):
         dx = rx - cx
@@ -456,23 +480,23 @@ def rk4_controlled(
 
         # ---- RK4 (mass held constant within the step) ----------------------
         a1x, a1y, a1z = _accel_ctrl_jit(rx, ry, rz, vx, vy, vz, m, thr, thrust, isp,
-                                        nx, ny, nz, mu, omega, center, cd0_area, cl_area,
-                                        k_ind, clamp_aoa, alts, densities, sea_r, use_aero)
+                                        nx, ny, nz, mu, omega, center, clamp_aoa,
+                                        alpha_pts, cl_table, cd_table, alts, densities, sea_r, use_aero)
         r2x = rx + dt2 * vx; r2y = ry + dt2 * vy; r2z = rz + dt2 * vz
         v2x = vx + dt2 * a1x; v2y = vy + dt2 * a1y; v2z = vz + dt2 * a1z
         a2x, a2y, a2z = _accel_ctrl_jit(r2x, r2y, r2z, v2x, v2y, v2z, m, thr, thrust, isp,
-                                        nx, ny, nz, mu, omega, center, cd0_area, cl_area,
-                                        k_ind, clamp_aoa, alts, densities, sea_r, use_aero)
+                                        nx, ny, nz, mu, omega, center, clamp_aoa,
+                                        alpha_pts, cl_table, cd_table, alts, densities, sea_r, use_aero)
         r3x = rx + dt2 * v2x; r3y = ry + dt2 * v2y; r3z = rz + dt2 * v2z
         v3x = vx + dt2 * a2x; v3y = vy + dt2 * a2y; v3z = vz + dt2 * a2z
         a3x, a3y, a3z = _accel_ctrl_jit(r3x, r3y, r3z, v3x, v3y, v3z, m, thr, thrust, isp,
-                                        nx, ny, nz, mu, omega, center, cd0_area, cl_area,
-                                        k_ind, clamp_aoa, alts, densities, sea_r, use_aero)
+                                        nx, ny, nz, mu, omega, center, clamp_aoa,
+                                        alpha_pts, cl_table, cd_table, alts, densities, sea_r, use_aero)
         r4x = rx + dt * v3x; r4y = ry + dt * v3y; r4z = rz + dt * v3z
         v4x = vx + dt * a3x; v4y = vy + dt * a3y; v4z = vz + dt * a3z
         a4x, a4y, a4z = _accel_ctrl_jit(r4x, r4y, r4z, v4x, v4y, v4z, m, thr, thrust, isp,
-                                        nx, ny, nz, mu, omega, center, cd0_area, cl_area,
-                                        k_ind, clamp_aoa, alts, densities, sea_r, use_aero)
+                                        nx, ny, nz, mu, omega, center, clamp_aoa,
+                                        alpha_pts, cl_table, cd_table, alts, densities, sea_r, use_aero)
 
         rx += dt6 * (vx + 2.0 * v2x + 2.0 * v3x + v4x)
         ry += dt6 * (vy + 2.0 * v2y + 2.0 * v3y + v4y)

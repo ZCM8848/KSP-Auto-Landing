@@ -111,7 +111,7 @@ def test_predict_from_snapshot(predictor_no_rotation: LandingPredictor) -> None:
         thrust=0, available_thrust=0, max_thrust=0, max_vacuum_thrust=0,
         specific_impulse=0, max_acceleration=0, throttle=0,
         situation=Situation.FLYING, loaded=True, packed=False, landed=False,
-        atmosphere_density=0, frame=None,
+        atmosphere_density=0, atmosphere_depth=0, frame=None,
     )
     result = predictor_no_rotation.predict_from(state)
     assert result is not None
