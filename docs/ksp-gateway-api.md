@@ -335,7 +335,6 @@ sticks = ctrl.step(s, target_dir, roll_target=0.0)
 - Unlike the server-side `AutoPilot`, this controller outputs sticks each tick
   (velocity profile + damping, `rot_flag=-1`); the `AutoPilot` closes a PID
   loop on the server instead.
-- Full example: `scripts/zem_boosterback_local.py`.
 
 The underlying legacy control law is fully typed and behaviour-locked:
 

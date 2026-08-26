@@ -6,8 +6,7 @@ engine-set thrust / Isp changes at time or altitude triggers) plus a rule-based
 steering law — and returns the *entire* state trajectory as feedback, not just
 the impact point.
 
-This is an independent implementation: it does not reuse the script-layer
-``binary_burn_landing`` predictor, and it supersedes the ballistic-only
+This is an independent implementation that supersedes the ballistic-only
 :class:`~recovery.guidance.LandingPredictor` for anything that involves thrust
 or attitude.  The heavy lifting is the numba kernel
 :func:`~recovery.guidance._numba.rk4_controlled`.
