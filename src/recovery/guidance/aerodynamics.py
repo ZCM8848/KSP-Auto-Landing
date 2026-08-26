@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from math import sqrt
+from math import acos, sqrt
 from typing import Any
 
 import numpy as np
@@ -215,4 +215,130 @@ class DragModel(AeroModel):
             float(drag * velocity[0]),
             float(drag * velocity[1]),
             float(drag * velocity[2]),
+        )
+
+
+class LiftDragModel:
+    """Attitude-dependent aerodynamic model (drag + induced drag + body lift).
+
+    Unlike :class:`DragModel` (zero-lift, attitude-independent), this model
+    produces a force that depends on the body axis ``nose``: the angle of
+    attack against the velocity gives zero-lift + induced drag along ``-v``
+    and body lift perpendicular to ``v`` toward the nose side.  It is what
+    makes aerodynamic steering (the air-guidance strategy) simulatable: tilting
+    the nose changes the lift, which changes the trajectory.
+
+    Parameters (SI):
+        cd0_area: zero-lift drag area ``C_D0·A`` (m²).
+        cl_area: lift slope ``C_Lα·A`` (m²/rad).
+        k_ind: induced-drag factor ``C_D(α) = C_D0(1 + k_ind·α²)`` (1/rad²).
+        clamp_aoa: stall clamp for the force model (rad).
+        density_fn: ``ρ(altitude)`` callable, or supply ``density_alts``/
+            ``density_vals`` for the numba fast path.
+        body_center / sea_level_radius: geometry for altitude.
+    """
+
+    def __init__(
+        self,
+        *,
+        cd0_area: float,
+        cl_area: float = 0.0,
+        k_ind: float = 0.0,
+        clamp_aoa: float = 1.0,
+        density_fn: Callable[[float], float],
+        body_center: Sequence[float],
+        sea_level_radius: float,
+        density_alts: np.ndarray | None = None,
+        density_vals: np.ndarray | None = None,
+    ) -> None:
+        self._cd0a = float(cd0_area)
+        self._cla = float(cl_area)
+        self._kind = float(k_ind)
+        self._clamp = float(clamp_aoa)
+        self._density = density_fn
+        self._center = np.asarray(body_center, dtype=float)
+        self._sea_r = float(sea_level_radius)
+        self._alts = density_alts
+        self._vals = density_vals
+
+    @classmethod
+    def from_drag_spec(
+        cls,
+        spec: DragSpec,
+        *,
+        mass_ref: float,
+        cl_area: float = 0.0,
+        k_ind: float = 0.0,
+        clamp_aoa: float = 1.0,
+    ) -> "LiftDragModel":
+        """Build from a :class:`DragSpec`; ``cd0_area = mass_ref / β``."""
+        alts = spec.density_alts
+        vals = spec.density_vals
+        depth = float(alts[-1])
+
+        def _interp(h: float) -> float:
+            if h < 0.0:
+                return float(vals[0])
+            if h > depth:
+                return 0.0
+            return float(np.interp(h, alts, vals))
+
+        return cls(
+            cd0_area=mass_ref / float(spec.ballistic_coefficient),
+            cl_area=cl_area,
+            k_ind=k_ind,
+            clamp_aoa=clamp_aoa,
+            density_fn=_interp,
+            body_center=spec.body_center,
+            sea_level_radius=spec.sea_level_radius,
+            density_alts=alts,
+            density_vals=vals,
+        )
+
+    def acceleration(
+        self,
+        position: NDArray[np.float64],
+        velocity: NDArray[np.float64],
+        nose: NDArray[np.float64],
+        mass: float,
+    ) -> Vec3:
+        """Aerodynamic acceleration (m/s²) at the given state and body axis."""
+        v = np.asarray(velocity, dtype=float)
+        n = np.asarray(nose, dtype=float)
+        v_mag = float(np.linalg.norm(v))
+        n_mag = float(np.linalg.norm(n))
+        if v_mag < 1e-6 or n_mag < 1e-9 or mass <= 0.0:
+            return (0.0, 0.0, 0.0)
+        vh = v / v_mag
+        n = n / n_mag
+        d = np.asarray(position, dtype=float) - self._center
+        alt = float(np.linalg.norm(d)) - self._sea_r
+        rho = self._density(alt)
+        if rho <= 0.0:
+            return (0.0, 0.0, 0.0)
+        c = float(np.clip(-np.dot(n, vh), -1.0, 1.0))
+        alpha = min(acos(c), self._clamp)
+        q = 0.5 * rho * v_mag * v_mag
+        drag = q * self._cd0a * (1.0 + self._kind * alpha * alpha) / mass
+        a = -drag * vh
+        if alpha > 1e-4:
+            nv = float(np.dot(n, vh))
+            lat = n - nv * vh
+            ln = float(np.linalg.norm(lat))
+            if ln > 1e-9:
+                lift = q * self._cla * alpha / mass
+                a = a + lift * (lat / ln)
+        return (float(a[0]), float(a[1]), float(a[2]))
+
+    @property
+    def numba_params(
+        self,
+    ) -> tuple[float, float, float, float, np.ndarray, np.ndarray, float] | None:
+        """``(cd0_area, cl_area, k_ind, clamp_aoa, alts, vals, sea_r)`` for the
+        numba fast path, or ``None`` when the density table is unavailable."""
+        if self._alts is None or self._vals is None:
+            return None
+        return (
+            self._cd0a, self._cla, self._kind, self._clamp,
+            self._alts, self._vals, self._sea_r,
         )

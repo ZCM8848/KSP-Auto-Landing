@@ -6,7 +6,7 @@ They accept scalars / 1-D numpy arrays and return numeric values only.
 
 import numpy as np
 from numba import njit
-from math import sqrt
+from math import acos, sqrt
 
 
 @njit(cache=True)
@@ -45,6 +45,9 @@ def rk4_fixed(
     dt2 = dt / 2.0
 
     for _step in range(max_n):
+        rpx = r[0]
+        rpy = r[1]
+        rpz = r[2]
         k1r = v
         k1v = _accel_jit(r, v, mu, omega, center, beta, alts, densities, sea_r)
 
@@ -91,10 +94,21 @@ def rk4_fixed(
         dx = r[0] - center[0]
         dy = r[1] - center[1]
         dz = r[2] - center[2]
-        dist = (dx * dx + dy * dy + dz * dz) ** 0.5
-        if dist < radius:
-            t_hit = float(_step + 1) * dt
-            return (float(r[0]), float(r[1]), float(r[2]), t_hit)
+        dist_post = (dx * dx + dy * dy + dz * dz) ** 0.5
+        if dist_post < radius:
+            # Interpolate the surface crossing between the pre-step (rpx/rpy/
+            # rpz) and post-step positions, so the reported impact lies on the
+            # surface (alt ~ 0) rather than one step below it.
+            pdx = rpx - center[0]
+            pdy = rpy - center[1]
+            pdz = rpz - center[2]
+            dist_pre = (pdx * pdx + pdy * pdy + pdz * pdz) ** 0.5
+            lam = (dist_pre - radius) / (dist_pre - dist_post)
+            ix = rpx + lam * (r[0] - rpx)
+            iy = rpy + lam * (r[1] - rpy)
+            iz = rpz + lam * (r[2] - rpz)
+            t_hit = float(_step) * dt + lam * dt
+            return (float(ix), float(iy), float(iz), t_hit)
 
     return None
 
@@ -190,34 +204,30 @@ def _interp_jit(x: float, xp: np.ndarray, fp: np.ndarray) -> float:
 def _nose_jit(kind: int, fx: float, fy: float, fz: float,
               rx: float, ry: float, rz: float,
               vx: float, vy: float, vz: float,
-              upx: float, upy: float, upz: float) -> np.ndarray:
-    """Steering rule -> unit nose direction.
+              upx: float, upy: float, upz: float) -> tuple[float, float, float]:
+    """Steering rule -> unit nose direction ``(nx, ny, nz)``.
 
     ``kind``: 0 = retrograde, 1 = up, 2 = fixed, 3 = toward target (origin).
     Degenerate cases (zero velocity / zero vector / at origin) fall back to up.
+    Returns a scalar tuple (no array allocation in the hot loop).
     """
-    n = np.empty(3, dtype=np.float64)
     if kind == 0:  # retrograde
         vm = sqrt(vx * vx + vy * vy + vz * vz)
         if vm < 1e-9:
-            n[0], n[1], n[2] = upx, upy, upz
-        else:
-            n[0], n[1], n[2] = -vx / vm, -vy / vm, -vz / vm
-    elif kind == 1:  # up
-        n[0], n[1], n[2] = upx, upy, upz
-    elif kind == 2:  # fixed
+            return upx, upy, upz
+        return -vx / vm, -vy / vm, -vz / vm
+    if kind == 1:  # up
+        return upx, upy, upz
+    if kind == 2:  # fixed
         fm = sqrt(fx * fx + fy * fy + fz * fz)
         if fm < 1e-9:
-            n[0], n[1], n[2] = upx, upy, upz
-        else:
-            n[0], n[1], n[2] = fx / fm, fy / fm, fz / fm
-    else:  # toward target (origin): -r_hat
-        rm = sqrt(rx * rx + ry * ry + rz * rz)
-        if rm < 1e-9:
-            n[0], n[1], n[2] = upx, upy, upz
-        else:
-            n[0], n[1], n[2] = -rx / rm, -ry / rm, -rz / rm
-    return n
+            return upx, upy, upz
+        return fx / fm, fy / fm, fz / fm
+    # toward target (origin): -r_hat
+    rm = sqrt(rx * rx + ry * ry + rz * rz)
+    if rm < 1e-9:
+        return upx, upy, upz
+    return -rx / rm, -ry / rm, -rz / rm
 
 
 @njit(cache=True)
@@ -226,51 +236,81 @@ def _accel_ctrl_jit(rx: float, ry: float, rz: float,
                     thr: float, thrust: float, isp: float,
                     nx: float, ny: float, nz: float,
                     mu: float, omega: np.ndarray, center: np.ndarray,
-                    beta: float, alts: np.ndarray, densities: np.ndarray,
-                    sea_r: float, use_drag: bool) -> np.ndarray:
-    """Gravity + Coriolis + centrifugal + drag + thrust acceleration (m/s^2).
+                    cd0_area: float, cl_area: float, k_ind: float,
+                    clamp_aoa: float, alts: np.ndarray, densities: np.ndarray,
+                    sea_r: float, use_aero: bool) -> tuple[float, float, float]:
+    """Gravity + Coriolis + centrifugal + attitude-dependent aero + thrust.
 
     Thrust is ``throttle * max_thrust / mass`` along the (unit) nose direction.
+    The aero term is attitude-dependent: the body axis ``nose`` sets the angle
+    of attack (against the velocity), which produces zero-lift + induced drag
+    along ``-v`` and body lift perpendicular to ``v`` toward the nose side.
+    Returns ``(ax, ay, az)`` as a scalar tuple (no hot-loop allocation).
     """
-    a = np.empty(3, dtype=np.float64)
     dx = rx - center[0]
     dy = ry - center[1]
     dz = rz - center[2]
     dist = sqrt(dx * dx + dy * dy + dz * dz)
     inv_cube = 1.0 / (dist * dist * dist)
     g = -mu * inv_cube
-    a[0] = g * dx
-    a[1] = g * dy
-    a[2] = g * dz
+    a0 = g * dx
+    a1 = g * dy
+    a2 = g * dz
     # Coriolis
-    a[0] += -2.0 * (omega[1] * vz - omega[2] * vy)
-    a[1] += -2.0 * (omega[2] * vx - omega[0] * vz)
-    a[2] += -2.0 * (omega[0] * vy - omega[1] * vx)
+    a0 += -2.0 * (omega[1] * vz - omega[2] * vy)
+    a1 += -2.0 * (omega[2] * vx - omega[0] * vz)
+    a2 += -2.0 * (omega[0] * vy - omega[1] * vx)
     # centrifugal
     ox_dx = omega[1] * dz - omega[2] * dy
     ox_dy = omega[2] * dx - omega[0] * dz
     ox_dz = omega[0] * dy - omega[1] * dx
-    a[0] += -(omega[1] * ox_dz - omega[2] * ox_dy)
-    a[1] += -(omega[2] * ox_dx - omega[0] * ox_dz)
-    a[2] += -(omega[0] * ox_dy - omega[1] * ox_dx)
-    # drag
-    if use_drag:
+    a0 += -(omega[1] * ox_dz - omega[2] * ox_dy)
+    a1 += -(omega[2] * ox_dx - omega[0] * ox_dz)
+    a2 += -(omega[0] * ox_dy - omega[1] * ox_dx)
+    # attitude-dependent aero: drag (zero-lift + induced) + body lift
+    if use_aero:
         alt = dist - sea_r
         rho = _interp_jit(alt, alts, densities)
-        if rho > 0.0:
+        if rho > 0.0 and m > 0.0:
             v_mag = sqrt(vx * vx + vy * vy + vz * vz)
             if v_mag > 1e-6:
-                drag = -0.5 * rho * v_mag / beta
-                a[0] += drag * vx
-                a[1] += drag * vy
-                a[2] += drag * vz
+                vhx = vx / v_mag
+                vhy = vy / v_mag
+                vhz = vz / v_mag
+                # angle of attack: between -nose (tail-first) and velocity
+                c = -(nx * vhx + ny * vhy + nz * vhz)
+                if c > 1.0:
+                    c = 1.0
+                elif c < -1.0:
+                    c = -1.0
+                alpha = acos(c)
+                if alpha > clamp_aoa:
+                    alpha = clamp_aoa
+                q = 0.5 * rho * v_mag * v_mag
+                # drag along -v, with induced drag
+                drag = q * cd0_area * (1.0 + k_ind * alpha * alpha) / m
+                a0 -= drag * vhx
+                a1 -= drag * vhy
+                a2 -= drag * vhz
+                # lift toward the nose-deflection side
+                if alpha > 1e-4:
+                    nv = nx * vhx + ny * vhy + nz * vhz
+                    latx = nx - nv * vhx
+                    laty = ny - nv * vhy
+                    latz = nz - nv * vhz
+                    ln = sqrt(latx * latx + laty * laty + latz * latz)
+                    if ln > 1e-9:
+                        lift = q * cl_area * alpha / m
+                        a0 += lift * latx / ln
+                        a1 += lift * laty / ln
+                        a2 += lift * latz / ln
     # thrust
     if thrust > 0.0 and thr > 0.0 and m > 0.0:
         ta = thr * thrust / m
-        a[0] += ta * nx
-        a[1] += ta * ny
-        a[2] += ta * nz
-    return a
+        a0 += ta * nx
+        a1 += ta * ny
+        a2 += ta * nz
+    return a0, a1, a2
 
 
 @njit(cache=True)
@@ -279,27 +319,25 @@ def _throttle_jit(kind: int, p1: float, p2: float,
                   alt: float, vrad: float) -> float:
     """Throttle rule -> throttle (0..1).
 
-    ``kind``: 0 = constant (``p1`` = throttle), 1 = energy (``p1`` = v_gfold,
-    ``p2`` = h_gfold; full throttle below h_gfold), 2 = constant_decel
-    (``p1`` = vt).  ``vrad`` is vertical velocity (up positive); the laws use
-    ``vrad^2`` so they are sign-agnostic (they only ever brake a descent).
+    ``kind``: 0 = constant (``p1`` = throttle), 1 = brake_to (``p1`` =
+    v_terminal, ``p2`` = h_terminal; full throttle below h_terminal).
+    ``vrad`` is vertical velocity (up positive); the law uses ``vrad^2`` so it
+    is sign-agnostic (it only ever brakes a descent).  ``h_terminal == 0`` is
+    the constant-deceleration (suicide-burn) case: brake to v_terminal at the
+    surface.
     """
     if kind == 0:
         return p1
     if thrust <= 0.0 or m <= 0.0:
         return 0.0
-    if kind == 1:  # energy
-        v_gfold = p1
-        h_gfold = p2
-        if alt >= h_gfold:
-            acc = (vrad * vrad - v_gfold * v_gfold) / (2.0 * max(alt - h_gfold, 1e-3))
-            thr = m * (acc + g_local) / thrust
-        else:
-            thr = 1.0
-    else:  # constant_decel
-        vt = p1
-        acc = (vrad * vrad - vt * vt) / (2.0 * max(alt, 1e-3)) + g_local
-        thr = m * acc / thrust
+    # kind == 1: brake_to (v_terminal, h_terminal)
+    v_terminal = p1
+    h_terminal = p2
+    if alt >= h_terminal:
+        acc = (vrad * vrad - v_terminal * v_terminal) / (2.0 * max(alt - h_terminal, 1e-3))
+        thr = m * (acc + g_local) / thrust
+    else:
+        thr = 1.0
     if thr < 0.0:
         thr = 0.0
     elif thr > 1.0:
@@ -316,7 +354,10 @@ def rk4_controlled(
     omega: np.ndarray,
     center: np.ndarray,
     radius: float,
-    beta: float,
+    cd0_area: float,
+    cl_area: float,
+    k_ind: float,
+    clamp_aoa: float,
     alts: np.ndarray,
     densities: np.ndarray,
     sea_r: float,
@@ -370,7 +411,7 @@ def rk4_controlled(
     dt2 = dt / 2.0
     dt6 = dt / 6.0
     t = 0.0
-    use_drag = beta > 0.0 and not np.isinf(beta)
+    use_aero = cd0_area > 0.0 or cl_area > 0.0
 
     for step in range(max_n):
         dx = rx - cx
@@ -411,35 +452,34 @@ def rk4_controlled(
         out[step, 7] = m
 
         # ---- nose direction ------------------------------------------------
-        n = _nose_jit(nk, fx, fy, fz, rx, ry, rz, vx, vy, vz, upx, upy, upz)
-        nx = n[0]; ny = n[1]; nz = n[2]
+        nx, ny, nz = _nose_jit(nk, fx, fy, fz, rx, ry, rz, vx, vy, vz, upx, upy, upz)
 
         # ---- RK4 (mass held constant within the step) ----------------------
-        a1 = _accel_ctrl_jit(rx, ry, rz, vx, vy, vz, m, thr, thrust, isp,
-                             nx, ny, nz, mu, omega, center, beta, alts,
-                             densities, sea_r, use_drag)
+        a1x, a1y, a1z = _accel_ctrl_jit(rx, ry, rz, vx, vy, vz, m, thr, thrust, isp,
+                                        nx, ny, nz, mu, omega, center, cd0_area, cl_area,
+                                        k_ind, clamp_aoa, alts, densities, sea_r, use_aero)
         r2x = rx + dt2 * vx; r2y = ry + dt2 * vy; r2z = rz + dt2 * vz
-        v2x = vx + dt2 * a1[0]; v2y = vy + dt2 * a1[1]; v2z = vz + dt2 * a1[2]
-        a2 = _accel_ctrl_jit(r2x, r2y, r2z, v2x, v2y, v2z, m, thr, thrust, isp,
-                             nx, ny, nz, mu, omega, center, beta, alts,
-                             densities, sea_r, use_drag)
+        v2x = vx + dt2 * a1x; v2y = vy + dt2 * a1y; v2z = vz + dt2 * a1z
+        a2x, a2y, a2z = _accel_ctrl_jit(r2x, r2y, r2z, v2x, v2y, v2z, m, thr, thrust, isp,
+                                        nx, ny, nz, mu, omega, center, cd0_area, cl_area,
+                                        k_ind, clamp_aoa, alts, densities, sea_r, use_aero)
         r3x = rx + dt2 * v2x; r3y = ry + dt2 * v2y; r3z = rz + dt2 * v2z
-        v3x = vx + dt2 * a2[0]; v3y = vy + dt2 * a2[1]; v3z = vz + dt2 * a2[2]
-        a3 = _accel_ctrl_jit(r3x, r3y, r3z, v3x, v3y, v3z, m, thr, thrust, isp,
-                             nx, ny, nz, mu, omega, center, beta, alts,
-                             densities, sea_r, use_drag)
+        v3x = vx + dt2 * a2x; v3y = vy + dt2 * a2y; v3z = vz + dt2 * a2z
+        a3x, a3y, a3z = _accel_ctrl_jit(r3x, r3y, r3z, v3x, v3y, v3z, m, thr, thrust, isp,
+                                        nx, ny, nz, mu, omega, center, cd0_area, cl_area,
+                                        k_ind, clamp_aoa, alts, densities, sea_r, use_aero)
         r4x = rx + dt * v3x; r4y = ry + dt * v3y; r4z = rz + dt * v3z
-        v4x = vx + dt * a3[0]; v4y = vy + dt * a3[1]; v4z = vz + dt * a3[2]
-        a4 = _accel_ctrl_jit(r4x, r4y, r4z, v4x, v4y, v4z, m, thr, thrust, isp,
-                             nx, ny, nz, mu, omega, center, beta, alts,
-                             densities, sea_r, use_drag)
+        v4x = vx + dt * a3x; v4y = vy + dt * a3y; v4z = vz + dt * a3z
+        a4x, a4y, a4z = _accel_ctrl_jit(r4x, r4y, r4z, v4x, v4y, v4z, m, thr, thrust, isp,
+                                        nx, ny, nz, mu, omega, center, cd0_area, cl_area,
+                                        k_ind, clamp_aoa, alts, densities, sea_r, use_aero)
 
         rx += dt6 * (vx + 2.0 * v2x + 2.0 * v3x + v4x)
         ry += dt6 * (vy + 2.0 * v2y + 2.0 * v3y + v4y)
         rz += dt6 * (vz + 2.0 * v2z + 2.0 * v3z + v4z)
-        vx += dt6 * (a1[0] + 2.0 * a2[0] + 2.0 * a3[0] + a4[0])
-        vy += dt6 * (a1[1] + 2.0 * a2[1] + 2.0 * a3[1] + a4[1])
-        vz += dt6 * (a1[2] + 2.0 * a2[2] + 2.0 * a3[2] + a4[2])
+        vx += dt6 * (a1x + 2.0 * a2x + 2.0 * a3x + a4x)
+        vy += dt6 * (a1y + 2.0 * a2y + 2.0 * a3y + a4y)
+        vz += dt6 * (a1z + 2.0 * a2z + 2.0 * a3z + a4z)
 
         # ---- mass flow (Euler) ---------------------------------------------
         m -= mdot * dt
@@ -447,11 +487,24 @@ def rk4_controlled(
             m = dry_mass
         t += dt
 
-        # ---- impact ---------------------------------------------------------
+        # ---- impact (interpolate the exact surface crossing) ---------------
         dx = rx - cx
         dy = ry - cy
         dz = rz - cz
-        if sqrt(dx * dx + dy * dy + dz * dz) < radius:
+        dist_post = sqrt(dx * dx + dy * dy + dz * dz)
+        if dist_post < radius:
+            # ``dist`` (computed at the top of the step) is the pre-step
+            # distance; ``dist_post`` is the post-step distance.  Linearly
+            # interpolate the altitude crossing so the reported impact state
+            # sits on the surface (alt ~ 0) rather than one step early.
+            lam = (dist - radius) / (dist - dist_post)
+            out[step, 0] += lam * dt
+            out[step, 1] += lam * (rx - out[step, 1])
+            out[step, 2] += lam * (ry - out[step, 2])
+            out[step, 3] += lam * (rz - out[step, 3])
+            out[step, 4] += lam * (vx - out[step, 4])
+            out[step, 5] += lam * (vy - out[step, 5])
+            out[step, 6] += lam * (vz - out[step, 6])
             return step + 1, 1
 
     return max_n, 0

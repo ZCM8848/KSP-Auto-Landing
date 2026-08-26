@@ -23,25 +23,17 @@ import numpy as np
 from ..specs import BodySpec
 from ..types import Vector3
 from ._numba import rk4_controlled
-from .aerodynamics import DragModel
-from .control import NoseRule, NoseRuleKind, ThrottleRuleKind, TriggerKind, VirtualControl
+from .aerodynamics import LiftDragModel
+from .control import (
+    BrakeToThrottle,
+    ConstantThrottle,
+    FixedNose,
+    RetrogradeNose,
+    TowardTargetNose,
+    UpNose,
+    VirtualControl,
+)
 from .predictor import ImpactResult
-
-# NoseRuleKind -> kernel code (see _numba._nose_jit).
-_NOSE_CODE = {
-    NoseRuleKind.RETROGRADE: 0,
-    NoseRuleKind.UP: 1,
-    NoseRuleKind.FIXED: 2,
-    NoseRuleKind.TOWARD_TARGET: 3,
-}
-# ThrottleRuleKind -> kernel code (see _numba._throttle_jit).
-_THROTTLE_CODE = {
-    ThrottleRuleKind.CONSTANT: 0,
-    ThrottleRuleKind.ENERGY: 1,
-    ThrottleRuleKind.CONSTANT_DECEL: 2,
-}
-# TriggerKind -> kernel code.
-_TRIGGER_CODE = {TriggerKind.TIME: 0, TriggerKind.ALTITUDE: 1}
 
 
 @dataclass
@@ -109,7 +101,7 @@ class ControlledPredictor:
         omega: Sequence[float],
         body_center: Sequence[float],
         body_radius: float,
-        drag: DragModel | None = None,
+        aero: LiftDragModel | None = None,
         dt: float = 0.1,
         t_max: float = 600.0,
     ) -> None:
@@ -119,23 +111,29 @@ class ControlledPredictor:
         self._omega = np.asarray(omega, dtype=float)
         self._center = np.asarray(body_center, dtype=float)
         self._radius = float(body_radius)
-        self._drag = drag
+        self._aero = aero
         self._dt = float(dt)
         self._t_max = float(t_max)
 
         c = float(np.linalg.norm(self._center))
         self._up = (-self._center / c) if c > 1e-9 else np.array([0.0, 0.0, 1.0])
 
-        # drag params for the kernel (beta<=0 or inf -> no drag)
-        params = drag.numba_params if drag is not None else None
+        # attitude-dependent aero params for the kernel (empty -> no aero)
+        params = aero.numba_params if aero is not None else None
         if params is not None:
-            beta, alts, vals, sea_r = params
-            self._beta = float(beta)
+            cd0_area, cl_area, k_ind, clamp_aoa, alts, vals, sea_r = params
+            self._cd0a = float(cd0_area)
+            self._cla = float(cl_area)
+            self._kind = float(k_ind)
+            self._clamp = float(clamp_aoa)
             self._alts = np.asarray(alts, dtype=float)
             self._vals = np.asarray(vals, dtype=float)
             self._sea_r = float(sea_r)
         else:
-            self._beta = 0.0
+            self._cd0a = 0.0
+            self._cla = 0.0
+            self._kind = 0.0
+            self._clamp = 1.0
             self._alts = np.zeros(1, dtype=float)
             self._vals = np.zeros(1, dtype=float)
             self._sea_r = float(self._radius)
@@ -144,7 +142,7 @@ class ControlledPredictor:
     def from_body_spec(
         cls,
         spec: BodySpec,
-        drag: DragModel | None = None,
+        aero: LiftDragModel | None = None,
         *,
         dt: float = 0.1,
         t_max: float = 600.0,
@@ -155,7 +153,7 @@ class ControlledPredictor:
             omega=spec.omega,
             body_center=spec.body_center,
             body_radius=spec.body_radius,
-            drag=drag,
+            aero=aero,
             dt=dt,
             t_max=t_max,
         )
@@ -209,15 +207,29 @@ class ControlledPredictor:
         seg_nose_fixed = np.zeros((n_seg, 3), dtype=float)
 
         for i, seg in enumerate(segs):
-            seg_throttle_kind[i] = _THROTTLE_CODE[seg.throttle.kind]
-            seg_throttle_p1[i] = seg.throttle.value
-            seg_throttle_p2[i] = seg.throttle.reference_altitude
+            match seg.throttle:
+                case ConstantThrottle(throttle=t):
+                    seg_throttle_kind[i] = 0
+                    seg_throttle_p1[i] = t
+                    seg_throttle_p2[i] = 0.0
+                case BrakeToThrottle(v_terminal=v, h_terminal=h):
+                    seg_throttle_kind[i] = 1
+                    seg_throttle_p1[i] = v
+                    seg_throttle_p2[i] = h
             seg_thrust[i] = seg.max_thrust
             seg_isp[i] = seg.isp
-            seg_nose_kind[i] = _NOSE_CODE[seg.nose.kind]
-            seg_nose_fixed[i, 0] = seg.nose.direction[0]
-            seg_nose_fixed[i, 1] = seg.nose.direction[1]
-            seg_nose_fixed[i, 2] = seg.nose.direction[2]
+            match seg.nose:
+                case RetrogradeNose():
+                    seg_nose_kind[i] = 0
+                case UpNose():
+                    seg_nose_kind[i] = 1
+                case FixedNose(direction=d):
+                    seg_nose_kind[i] = 2
+                    seg_nose_fixed[i, 0] = d[0]
+                    seg_nose_fixed[i, 1] = d[1]
+                    seg_nose_fixed[i, 2] = d[2]
+                case TowardTargetNose():
+                    seg_nose_kind[i] = 3
             if i == 0:
                 # initial segment: active from t=0, trigger unused
                 seg_trigger_val[i] = 0.0
@@ -227,13 +239,14 @@ class ControlledPredictor:
                 if trig is None:
                     raise ValueError("non-initial segments require a trigger")
                 seg_trigger_val[i] = trig.value
-                seg_trigger_kind[i] = _TRIGGER_CODE[trig.kind]
+                seg_trigger_kind[i] = int(trig.kind)
 
         out = np.empty((max_n, 8), dtype=float)
         n_steps, hit = rk4_controlled(
             r0, v0, float(mass),
             self._mu, self._omega, self._center, self._radius,
-            self._beta, self._alts, self._vals, self._sea_r,
+            self._cd0a, self._cla, self._kind, self._clamp,
+            self._alts, self._vals, self._sea_r,
             seg_trigger_val, seg_trigger_kind, seg_throttle_kind,
             seg_throttle_p1, seg_throttle_p2, seg_thrust,
             seg_isp, seg_nose_kind, seg_nose_fixed, self._up,

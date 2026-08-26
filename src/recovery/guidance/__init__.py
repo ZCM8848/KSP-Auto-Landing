@@ -1,14 +1,18 @@
 """Guidance algorithms: impact prediction, GFOLD solver, trajectory workers."""
 
-from .aerodynamics import AeroModel, DragModel, KrpcAeroModel
+from .aerodynamics import AeroModel, DragModel, KrpcAeroModel, LiftDragModel
 from .control import (
+    BrakeToThrottle,
+    ConstantThrottle,
     ControlSegment,
+    FixedNose,
     NoseRule,
-    NoseRuleKind,
+    RetrogradeNose,
     ThrottleRule,
-    ThrottleRuleKind,
+    TowardTargetNose,
     Trigger,
     TriggerKind,
+    UpNose,
     VirtualControl,
 )
 from .controlled import ControlledPredictor, Trajectory
@@ -28,21 +32,26 @@ from .tofnet import TofPredictor
 
 __all__ = [
     "AeroModel",
+    "BrakeToThrottle",
+    "ConstantThrottle",
     "ControlSegment",
     "ControlledPredictor",
     "DragModel",
+    "FixedNose",
     "GfoldParams",
     "ImpactResult",
     "KrpcAeroModel",
     "LandingPredictor",
+    "LiftDragModel",
     "NoseRule",
-    "NoseRuleKind",
+    "RetrogradeNose",
     "TofPredictor",
+    "TowardTargetNose",
     "Trajectory",
     "ThrottleRule",
-    "ThrottleRuleKind",
     "Trigger",
     "TriggerKind",
+    "UpNose",
     "VirtualControl",
     "build_config",
     "command",
