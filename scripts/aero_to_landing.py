@@ -29,7 +29,6 @@ from typing import Any
 import numpy as np
 
 from recovery import ConnectionManager, FramePacer
-from recovery.control.local_attitude import LocalAttitudeController
 from recovery.data.targets import LZ3_JNSQ
 from recovery.guidance import (
     ConstantThrottle,
@@ -239,11 +238,8 @@ def main() -> None:
         t_prev: float | None = None
         nose_prev: np.ndarray | None = None
 
-        # Active, client-side attitude controller for the aero phase.
-        # It outputs raw pitch/yaw/roll sticks and tracks an explicit
-        # roll_target so the belly faces the wind.
-        attitude_ctrl = LocalAttitudeController(settling_time=0.3)
-        aero_local_active = False
+        # Wind-aligned roll reference for the aero phase.  Starts as zenith
+        # and is updated whenever the wind direction is well-defined.
         wind_up_prev: tuple[float, float, float] = (0.0, 0.0, 1.0)
 
         while True:
@@ -357,13 +353,6 @@ def main() -> None:
                     t_last_log = now
                 continue
 
-            # Switch from kRPC AutoPilot to client-side attitude control for
-            # the aero phase so we can explicitly command wind-aligned roll.
-            if not aero_local_active:
-                b.controls.disengage_auto_pilot()
-                b.controls.apply(pitch=0.0, yaw=0.0, roll=0.0)
-                aero_local_active = True
-
             ref_control = VirtualControl((
                 ControlSegment(
                     throttle=ConstantThrottle(TARGET_THROTTLE),
@@ -398,8 +387,6 @@ def main() -> None:
                 print(msg, file=log)
                 log.flush()
                 phase = 1
-                aero_local_active = False
-                b.controls.apply(pitch=0.0, yaw=0.0, roll=0.0)
                 b.controls.toggle_action_group(AG2_THREE_TO_FIVE)
                 ag2_msg = "Toggled action group 2 (3-engine -> 5-engine switch)."
                 print(ag2_msg)
@@ -470,18 +457,16 @@ def main() -> None:
             nose = tuple(nose)
 
             # Aero glide: zero throttle, attitude-only control.
-            # Active roll: belly faces the airflow via an explicit roll_target
-            # tracked by the client-side attitude controller.  Near the roll
-            # singularity (nose anti-parallel to velocity) freeze the up
-            # reference so it -- and the pitch/yaw body basis -- stops jumping.
+            # Keep the belly facing the airflow via the kRPC AutoPilot's
+            # up_reference.  Near the roll singularity (nose anti-parallel to
+            # velocity) freeze the up reference so it stops jumping.
             up_wind, wind_sin2 = _wind_up(nose, v)
             if wind_sin2 >= WIND_ROLL_SINGULARITY:
                 wind_up_prev = up_wind
-            sticks = attitude_ctrl.step(s, nose, roll_target=0.0, up=wind_up_prev)
             b.controls.apply(
-                pitch=sticks.pitch,
-                yaw=sticks.yaw,
-                roll=sticks.roll,
+                target_direction=nose,
+                reference_frame=frame,
+                up=wind_up_prev,
                 throttle=0.0,
             )
 
