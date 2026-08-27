@@ -55,6 +55,7 @@ T_MIN = 5.0                    # minimum time-to-go for phase-B (s)
 ALPHA_MAX_DEG = 15.0           # maximum angle of attack (deg)
 KP = 0.1                       # position gain on predicted endpoint miss (1/s^2)
 KD = 0.15                       # velocity-damping gain (1/s); increase to suppress overshoot
+DAMP_BLEND_ENDPOINT = 0.5      # weight on predicted-endpoint velocity vs current velocity (0..1)
 R_DEADBAND = 0.0               # horizontal endpoint miss considered "on target" (m)
 ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
@@ -368,16 +369,18 @@ def main() -> None:
                 continue
 
             # PD lateral-acceleration command from predicted endpoint miss.
-            # Damping uses the frame-to-frame velocity of the predicted endpoint,
-            # which directly measures how fast the landing point is drifting.
+            # Damping blends the predicted-endpoint drift rate with the rocket's
+            # current horizontal velocity to balance responsiveness and drag.
             r = p_end[:2]
             r_mag = float(np.linalg.norm(r))
             now = time.monotonic()
             if p_end_prev is not None and t_prev is not None:
                 dt = max(now - t_prev, 1.0 / LOOP_HZ)
-                v_h = (p_end[:2] - p_end_prev) / dt
+                v_endpoint = (p_end[:2] - p_end_prev) / dt
             else:
-                v_h = np.zeros(2)
+                v_endpoint = np.zeros(2)
+            v_current = np.array(s.velocity, dtype=float)[:2]
+            v_h = DAMP_BLEND_ENDPOINT * v_endpoint + (1.0 - DAMP_BLEND_ENDPOINT) * v_current
 
             if r_mag <= R_DEADBAND:
                 # Close enough to the target: stop lateral steering and fly
