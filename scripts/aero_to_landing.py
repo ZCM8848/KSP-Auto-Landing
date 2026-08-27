@@ -62,6 +62,7 @@ R_DEADBAND = 0.0               # horizontal endpoint miss considered "on target"
 NOSE_SMOOTHING = 0.2           # EMA weight for nose direction (0=frozen, 1=instant)
 ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
+WIND_ROLL_SINGULARITY = 0.05   # freeze wind-aligned roll ref when sin²(nose,vel) below this
 
 # Action group numbers used by toggle_action_group in this vessel setup.
 # These match the KSP UI labels directly (verified live).
@@ -86,7 +87,9 @@ def _perpendicular_to(v: np.ndarray) -> np.ndarray:
     return _normalize(perp)
 
 
-def _wind_up(nose: Sequence[float], vel: Sequence[float]) -> tuple[float, float, float]:
+def _wind_up(
+    nose: Sequence[float], vel: Sequence[float]
+) -> tuple[tuple[float, float, float], float]:
     """Return an ``up_reference`` vector so the belly faces the airflow.
 
     *nose* is the commanded nose direction and *vel* the vessel velocity,
@@ -94,19 +97,25 @@ def _wind_up(nose: Sequence[float], vel: Sequence[float]) -> tuple[float, float,
     (wind blows into the velocity vector), so the side of the rocket
     opposite its dorsal axis is rolled to face the component of *vel*
     perpendicular to the nose.
+
+    Returns:
+        ``(up, sin2)`` where ``sin2`` is the squared sine of the angle
+        between *nose* and *vel*.  ``sin2`` is small near the roll
+        singularity (nose anti-parallel to velocity); callers should freeze
+        ``up`` when it drops below a threshold.
     """
     d = np.asarray(nose, dtype=float)
     v = np.asarray(vel, dtype=float)
     n = float(np.linalg.norm(v))
     if n < 1e-6:
-        return (1.0, 0.0, 0.0)
+        return (1.0, 0.0, 0.0), 0.0
     belly = v / n
     perp = belly - np.dot(belly, d) * d
-    n2 = float(np.dot(perp, perp))
-    if n2 < 1e-12:
-        return (1.0, 0.0, 0.0)
-    roof = -perp / np.sqrt(n2)
-    return (float(roof[0]), float(roof[1]), float(roof[2]))
+    sin2 = float(np.dot(perp, perp))
+    if sin2 < 1e-12:
+        return (1.0, 0.0, 0.0), 0.0
+    roof = -perp / np.sqrt(sin2)
+    return (float(roof[0]), float(roof[1]), float(roof[2])), sin2
 
 
 def _build_density_fn(drag_spec: Any) -> tuple[Any, np.ndarray, np.ndarray]:
@@ -235,6 +244,7 @@ def main() -> None:
         # roll_target so the belly faces the wind.
         attitude_ctrl = LocalAttitudeController(settling_time=0.3)
         aero_local_active = False
+        wind_up_prev: tuple[float, float, float] = (0.0, 0.0, 1.0)
 
         while True:
             pacer.tick()
@@ -461,9 +471,13 @@ def main() -> None:
 
             # Aero glide: zero throttle, attitude-only control.
             # Active roll: belly faces the airflow via an explicit roll_target
-            # tracked by the client-side attitude controller.
-            up_wind = _wind_up(nose, v)
-            sticks = attitude_ctrl.step(s, nose, roll_target=0.0, up=up_wind)
+            # tracked by the client-side attitude controller.  Near the roll
+            # singularity (nose anti-parallel to velocity) freeze the up
+            # reference so it -- and the pitch/yaw body basis -- stops jumping.
+            up_wind, wind_sin2 = _wind_up(nose, v)
+            if wind_sin2 >= WIND_ROLL_SINGULARITY:
+                wind_up_prev = up_wind
+            sticks = attitude_ctrl.step(s, nose, roll_target=0.0, up=wind_up_prev)
             b.controls.apply(
                 pitch=sticks.pitch,
                 yaw=sticks.yaw,
