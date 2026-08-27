@@ -5,8 +5,9 @@ the first few action groups, and toggle/set a chosen UI action group. This is
 useful for verifying that action-group mappings are wired correctly before
 using them in a flight script.
 
-kRPC action groups are 0-indexed, while the KSP UI labels them 1-10. This
-script accepts UI numbers and converts internally.
+In this setup, kRPC action group numbers match the KSP UI labels 1-10
+directly (empirically verified), so no conversion is needed. The script
+accepts UI numbers and passes them straight through.
 
 Examples::
 
@@ -32,10 +33,13 @@ DEFAULT_VESSEL = "Booster 2"
 
 
 def _ui_to_krpc(ui_group: int) -> int:
-    """Convert a KSP UI action-group number (1-10) to a kRPC index (0-9)."""
+    """Return the kRPC action-group number for a KSP UI label.
+
+    Empirically, this setup uses the same 1-10 numbering as the UI.
+    """
     if not 1 <= ui_group <= 10:
         raise ValueError(f"UI action group must be 1-10, got {ui_group}")
-    return ui_group - 1
+    return ui_group
 
 
 def main(argv: list[str] | None = None) -> int:

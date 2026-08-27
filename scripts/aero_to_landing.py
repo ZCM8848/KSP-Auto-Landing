@@ -59,9 +59,10 @@ ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
 LINE_LEN = 50000.0             # length of debug vertical markers (m)
 
-# kRPC action groups are 0-indexed. KSP UI action group N -> kRPC group N-1.
-AG2_THREE_TO_FIVE = 1          # KSP UI action group 2: 3-engine / 5-engine switch
-AG3_THREE_TO_ONE = 2           # KSP UI action group 3: 3-engine / 1-engine switch
+# Action group numbers: in this setup, kRPC set_action_group uses the same
+# 1-10 numbering as the KSP UI (despite stock docs saying 0-9).
+AG2_THREE_TO_FIVE = 2          # KSP UI action group 2: 3-engine / 5-engine switch
+AG3_THREE_TO_ONE = 3           # KSP UI action group 3: 3-engine / 1-engine switch
 
 
 def _normalize(v: np.ndarray) -> np.ndarray:
