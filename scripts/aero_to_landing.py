@@ -210,6 +210,8 @@ def main() -> None:
 
         phase = 0  # 0=aero, 1=landing burn A, 2=landing burn B
         target_pos_b = np.array([0.0, 0.0, half_length])
+        p_end_prev: np.ndarray | None = None
+        t_prev: float | None = None
 
         while True:
             pacer.tick()
@@ -337,10 +339,8 @@ def main() -> None:
 
             if traj.endpoint is not None:
                 p_end = np.asarray(traj.endpoint.position, dtype=float)
-                v_end = np.asarray(traj.final_velocity, dtype=float)
             elif traj.impact is not None:
                 p_end = np.asarray(traj.impact.position, dtype=float)
-                v_end = np.asarray(traj.final_velocity, dtype=float)
             else:
                 print("Prediction did not reach endpoint or impact — skipping frame.")
                 continue
@@ -367,10 +367,21 @@ def main() -> None:
                 continue
 
             # PD lateral-acceleration command from predicted endpoint miss.
+            # Damping uses the frame-to-frame velocity of the predicted endpoint,
+            # which directly measures how fast the landing point is drifting.
             r = p_end[:2]
-            v_h = v_end[:2]
+            now = time.monotonic()
+            if p_end_prev is not None and t_prev is not None:
+                dt = max(now - t_prev, 1.0 / LOOP_HZ)
+                v_h = (p_end[:2] - p_end_prev) / dt
+            else:
+                v_h = np.zeros(2)
             a_cmd = -KP * r - KD * v_h
             a_mag = float(np.linalg.norm(a_cmd))
+
+            # Save endpoint history for the next frame's damping term.
+            p_end_prev = p_end[:2].copy()
+            t_prev = now
 
             # Available lateral acceleration at current dynamic pressure.
             v = np.array(s.velocity, dtype=float)
