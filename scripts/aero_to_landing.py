@@ -43,7 +43,7 @@ from recovery.ksp.sampling import sample_lift_table
 # User-tunable parameters
 # ---------------------------------------------------------------------------
 
-VESSEL = "Booster 2"
+VESSEL = "Booster B"
 TARGET_LON = LAUNCHPAD_JNSQ.lon
 TARGET_LAT = LAUNCHPAD_JNSQ.lat
 
