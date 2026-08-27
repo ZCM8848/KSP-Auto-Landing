@@ -273,6 +273,12 @@ def main() -> None:
                     print(msg, file=log)
                     log.flush()
                     phase = 2
+                    b.controls.apply(legs=True, gear=True)
+                    b.controls.set_action_group(3, True)
+                    deploy_msg = "Deployed landing legs/gear and activated action group 3."
+                    print(deploy_msg)
+                    print(deploy_msg, file=log)
+                    log.flush()
                     t_last_log = time.monotonic()
                     continue
 
