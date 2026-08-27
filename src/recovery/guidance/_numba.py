@@ -400,6 +400,7 @@ def rk4_controlled(
     dt: float,
     max_n: int,
     out: np.ndarray,
+    stop_on_endpoint: bool = False,
 ) -> tuple[int, int]:
     """Fixed-step RK4 with piecewise-constant virtual control and full output.
 
@@ -412,7 +413,8 @@ def rk4_controlled(
     Every step is written to ``out[step, :] = [t, rx, ry, rz, vx, vy, vz, m]``.
 
     Returns ``(n_steps, hit)`` where ``hit=1`` if the surface sphere was
-    crossed and ``n_steps`` is the number of rows written.
+    crossed, ``hit=2`` if the radial velocity crossed zero from below
+    (``stop_on_endpoint``), and ``n_steps`` is the number of rows written.
     """
     n_seg = seg_throttle_kind.shape[0]
     thr_kind = seg_throttle_kind[0]
@@ -464,9 +466,9 @@ def rk4_controlled(
                     fired[j] = 1
 
         # ---- throttle rule + mass flow ------------------------------------
-        vrad = vx * upx + vy * upy + vz * upz
+        vrad_prev = vx * upx + vy * upy + vz * upz
         g_local = mu / (dist * dist)
-        thr = _throttle_jit(thr_kind, thr_p1, thr_p2, m, thrust, g_local, alt, vrad)
+        thr = _throttle_jit(thr_kind, thr_p1, thr_p2, m, thrust, g_local, alt, vrad_prev)
         mdot = thr * thrust / (isp * g0) if (thrust > 0.0 and isp > 0.0) else 0.0
 
         # ---- record state --------------------------------------------------
@@ -530,5 +532,20 @@ def rk4_controlled(
             out[step, 5] += lam * (vy - out[step, 5])
             out[step, 6] += lam * (vz - out[step, 6])
             return step + 1, 1
+
+        # ---- endpoint (interpolate v·up = 0 crossing) ----------------------
+        if stop_on_endpoint:
+            vrad_post = vx * upx + vy * upy + vz * upz
+            if vrad_prev < 0.0 and vrad_post >= 0.0:
+                lam = -vrad_prev / (vrad_post - vrad_prev)
+                out[step, 0] += lam * dt
+                out[step, 1] += lam * (rx - out[step, 1])
+                out[step, 2] += lam * (ry - out[step, 2])
+                out[step, 3] += lam * (rz - out[step, 3])
+                out[step, 4] += lam * (vx - out[step, 4])
+                out[step, 5] += lam * (vy - out[step, 5])
+                out[step, 6] += lam * (vz - out[step, 6])
+                out[step, 7] += lam * (m - out[step, 7])
+                return step + 1, 2
 
     return max_n, 0

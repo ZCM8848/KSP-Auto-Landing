@@ -15,8 +15,8 @@ import pytest
 from recovery.guidance import (
     BrakeToThrottle,
     ConstantThrottle,
-    ControlSegment,
     ControlledPredictor,
+    ControlSegment,
     FixedNose,
     LandingPredictor,
     LiftDragModel,
@@ -210,3 +210,51 @@ def test_constant_throttle_out_of_range_rejected() -> None:
     with pytest.raises(ValueError):
         VirtualControl((ControlSegment(throttle=ConstantThrottle(1.5), max_thrust=0.0,
                                        isp=0.0, nose=RetrogradeNose()),), 10000.0)
+
+
+# ---------------------------------------------------------------------------
+# Endpoint termination (stop_on_endpoint)
+# ---------------------------------------------------------------------------
+
+
+def test_stop_on_endpoint_halts_at_v_dot_up_zero(body: BodySpec, lift_model: LiftDragModel) -> None:
+    """With ``stop_on_endpoint=True`` the propagator stops when radial velocity
+    crosses zero from below, and the reported endpoint state has v_z ~ 0.
+    """
+    controlled = ControlledPredictor.from_body_spec(body, aero=lift_model,
+                                                    dt=0.1, t_max=600.0)
+    pos = (0.0, 0.0, 50000.0)
+    vel = (0.0, 0.0, -100.0)
+    thrust = M0 * 15.0
+    ctl = VirtualControl((
+        ControlSegment(throttle=ConstantThrottle(1.0), max_thrust=thrust,
+                       isp=300.0, nose=RetrogradeNose()),
+    ), dry_mass=10000.0)
+
+    tr = controlled.predict(pos, vel, M0, ctl, stop_on_endpoint=True)
+    assert tr.endpoint is not None
+    assert tr.impact is None
+    endpoint_v = tr.final_velocity
+    assert abs(float(endpoint_v[2])) < 1.0, (
+        f"endpoint vertical velocity {endpoint_v[2]:.3f} m/s should be ~0"
+    )
+
+    center = np.asarray(CENTER, dtype=float)
+    endpoint_alt = float(np.linalg.norm(np.asarray(tr.final_position) - center) - R)
+    assert 48500.0 < endpoint_alt < 50000.0, f"endpoint altitude {endpoint_alt:.1f} m out of range"
+
+
+def test_endpoint_impact_without_crossing(body: BodySpec, lift_model: LiftDragModel) -> None:
+    r"""With ``stop_on_endpoint=True`` but insufficient thrust, the vessel hits the
+    surface before ``v \cdot up`` can cross zero; the impact point is still
+    reported.
+    """
+    controlled = ControlledPredictor.from_body_spec(body, aero=lift_model,
+                                                    dt=0.1, t_max=600.0)
+    pos = (0.0, 0.0, 50000.0)
+    vel = (0.0, 0.0, -1000.0)
+    ctl = VirtualControl((ControlSegment.coast(),), dry_mass=10000.0)
+
+    tr = controlled.predict(pos, vel, M0, ctl, stop_on_endpoint=True)
+    assert tr.endpoint is None
+    assert tr.impact is not None

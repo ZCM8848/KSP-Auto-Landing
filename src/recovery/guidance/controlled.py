@@ -37,11 +37,12 @@ from .predictor import ImpactResult
 
 @dataclass
 class Trajectory:
-    """The full predicted state history returned as feedback.
+    r"""The full predicted state history returned as feedback.
 
     All arrays are aligned: row ``i`` is the state at ``times[i]``.  ``impact``
     is populated (with the exact crossing state) only when the surface was
-    reached within ``t_max``.
+    reached within ``t_max``; ``endpoint`` is populated when the propagation was
+    stopped at the ``v \cdot up = 0`` crossing requested by ``stop_on_endpoint``.
     """
 
     times: np.ndarray
@@ -59,7 +60,10 @@ class Trajectory:
     impact: ImpactResult | None
     """Surface-crossing state, or ``None`` if no impact within ``t_max``."""
 
-    hit: bool
+    endpoint: ImpactResult | None = None
+    r"""Endpoint state (``v \cdot up = 0``), or ``None`` if not requested/reached."""
+
+    hit: bool = False
     """Whether the surface sphere was reached."""
 
     @property
@@ -171,8 +175,9 @@ class ControlledPredictor:
         *,
         dt: float | None = None,
         t_max: float | None = None,
+        stop_on_endpoint: bool = False,
     ) -> Trajectory:
-        """Propagate *control* from the given state and return the trajectory.
+        r"""Propagate *control* from the given state and return the trajectory.
 
         Args:
             position: Initial position in the target frame (m).
@@ -181,6 +186,8 @@ class ControlledPredictor:
             control: The virtual control to follow.
             dt: Override the fixed integration step (s).
             t_max: Override the maximum propagation time (s).
+            stop_on_endpoint: If ``True``, stop at the first ``v \cdot up = 0``
+                crossing from below instead of continuing to the surface.
         """
         if mass <= 0.0:
             raise ValueError(f"mass must be positive, got {mass}")
@@ -251,6 +258,7 @@ class ControlledPredictor:
             seg_isp, seg_nose_kind, seg_nose_fixed, self._up,
             float(control.dry_mass), float(control.g0),
             use_dt, max_n, out,
+            bool(stop_on_endpoint),
         )
 
         times = out[:n_steps, 0]
@@ -259,8 +267,15 @@ class ControlledPredictor:
         masses = out[:n_steps, 7]
 
         impact = None
+        endpoint = None
         if hit == 1:
             impact = ImpactResult(
+                position=(float(positions[-1, 0]), float(positions[-1, 1]),
+                          float(positions[-1, 2])),
+                time=float(times[-1]),
+            )
+        elif hit == 2:
+            endpoint = ImpactResult(
                 position=(float(positions[-1, 0]), float(positions[-1, 1]),
                           float(positions[-1, 2])),
                 time=float(times[-1]),
@@ -272,5 +287,6 @@ class ControlledPredictor:
             velocities=velocities,
             masses=masses,
             impact=impact,
+            endpoint=endpoint,
             hit=bool(hit == 1),
         )
