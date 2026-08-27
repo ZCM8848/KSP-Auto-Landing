@@ -59,10 +59,10 @@ ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
 LINE_LEN = 50000.0             # length of debug vertical markers (m)
 
-# Action group numbers: in this setup, kRPC set_action_group uses the same
-# 1-10 numbering as the KSP UI (despite stock docs saying 0-9).
-AG2_THREE_TO_FIVE = 2          # KSP UI action group 2: 3-engine / 5-engine switch
-AG3_THREE_TO_ONE = 3           # KSP UI action group 3: 3-engine / 1-engine switch
+# Action group numbers used by toggle_action_group in this vessel setup.
+# These match the KSP UI labels directly (verified live).
+AG2_THREE_TO_FIVE = 2          # UI action group 2: toggle between 3-engine and 5-engine
+AG3_THREE_TO_ONE = 3           # UI action group 3: toggle between 3-engine and 1-engine
 
 
 def _normalize(v: np.ndarray) -> np.ndarray:
@@ -279,11 +279,10 @@ def main() -> None:
                     log.flush()
                     phase = 2
                     b.controls.apply(legs=True, gear=True)
-                    b.controls.set_action_group(AG2_THREE_TO_FIVE, False)
-                    b.controls.set_action_group(AG3_THREE_TO_ONE, True)
+                    b.controls.toggle_action_group(AG3_THREE_TO_ONE)
                     deploy_msg = (
-                        "Deployed landing legs/gear, deactivated action group 2 "
-                        "(3/5) and activated action group 3 (3/1)."
+                        "Deployed landing legs/gear and toggled action group 3 "
+                        "(3-engine -> 1-engine switch)."
                     )
                     print(deploy_msg)
                     print(deploy_msg, file=log)
@@ -355,8 +354,8 @@ def main() -> None:
                 print(msg, file=log)
                 log.flush()
                 phase = 1
-                b.controls.set_action_group(AG2_THREE_TO_FIVE, True)
-                ag2_msg = "Activated action group 2 (3/5 engine switch)."
+                b.controls.toggle_action_group(AG2_THREE_TO_FIVE)
+                ag2_msg = "Toggled action group 2 (3-engine -> 5-engine switch)."
                 print(ag2_msg)
                 print(ag2_msg, file=log)
                 log.flush()
