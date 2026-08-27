@@ -274,8 +274,12 @@ def main() -> None:
                     log.flush()
                     phase = 2
                     b.controls.apply(legs=True, gear=True)
+                    b.controls.set_action_group(2, False)
                     b.controls.set_action_group(3, True)
-                    deploy_msg = "Deployed landing legs/gear and activated action group 3."
+                    deploy_msg = (
+                        "Deployed landing legs/gear, deactivated action group 2 "
+                        "and activated action group 3."
+                    )
                     print(deploy_msg)
                     print(deploy_msg, file=log)
                     log.flush()
@@ -346,6 +350,11 @@ def main() -> None:
                 print(msg, file=log)
                 log.flush()
                 phase = 1
+                b.controls.set_action_group(2, True)
+                ag2_msg = "Activated action group 2 (landing burn start)."
+                print(ag2_msg)
+                print(ag2_msg, file=log)
+                log.flush()
                 t_last_log = now
                 continue
 
