@@ -279,10 +279,14 @@ def main() -> None:
                     log.flush()
                     phase = 2
                     b.controls.apply(legs=True, gear=True)
+                    # Return to 3-engine mode before using the 3/1 switch to
+                    # select the single central engine for touchdown.
+                    b.controls.toggle_action_group(AG2_THREE_TO_FIVE)
                     b.controls.toggle_action_group(AG3_THREE_TO_ONE)
                     deploy_msg = (
-                        "Deployed landing legs/gear and toggled action group 3 "
-                        "(3-engine -> 1-engine switch)."
+                        "Deployed landing legs/gear, toggled action group 2 "
+                        "(5-engine -> 3-engine) and action group 3 "
+                        "(3-engine -> 1-engine)."
                     )
                     print(deploy_msg)
                     print(deploy_msg, file=log)
