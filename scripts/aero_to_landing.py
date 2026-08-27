@@ -1,12 +1,17 @@
-"""Aero guidance followed by landing-burn phase A.
+"""Aero guidance followed by landing-burn phases A and B.
 
-Phase A (aero): unpowered glide with aerodynamic lift to correct the predicted
+Phase 0 (aero): unpowered glide with aerodynamic lift to correct the predicted
 landing-burn start point toward the target.
 
-Phase B (landing burn): once the predicted endpoint drops through the ignition
+Phase 1 (landing burn A): once the predicted endpoint drops through the ignition
 plane ``IGNITE_MARGIN``, the vehicle aligns strictly retrograde and modulates
 throttle to reduce absolute speed to ``PEG_VELOCITY`` exactly at
-``IGNITE_MARGIN``.  The script exits at that handoff state.
+``IGNITE_MARGIN``.
+
+Phase 2 (landing burn B): when absolute speed has dropped below
+``PEG_VELOCITY``, polynomial guidance drives both position and velocity to zero
+at the touchdown height (rocket half-length above the target).  After touchdown
+throttle is cut and the AutoPilot is disengaged.
 
 Usage::
 
@@ -17,6 +22,7 @@ from __future__ import annotations
 
 import math
 import time
+from collections import Counter
 from typing import Any
 
 import numpy as np
@@ -44,6 +50,8 @@ TARGET_LAT = LAUNCHPAD_JNSQ.lat
 TARGET_THROTTLE = 0.9          # landing-burn throttle used in the endpoint prediction
 IGNITE_MARGIN = 500.0          # ignite when predicted endpoint drops below this height (m)
 PEG_VELOCITY = 30.0            # target absolute speed at IGNITE_MARGIN (m/s)
+T_GAIN = 2.0                   # time-to-go gain for phase-B polynomial guidance
+T_MIN = 5.0                    # minimum time-to-go for phase-B (s)
 ALPHA_MAX_DEG = 15.0           # maximum angle of attack (deg)
 KP = 0.1                       # position gain on predicted endpoint miss (1/s^2)
 KD = 0.2                       # velocity-damping gain (1/s); increase to suppress overshoot
@@ -85,6 +93,25 @@ def _build_density_fn(drag_spec: Any) -> tuple[Any, np.ndarray, np.ndarray]:
     return _interp, alts, vals
 
 
+def get_half_rocket_length(rocket: Any) -> float:
+    """Return the average distance of parts below the CoM to the CoM.
+
+    This estimates how far the rocket's bottom is below its center of mass,
+    which is used as the target touchdown height for the CoM.
+    """
+    part_distance = [
+        float(np.linalg.norm(part.position(rocket.reference_frame)))
+        for part in rocket.parts.all
+        if part.position(rocket.reference_frame)[1] < 0
+    ]
+    if not part_distance:
+        return 0.0
+    value_weight_dict = dict(Counter(part_distance))
+    total_weight = len(part_distance)
+    weighted_sum = sum(value * weight for value, weight in value_weight_dict.items())
+    return weighted_sum / total_weight
+
+
 def main() -> None:
     with ConnectionManager(address="127.0.0.1") as km:
         km.enable_debug()
@@ -95,6 +122,7 @@ def main() -> None:
         frame = b.frame("target")
         body = b.raw.orbit.body
         flight = b.raw.flight(frame)
+        half_length = get_half_rocket_length(b.raw)
 
         b.physics_range = 200000.0
         b.controls.target_smoothing_time = 0.3
@@ -156,8 +184,8 @@ def main() -> None:
         log = open("aero_to_landing.log", "w", encoding="utf-8")
 
         header = (
-            f"{'t':>6s}  {'end_x':>10s}  {'end_y':>10s}  {'end_z':>10s}  "
-            f"{'label':>8s}  {'miss':>10s}  {'alpha':>6s}  {'throttle':>8s}"
+            f"{'t':>6s}  {'phase':>7s}  {'alt':>10s}  {'|v|':>10s}  "
+            f"{'throttle':>8s}  {'end_x':>10s}  {'end_y':>10s}  {'end_z':>10s}"
         )
         print(header)
         print(header, file=log)
@@ -168,13 +196,15 @@ def main() -> None:
             f"predicted landing-burn throttle={TARGET_THROTTLE}, "
             f"ignite margin={IGNITE_MARGIN:.0f} m, "
             f"PEG velocity={PEG_VELOCITY:.1f} m/s, "
+            f"touchdown height={half_length:.1f} m, "
             f"max AoA={ALPHA_MAX_DEG} deg, cl_sign={'+' if cl_at_max >= 0 else '-'}"
         )
         print(intro)
         print(intro, file=log)
         log.flush()
 
-        landing_burn = False
+        phase = 0  # 0=aero, 1=landing burn A, 2=landing burn B
+        target_pos_b = np.array([0.0, 0.0, half_length])
 
         while True:
             pacer.tick()
@@ -182,7 +212,52 @@ def main() -> None:
             if s is None:
                 continue
 
-            if landing_burn:
+            if phase == 2:
+                # Landing-burn phase B: polynomial guidance to touchdown.
+                pos = np.array(s.position, dtype=float)
+                vel = np.array(s.velocity, dtype=float)
+                v_mag = float(np.linalg.norm(vel))
+                alt = s.surface_altitude
+
+                if s.landed:
+                    msg = f"Touchdown detected at alt={alt:.1f} m, |v|={v_mag:.1f} m/s"
+                    print(msg)
+                    print(msg, file=log)
+                    log.flush()
+                    b.controls.cut_thrust()
+                    break
+
+                r = pos - target_pos_b
+                v_z = abs(vel[2])
+                T = max(T_MIN, T_GAIN * alt / max(v_z, 1e-3))
+                a_cmd = -6.0 * r / (T * T) - 4.0 * vel / T
+                g_vec = np.array([0.0, 0.0, -body_spec.surface_gravity])
+                a_thrust = a_cmd - g_vec
+                a_thrust_mag = float(np.linalg.norm(a_thrust))
+                throttle = float(np.clip(s.mass * a_thrust_mag / s.max_thrust, 0.0, 1.0))
+                thrust_dir = a_thrust / a_thrust_mag if a_thrust_mag > 1e-6 else -_normalize(vel)
+
+                b.controls.apply(
+                    target_direction=tuple(thrust_dir),
+                    reference_frame=frame,
+                    throttle=throttle,
+                )
+
+                now = time.monotonic()
+                if now - t_last_log >= 1.0:
+                    line = (
+                        f"{now - t_start:6.1f}  {'burn_b':>7s}  {alt:10.1f}  "
+                        f"{v_mag:10.1f}  {throttle:8.2f}  "
+                        f"{target_pos_b[0]:10.1f}  {target_pos_b[1]:10.1f}  "
+                        f"{target_pos_b[2]:10.1f}"
+                    )
+                    print(line)
+                    print(line, file=log)
+                    log.flush()
+                    t_last_log = now
+                continue
+
+            if phase == 1:
                 # Landing-burn phase A: brake absolute speed to PEG_VELOCITY
                 # at altitude IGNITE_MARGIN, thrust strictly retrograde.
                 v = np.array(s.velocity, dtype=float)
@@ -192,12 +267,14 @@ def main() -> None:
                 if alt <= IGNITE_MARGIN and v_mag <= PEG_VELOCITY:
                     msg = (
                         f"Landing burn phase A complete: "
-                        f"alt={alt:.1f} m, |v|={v_mag:.1f} m/s"
+                        f"alt={alt:.1f} m, |v|={v_mag:.1f} m/s; entering phase B"
                     )
                     print(msg)
                     print(msg, file=log)
                     log.flush()
-                    break
+                    phase = 2
+                    t_last_log = time.monotonic()
+                    continue
 
                 acc = (
                     (v_mag * v_mag - PEG_VELOCITY * PEG_VELOCITY)
@@ -217,9 +294,9 @@ def main() -> None:
                 now = time.monotonic()
                 if now - t_last_log >= 1.0:
                     line = (
-                        f"{now - t_start:6.1f}  "
-                        f"{alt:10.1f}  {v_mag:10.1f}  {throttle:10.2f}  "
-                        f"{'burn':>8s}  {'---':>10s}  {'---':>6s}  {throttle:8.2f}"
+                        f"{now - t_start:6.1f}  {'burn_a':>7s}  {alt:10.1f}  "
+                        f"{v_mag:10.1f}  {throttle:8.2f}  "
+                        f"{s.position.x:10.1f}  {s.position.y:10.1f}  {s.position.z:10.1f}"
                     )
                     print(line)
                     print(line, file=log)
@@ -243,11 +320,9 @@ def main() -> None:
             if traj.endpoint is not None:
                 p_end = np.asarray(traj.endpoint.position, dtype=float)
                 v_end = np.asarray(traj.final_velocity, dtype=float)
-                end_label = "endpoint"
             elif traj.impact is not None:
                 p_end = np.asarray(traj.impact.position, dtype=float)
                 v_end = np.asarray(traj.final_velocity, dtype=float)
-                end_label = "impact"
             else:
                 print("Prediction did not reach endpoint or impact — skipping frame.")
                 continue
@@ -264,7 +339,7 @@ def main() -> None:
                 print(msg)
                 print(msg, file=log)
                 log.flush()
-                landing_burn = True
+                phase = 1
                 t_last_log = now
                 continue
 
@@ -324,12 +399,9 @@ def main() -> None:
             now = time.monotonic()
             if now - t_last_log >= 1.0:
                 line = (
-                    f"{now - t_start:6.1f}  "
-                    f"{p_end[0]:10.1f}  {p_end[1]:10.1f}  {p_end[2]:10.1f}  "
-                    f"{end_label:>8s}  "
-                    f"{np.hypot(p_end[0], p_end[1]):10.1f}  "
-                    f"{math.degrees(alpha_cmd):6.2f}  "
-                    f"{0.0:8.2f}"
+                    f"{now - t_start:6.1f}  {'aero':>7s}  {s.surface_altitude:10.1f}  "
+                    f"{v_mag:10.1f}  {0.0:8.2f}  "
+                    f"{p_end[0]:10.1f}  {p_end[1]:10.1f}  {p_end[2]:10.1f}"
                 )
                 print(line)
                 print(line, file=log)
