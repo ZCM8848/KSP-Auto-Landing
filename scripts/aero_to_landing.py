@@ -29,7 +29,9 @@ from typing import Any
 import numpy as np
 
 from recovery import ConnectionManager, FramePacer
+from recovery.control.local_attitude import roll_from_axes
 from recovery.data.targets import LZ3_JNSQ
+from recovery.types import Vector3
 from recovery.guidance import (
     ConstantThrottle,
     ControlledPredictor,
@@ -238,9 +240,10 @@ def main() -> None:
         t_prev: float | None = None
         nose_prev: np.ndarray | None = None
 
-        # Wind-aligned roll reference for the aero phase.  Starts as zenith
-        # and is updated whenever the wind direction is well-defined.
-        wind_up_prev: tuple[float, float, float] = (0.0, 0.0, 1.0)
+        # Wind-aligned roll angle for the aero phase (degrees, kRPC convention).
+        # Starts at 0 (dorsal toward zenith) and is updated whenever the wind
+        # direction is well-defined.
+        roll_wind_prev: float = 0.0
 
         while True:
             pacer.tick()
@@ -457,16 +460,21 @@ def main() -> None:
             nose = tuple(nose)
 
             # Aero glide: zero throttle, attitude-only control.
-            # Keep the belly facing the airflow via the kRPC AutoPilot's
-            # up_reference.  Near the roll singularity (nose anti-parallel to
-            # velocity) freeze the up reference so it stops jumping.
+            # Actively command a roll angle so the belly faces the airflow.
+            # Near the roll singularity (nose anti-parallel to velocity) freeze
+            # the commanded roll so it stops jumping.
             up_wind, wind_sin2 = _wind_up(nose, v)
             if wind_sin2 >= WIND_ROLL_SINGULARITY:
-                wind_up_prev = up_wind
+                roll_rad = roll_from_axes(
+                    Vector3(*nose), Vector3(*(-np.asarray(up_wind))), (0.0, 0.0, 1.0)
+                )
+                if roll_rad is not None:
+                    roll_wind_prev = math.degrees(roll_rad)
             b.controls.apply(
                 target_direction=nose,
                 reference_frame=frame,
-                up=wind_up_prev,
+                up=(0.0, 0.0, 1.0),
+                roll_angle=roll_wind_prev,
                 throttle=0.0,
             )
 
