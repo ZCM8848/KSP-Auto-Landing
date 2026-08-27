@@ -5,7 +5,7 @@ the first few action groups, and toggle/set a chosen UI action group. This is
 useful for verifying that action-group mappings are wired correctly before
 using them in a flight script.
 
-In this setup, kRPC action group numbers match the KSP UI labels 1-10
+In this setup, kRPC action group numbers match the KSP UI labels 1-9
 directly (empirically verified), so no conversion is needed. The script
 accepts UI numbers and passes them straight through.
 
@@ -37,8 +37,8 @@ def _ui_to_krpc(ui_group: int) -> int:
 
     Empirically, this setup uses the same 1-10 numbering as the UI.
     """
-    if not 1 <= ui_group <= 10:
-        raise ValueError(f"UI action group must be 1-10, got {ui_group}")
+    if not 1 <= ui_group <= 9:
+        raise ValueError(f"UI action group must be 1-9, got {ui_group}")
     return ui_group
 
 
@@ -55,13 +55,13 @@ def main(argv: list[str] | None = None) -> int:
         "--toggle",
         type=int,
         metavar="N",
-        help="Toggle UI action group N (1-10) and print the result.",
+        help="Toggle UI action group N (1-9) and print the result.",
     )
     parser.add_argument(
         "--group",
         type=int,
         metavar="N",
-        help="UI action group N (1-10) to set with --state.",
+        help="UI action group N (1-9) to set with --state.",
     )
     parser.add_argument(
         "--state",
@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Connected to vessel: {args.vessel}")
         print("Current action group states (UI number -> kRPC index):")
         states_before = {}
-        for ui_group in range(1, 11):
+        for ui_group in range(1, 10):
             krpc_group = _ui_to_krpc(ui_group)
             state = ctrl.get_action_group(krpc_group)
             states_before[ui_group] = state
