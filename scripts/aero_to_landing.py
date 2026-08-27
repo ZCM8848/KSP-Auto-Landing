@@ -64,6 +64,10 @@ NOSE_SMOOTHING = 0.2           # EMA weight for nose direction (0=frozen, 1=inst
 ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
 WIND_ROLL_SINGULARITY = 0.05   # freeze wind-aligned roll ref when sin²(nose,vel) below this
+# Horizontal roll reference: keeps roll well-defined when the nose passes
+# through the zenith (vertical flight path).  Must be perpendicular to the
+# local vertical; (1,0,0) is tangent to the target frame.
+ROLL_UP_REFERENCE: tuple[float, float, float] = (1.0, 0.0, 0.0)
 
 # Action group numbers used by toggle_action_group in this vessel setup.
 # These match the KSP UI labels directly (verified live).
@@ -241,8 +245,8 @@ def main() -> None:
         nose_prev: np.ndarray | None = None
 
         # Wind-aligned roll angle for the aero phase (degrees, kRPC convention).
-        # Starts at 0 (dorsal toward zenith) and is updated whenever the wind
-        # direction is well-defined.
+        # Starts at 0 (dorsal toward ROLL_UP_REFERENCE) and is updated whenever
+        # the wind direction is well-defined.
         roll_wind_prev: float = 0.0
 
         while True:
@@ -461,19 +465,26 @@ def main() -> None:
 
             # Aero glide: zero throttle, attitude-only control.
             # Actively command a roll angle so the belly faces the airflow.
-            # Near the roll singularity (nose anti-parallel to velocity) freeze
-            # the commanded roll so it stops jumping.
+            # Use a horizontal up reference so roll stays well-defined when the
+            # nose passes through the zenith, and unwrap the angle to avoid
+            # 360° jumps.
             up_wind, wind_sin2 = _wind_up(nose, v)
             if wind_sin2 >= WIND_ROLL_SINGULARITY:
                 roll_rad = roll_from_axes(
-                    Vector3(*nose), Vector3(*(-np.asarray(up_wind))), (0.0, 0.0, 1.0)
+                    Vector3(*nose), Vector3(*(-np.asarray(up_wind))), ROLL_UP_REFERENCE
                 )
                 if roll_rad is not None:
-                    roll_wind_prev = math.degrees(roll_rad)
+                    roll_deg = math.degrees(roll_rad)
+                    # Unwrap: pick the branch closest to the previous command.
+                    while roll_deg - roll_wind_prev > 180.0:
+                        roll_deg -= 360.0
+                    while roll_deg - roll_wind_prev < -180.0:
+                        roll_deg += 360.0
+                    roll_wind_prev = roll_deg
             b.controls.apply(
                 target_direction=nose,
                 reference_frame=frame,
-                up=(0.0, 0.0, 1.0),
+                up=ROLL_UP_REFERENCE,
                 roll_angle=roll_wind_prev,
                 throttle=0.0,
             )
