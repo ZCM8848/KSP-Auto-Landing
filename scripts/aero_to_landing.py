@@ -57,6 +57,7 @@ KP = 0.1                       # position gain on predicted endpoint miss (1/s^2
 KD = 0.15                       # velocity-damping gain (1/s); increase to suppress overshoot
 DAMP_BLEND_ENDPOINT = 0.5      # weight on predicted-endpoint velocity vs current velocity (0..1)
 R_DEADBAND = 3.0               # horizontal endpoint miss considered "on target" (m)
+NOSE_SMOOTHING = 0.2           # EMA weight for nose direction (0=frozen, 1=instant)
 ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
 LINE_LEN = 50000.0             # length of debug vertical markers (m)
@@ -214,6 +215,7 @@ def main() -> None:
         target_pos_b = np.array([0.0, 0.0, half_length])
         p_end_prev: np.ndarray | None = None
         t_prev: float | None = None
+        nose_prev: np.ndarray | None = None
 
         while True:
             pacer.tick()
@@ -419,7 +421,15 @@ def main() -> None:
             # The lift-table sign tells us which side the lift actually acts on.
             tilt_dir = lift_dir if cl_at_max >= 0.0 else -lift_dir
             nose = -v_hat * math.cos(alpha_cmd) + tilt_dir * math.sin(alpha_cmd)
-            nose = tuple(_normalize(nose))
+            nose = _normalize(nose)
+
+            # Low-pass filter the nose direction to suppress high-frequency
+            # attitude jitter when the predicted endpoint jitters near target.
+            if nose_prev is not None:
+                nose = NOSE_SMOOTHING * nose + (1.0 - NOSE_SMOOTHING) * nose_prev
+                nose = _normalize(nose)
+            nose_prev = nose.copy()
+            nose = tuple(nose)
 
             # Aero glide: zero throttle, attitude-only control.
             b.controls.apply(
