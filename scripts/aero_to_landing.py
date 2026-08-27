@@ -23,12 +23,14 @@ from __future__ import annotations
 import math
 import time
 from collections import Counter
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 
 from recovery import ConnectionManager, FramePacer
-from recovery.data.targets import LAUNCHPAD_JNSQ
+from recovery.control.local_attitude import LocalAttitudeController
+from recovery.data.targets import LZ3_JNSQ
 from recovery.guidance import (
     ConstantThrottle,
     ControlledPredictor,
@@ -44,11 +46,11 @@ from recovery.ksp.sampling import sample_lift_table
 # ---------------------------------------------------------------------------
 
 VESSEL = "Booster B"
-TARGET_LON = LAUNCHPAD_JNSQ.lon
-TARGET_LAT = LAUNCHPAD_JNSQ.lat
+TARGET_LON = LZ3_JNSQ.lon
+TARGET_LAT = LZ3_JNSQ.lat
 
 TARGET_THROTTLE = 0.9          # landing-burn throttle used in the endpoint prediction
-IGNITE_MARGIN = 200.0          # ignite when predicted endpoint drops below this height (m)
+IGNITE_MARGIN = 300.0          # ignite when predicted endpoint drops below this height (m)
 PEG_VELOCITY = 30.0            # target absolute speed at IGNITE_MARGIN (m/s)
 T_GAIN = 2.0                   # time-to-go gain for phase-B polynomial guidance
 T_MIN = 5.0                    # minimum time-to-go for phase-B (s)
@@ -56,11 +58,10 @@ ALPHA_MAX_DEG = 15.0           # maximum angle of attack (deg)
 KP = 0.1                       # position gain on predicted endpoint miss (1/s^2)
 KD = 0.15                       # velocity-damping gain (1/s); increase to suppress overshoot
 DAMP_BLEND_ENDPOINT = 0.5      # weight on predicted-endpoint velocity vs current velocity (0..1)
-R_DEADBAND = 3.0               # horizontal endpoint miss considered "on target" (m)
+R_DEADBAND = 0.0               # horizontal endpoint miss considered "on target" (m)
 NOSE_SMOOTHING = 0.2           # EMA weight for nose direction (0=frozen, 1=instant)
 ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
-LINE_LEN = 50000.0             # length of debug vertical markers (m)
 
 # Action group numbers used by toggle_action_group in this vessel setup.
 # These match the KSP UI labels directly (verified live).
@@ -83,6 +84,29 @@ def _perpendicular_to(v: np.ndarray) -> np.ndarray:
     else:
         perp = np.cross(v, np.array([1.0, 0.0, 0.0]))
     return _normalize(perp)
+
+
+def _wind_up(nose: Sequence[float], vel: Sequence[float]) -> tuple[float, float, float]:
+    """Return an ``up_reference`` vector so the belly faces the airflow.
+
+    *nose* is the commanded nose direction and *vel* the vessel velocity,
+    both expressed in the target frame.  The airflow is taken as *vel*
+    (wind blows into the velocity vector), so the side of the rocket
+    opposite its dorsal axis is rolled to face the component of *vel*
+    perpendicular to the nose.
+    """
+    d = np.asarray(nose, dtype=float)
+    v = np.asarray(vel, dtype=float)
+    n = float(np.linalg.norm(v))
+    if n < 1e-6:
+        return (1.0, 0.0, 0.0)
+    belly = v / n
+    perp = belly - np.dot(belly, d) * d
+    n2 = float(np.dot(perp, perp))
+    if n2 < 1e-12:
+        return (1.0, 0.0, 0.0)
+    roof = -perp / np.sqrt(n2)
+    return (float(roof[0]), float(roof[1]), float(roof[2]))
 
 
 def _build_density_fn(drag_spec: Any) -> tuple[Any, np.ndarray, np.ndarray]:
@@ -122,7 +146,6 @@ def get_half_rocket_length(rocket: Any) -> float:
 
 def main() -> None:
     with ConnectionManager(address="127.0.0.1") as km:
-        km.enable_debug()
         b = km.add_booster("aero", VESSEL)
         b.register_target(lon=TARGET_LON, lat=TARGET_LAT)
         b.start()
@@ -176,16 +199,6 @@ def main() -> None:
         alpha_max = math.radians(ALPHA_MAX_DEG)
         cl_at_max = float(np.interp(alpha_max, alpha_pts, cl_table))
 
-        # Debug markers: long vertical lines pointing to zenith.
-        pred_line = b.debug.line(
-            (0.0, 0.0, 0.0), (0.0, 0.0, LINE_LEN),
-            frame_name="target", color=(1.0, 0.0, 0.0), thickness=0.3,
-        )
-        b.debug.line(
-            (0.0, 0.0, 0.0), (0.0, 0.0, LINE_LEN),
-            frame_name="target", color=(0.0, 1.0, 0.0), thickness=0.3,
-        )
-
         pacer = FramePacer(hz=LOOP_HZ)
         t_start = time.monotonic()
         t_last_log = t_start
@@ -216,6 +229,12 @@ def main() -> None:
         p_end_prev: np.ndarray | None = None
         t_prev: float | None = None
         nose_prev: np.ndarray | None = None
+
+        # Active, client-side attitude controller for the aero phase.
+        # It outputs raw pitch/yaw/roll sticks and tracks an explicit
+        # roll_target so the belly faces the wind.
+        attitude_ctrl = LocalAttitudeController(settling_time=0.3)
+        aero_local_active = False
 
         while True:
             pacer.tick()
@@ -328,6 +347,13 @@ def main() -> None:
                     t_last_log = now
                 continue
 
+            # Switch from kRPC AutoPilot to client-side attitude control for
+            # the aero phase so we can explicitly command wind-aligned roll.
+            if not aero_local_active:
+                b.controls.disengage_auto_pilot()
+                b.controls.apply(pitch=0.0, yaw=0.0, roll=0.0)
+                aero_local_active = True
+
             ref_control = VirtualControl((
                 ControlSegment(
                     throttle=ConstantThrottle(TARGET_THROTTLE),
@@ -362,6 +388,8 @@ def main() -> None:
                 print(msg, file=log)
                 log.flush()
                 phase = 1
+                aero_local_active = False
+                b.controls.apply(pitch=0.0, yaw=0.0, roll=0.0)
                 b.controls.toggle_action_group(AG2_THREE_TO_FIVE)
                 ag2_msg = "Toggled action group 2 (3-engine -> 5-engine switch)."
                 print(ag2_msg)
@@ -432,23 +460,15 @@ def main() -> None:
             nose = tuple(nose)
 
             # Aero glide: zero throttle, attitude-only control.
+            # Active roll: belly faces the airflow via an explicit roll_target
+            # tracked by the client-side attitude controller.
+            up_wind = _wind_up(nose, v)
+            sticks = attitude_ctrl.step(s, nose, roll_target=0.0, up=up_wind)
             b.controls.apply(
-                target_direction=nose,
-                reference_frame=frame,
-                up=(0.0, 0.0, 1.0),
+                pitch=sticks.pitch,
+                yaw=sticks.yaw,
+                roll=sticks.roll,
                 throttle=0.0,
-            )
-
-            # Update debug markers.  The red line is anchored at the ignition
-            # plane (endpoint shifted up by IGNITE_MARGIN) to visualise when
-            # the rocket must start landing burn.
-            ignition_point = (
-                float(p_end[0]), float(p_end[1]),
-                float(p_end[2]) + IGNITE_MARGIN,
-            )
-            pred_line.set_points(
-                ignition_point,
-                (ignition_point[0], ignition_point[1], ignition_point[2] + LINE_LEN),
             )
 
             now = time.monotonic()

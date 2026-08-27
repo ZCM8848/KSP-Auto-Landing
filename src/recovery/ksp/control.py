@@ -320,9 +320,12 @@ class VesselControls:
     # -- emergency ----------------------------------------------------------
 
     def cut_thrust(self) -> None:
-        """Emergency stop: zero the throttle and disengage the AutoPilot.
+        """Emergency stop: zero throttle, raw sticks, and disengage the AutoPilot.
 
         This is the primitive behind ``ConnectionManager.abort_all``.
         """
         self._control.throttle = 0.0
+        self._control.pitch = 0.0
+        self._control.yaw = 0.0
+        self._control.roll = 0.0
         self.disengage_auto_pilot()

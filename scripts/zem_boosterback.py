@@ -16,7 +16,7 @@ import time
 import numpy as np
 
 from recovery import ConnectionManager, FramePacer
-from recovery.data.targets import LAUNCHPAD_JNSQ
+from recovery.data.targets import LZ3_JNSQ
 from recovery.guidance import DragModel, LandingPredictor
 
 VESSEL = "Booster B"
@@ -29,7 +29,7 @@ ROI_MISS = 50000.0   # ignore miss-increase below this threshold
 def main() -> None:
     with ConnectionManager(address="127.0.0.1") as km:
         b = km.add_booster("zem", VESSEL)
-        km.register_target("zem", lon=LAUNCHPAD_JNSQ.lon, lat=LAUNCHPAD_JNSQ.lat)
+        km.register_target("zem", lon=LZ3_JNSQ.lon, lat=LZ3_JNSQ.lat)
         km.start()
 
         frame = km.frame("zem", "target")

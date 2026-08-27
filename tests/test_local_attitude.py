@@ -104,6 +104,7 @@ def _state(
         packed=False,
         landed=False,
         atmosphere_density=0.0,
+        atmosphere_depth=0.0,
         frame=None,
         direction=Vector3(*direction),
         bottom_axis=Vector3(*bottom_axis),

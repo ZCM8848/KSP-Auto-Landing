@@ -2,6 +2,7 @@
 
 from .targets import (
     DESSERT_STOCK,
+    LANDSPACE_LZ,
     LAUNCHPAD_JNSQ,
     LAUNCHPAD_STOCK,
     LZ1_JNSQ,
@@ -21,6 +22,7 @@ __all__ = [
     "LZ2_STOCK",
     "LZ3_STOCK",
     "DESSERT_STOCK",
+    "LANDSPACE_LZ",
     "LAUNCHPAD_JNSQ",
     "VAB_A_JNSQ",
     "LZ1_JNSQ",
