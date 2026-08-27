@@ -55,6 +55,7 @@ T_MIN = 5.0                    # minimum time-to-go for phase-B (s)
 ALPHA_MAX_DEG = 15.0           # maximum angle of attack (deg)
 KP = 0.2                       # position gain on predicted endpoint miss (1/s^2)
 KD = 0.3                       # velocity-damping gain (1/s); increase to suppress overshoot
+R_DEADBAND = 5.0               # horizontal endpoint miss considered "on target" (m)
 ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
 LINE_LEN = 50000.0             # length of debug vertical markers (m)
@@ -370,13 +371,20 @@ def main() -> None:
             # Damping uses the frame-to-frame velocity of the predicted endpoint,
             # which directly measures how fast the landing point is drifting.
             r = p_end[:2]
+            r_mag = float(np.linalg.norm(r))
             now = time.monotonic()
             if p_end_prev is not None and t_prev is not None:
                 dt = max(now - t_prev, 1.0 / LOOP_HZ)
                 v_h = (p_end[:2] - p_end_prev) / dt
             else:
                 v_h = np.zeros(2)
-            a_cmd = -KP * r - KD * v_h
+
+            if r_mag <= R_DEADBAND:
+                # Close enough to the target: stop lateral steering and fly
+                # nose-on-velocity (zero lift) to avoid high-frequency chatter.
+                a_cmd = np.zeros(2)
+            else:
+                a_cmd = -KP * r - KD * v_h
             a_mag = float(np.linalg.norm(a_cmd))
 
             # Save endpoint history for the next frame's damping term.
