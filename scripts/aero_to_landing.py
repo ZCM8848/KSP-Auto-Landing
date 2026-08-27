@@ -59,6 +59,10 @@ ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
 LINE_LEN = 50000.0             # length of debug vertical markers (m)
 
+# kRPC action groups are 0-indexed. KSP UI action group N -> kRPC group N-1.
+AG2_THREE_TO_FIVE = 1          # KSP UI action group 2: 3-engine / 5-engine switch
+AG3_THREE_TO_ONE = 2           # KSP UI action group 3: 3-engine / 1-engine switch
+
 
 def _normalize(v: np.ndarray) -> np.ndarray:
     n = float(np.linalg.norm(v))
@@ -274,11 +278,11 @@ def main() -> None:
                     log.flush()
                     phase = 2
                     b.controls.apply(legs=True, gear=True)
-                    b.controls.set_action_group(2, False)
-                    b.controls.set_action_group(3, True)
+                    b.controls.set_action_group(AG2_THREE_TO_FIVE, False)
+                    b.controls.set_action_group(AG3_THREE_TO_ONE, True)
                     deploy_msg = (
                         "Deployed landing legs/gear, deactivated action group 2 "
-                        "and activated action group 3."
+                        "(3/5) and activated action group 3 (3/1)."
                     )
                     print(deploy_msg)
                     print(deploy_msg, file=log)
@@ -350,8 +354,8 @@ def main() -> None:
                 print(msg, file=log)
                 log.flush()
                 phase = 1
-                b.controls.set_action_group(2, True)
-                ag2_msg = "Activated action group 2 (landing burn start)."
+                b.controls.set_action_group(AG2_THREE_TO_FIVE, True)
+                ag2_msg = "Activated action group 2 (3/5 engine switch)."
                 print(ag2_msg)
                 print(ag2_msg, file=log)
                 log.flush()
