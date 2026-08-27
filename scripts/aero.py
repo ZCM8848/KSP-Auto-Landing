@@ -48,6 +48,7 @@ TARGET_LAT = LAUNCHPAD_JNSQ.lat
 
 TARGET_THROTTLE = 0.9          # landing-burn throttle used in the endpoint prediction
 IGNITE_MARGIN = 500.0          # ignite when predicted endpoint drops below this height (m)
+IGNITE_HOLD_S = 2.0            # keep full-throttle retrograde after ignition before exiting (s)
 ALPHA_MAX_DEG = 15.0           # maximum angle of attack (deg)
 KP = 0.1                       # position gain on predicted endpoint miss (1/s^2)
 KD = 0.2                       # velocity-damping gain (1/s); increase to suppress overshoot
@@ -177,10 +178,36 @@ def main() -> None:
         print(intro, file=log)
         log.flush()
 
+        ignite_until: float | None = None
+
         while True:
             pacer.tick()
             s = b.snapshot()
             if s is None:
+                continue
+
+            if ignite_until is not None:
+                # Landing-burn hold: full throttle retrograde.
+                v = np.array(s.velocity, dtype=float)
+                b.controls.apply(
+                    target_direction=tuple(-_normalize(v)),
+                    reference_frame=frame,
+                    throttle=1.0,
+                )
+                now = time.monotonic()
+                if now - t_last_log >= 1.0:
+                    line = (
+                        f"{now - t_start:6.1f}  {'---':>10s}  {'---':>10s}  "
+                        f"{'---':>10s}  {'burn':>8s}  {'---':>10s}  {'---':>6s}  "
+                        f"{1.0:8.2f}"
+                    )
+                    print(line)
+                    print(line, file=log)
+                    log.flush()
+                    t_last_log = now
+                if now >= ignite_until:
+                    print("Landing burn hold complete; exiting.")
+                    break
                 continue
 
             ref_control = VirtualControl((
@@ -211,16 +238,24 @@ def main() -> None:
             # Ignition: predicted endpoint dropped through the ignition plane.
             # Regardless of horizontal miss, start landing burn at full throttle.
             if p_end[2] <= IGNITE_MARGIN:
-                print(f"Predicted endpoint below ignition plane "
-                      f"(z={p_end[2]:.1f} m <= {IGNITE_MARGIN:.0f} m); "
-                      f"starting landing burn.")
+                now = time.monotonic()
+                msg = (
+                    f"Predicted endpoint below ignition plane "
+                    f"(z={p_end[2]:.1f} m <= {IGNITE_MARGIN:.0f} m); "
+                    f"starting landing burn."
+                )
+                print(msg)
+                print(msg, file=log)
+                log.flush()
                 v = np.array(s.velocity, dtype=float)
                 b.controls.apply(
                     target_direction=tuple(-_normalize(v)),
                     reference_frame=frame,
                     throttle=1.0,
                 )
-                break
+                ignite_until = now + IGNITE_HOLD_S
+                t_last_log = now
+                continue
 
             # PD lateral-acceleration command from predicted endpoint miss.
             r = p_end[:2]
