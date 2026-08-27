@@ -43,7 +43,7 @@ from recovery.ksp.sampling import sample_lift_table
 # User-tunable parameters
 # ---------------------------------------------------------------------------
 
-VESSEL = "Booster B"
+VESSEL = "Booster A"
 TARGET_LON = LAUNCHPAD_JNSQ.lon
 TARGET_LAT = LAUNCHPAD_JNSQ.lat
 
@@ -53,7 +53,7 @@ PEG_VELOCITY = 30.0            # target absolute speed at IGNITE_MARGIN (m/s)
 T_GAIN = 2.0                   # time-to-go gain for phase-B polynomial guidance
 T_MIN = 5.0                    # minimum time-to-go for phase-B (s)
 ALPHA_MAX_DEG = 15.0           # maximum angle of attack (deg)
-KP = 0.1                       # position gain on predicted endpoint miss (1/s^2)
+KP = 0.2                       # position gain on predicted endpoint miss (1/s^2)
 KD = 0.2                       # velocity-damping gain (1/s); increase to suppress overshoot
 ENTRY_VZ = 10.0                # |vertical speed| threshold to enter aero (m/s)
 LOOP_HZ = 50.0                 # control-loop rate
