@@ -30,7 +30,7 @@ import numpy as np
 
 from recovery import ConnectionManager, FramePacer
 from recovery.control.local_attitude import roll_from_axes
-from recovery.data.targets import LZ3_JNSQ
+from recovery.data.targets import LANDSPACE_LZ
 from recovery.types import Vector3
 from recovery.guidance import (
     ConstantThrottle,
@@ -47,8 +47,8 @@ from recovery.ksp.sampling import sample_lift_table
 # ---------------------------------------------------------------------------
 
 VESSEL = "Booster B"
-TARGET_LON = LZ3_JNSQ.lon
-TARGET_LAT = LZ3_JNSQ.lat
+TARGET_LON = LANDSPACE_LZ.lon
+TARGET_LAT = LANDSPACE_LZ.lat
 
 TARGET_THROTTLE = 0.9          # landing-burn throttle used in the endpoint prediction
 IGNITE_MARGIN = 300.0          # ignite when predicted endpoint drops below this height (m)
