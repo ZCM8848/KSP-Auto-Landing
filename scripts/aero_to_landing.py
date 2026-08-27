@@ -211,6 +211,8 @@ def main() -> None:
 
         phase = 0  # 0=aero, 1=landing burn A, 2=landing burn B
         target_pos_b = np.array([0.0, 0.0, half_length])
+        p_end_prev: np.ndarray | None = None
+        t_prev: float | None = None
 
         while True:
             pacer.tick()
@@ -366,11 +368,16 @@ def main() -> None:
                 continue
 
             # PD lateral-acceleration command from predicted endpoint miss.
-            # Position feedback is the predicted endpoint error; damping uses the
-            # rocket's current horizontal velocity for faster, less noisy response.
+            # Damping uses the frame-to-frame velocity of the predicted endpoint,
+            # which directly measures how fast the landing point is drifting.
             r = p_end[:2]
             r_mag = float(np.linalg.norm(r))
-            v_h = np.array(s.velocity, dtype=float)[:2]
+            now = time.monotonic()
+            if p_end_prev is not None and t_prev is not None:
+                dt = max(now - t_prev, 1.0 / LOOP_HZ)
+                v_h = (p_end[:2] - p_end_prev) / dt
+            else:
+                v_h = np.zeros(2)
 
             if r_mag <= R_DEADBAND:
                 # Close enough to the target: stop lateral steering and fly
@@ -379,6 +386,10 @@ def main() -> None:
             else:
                 a_cmd = -KP * r - KD * v_h
             a_mag = float(np.linalg.norm(a_cmd))
+
+            # Save endpoint history for the next frame's damping term.
+            p_end_prev = p_end[:2].copy()
+            t_prev = now
 
             # Available lateral acceleration at current dynamic pressure.
             v = np.array(s.velocity, dtype=float)
