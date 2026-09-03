@@ -44,7 +44,7 @@ from recovery.ksp.sampling import sample_lift_table
 # User-tunable parameters
 # ---------------------------------------------------------------------------
 
-VESSEL = "Booster B"
+VESSEL = "ZQ-3 demo Probe"
 TARGET_LON = LANDSPACE_LZ.lon
 TARGET_LAT = LANDSPACE_LZ.lat
 
@@ -59,7 +59,7 @@ PEG_VELOCITY = 30.0             # target absolute speed at IGNITE_MARGIN (m/s)
 T_GAIN = 2.0                    # time-to-go gain for phase-B polynomial guidance
 T_MIN = 5.0                     # minimum time-to-go for phase-B (s)
 ALPHA_MAX_DEG = 15.0            # maximum angle of attack (deg)
-KP = 0.1                        # position gain on predicted endpoint miss (1/s^2)
+KP = 0.2                        # position gain on predicted endpoint miss (1/s^2)
 KD = 0.15                       # velocity-damping gain (1/s)
 DAMP_BLEND_ENDPOINT = 0.5       # endpoint-vs-current horizontal velocity blend
 R_DEADBAND = 0.0                # horizontal endpoint miss considered "on target" (m)
@@ -155,7 +155,12 @@ def _run_boosterback(b: Any, *, frame: Any, predictor: Any) -> None:
             target_direction = (0.0, 0.0, -1.0)
         else:
             target_direction = (-mx / miss, -my / miss, 0.0)
-        b.controls.apply(target_direction=target_direction, reference_frame=frame)
+        b.controls.apply(
+            target_direction=target_direction,
+            reference_frame=frame,
+            up=(0.0, 0.0, 1.0),
+            roll_angle=0.0,
+        )
 
         if miss < ROI_MISS and miss > min(error_hist):
             b.controls.cut_thrust()
