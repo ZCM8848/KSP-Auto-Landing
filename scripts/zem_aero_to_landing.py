@@ -8,7 +8,13 @@ Phase 2 (coast): after boosterback ends but before aero entry, the nose is held
 toward the target frame's +z direction (engines-down attitude) while the booster
 descends into the atmosphere.
 
-Phase 3 (aero + landing burn): once descending inside the atmosphere, the
+Phase 3 (correction burn): at aero entry, a ballistic prediction with the
+drag-only boosterback predictor checks the horizontal landing miss; if it
+exceeds ``CORRECTION_MARGIN``, the nose slews toward the target and, once it
+is within ``CORRECTION_LATCH_ANGLE_DEG`` of that direction (latch), burns at
+full throttle until the miss closes below the margin.
+
+Phase 4 (aero + landing burn): once descending inside the atmosphere, the
 booster glides unpowered with aerodynamic lift, then ignites for landing-burn
 phases A and B.
 
@@ -51,6 +57,10 @@ TARGET_LAT = LANDSPACE_LZ.lat
 # Boosterback phase
 MIN_ALT = 8000.0                # boosterback window floor (m)
 ROI_MISS = 50000.0              # ignore miss-increase below this threshold (m)
+
+# Correction burn (aero-entry ballistic check)
+CORRECTION_MARGIN = 500.0        # ballistic landing horizontal miss to close (m)
+CORRECTION_LATCH_ANGLE_DEG = 2.0  # nose must be within this angle of target dir before firing (deg)
 
 # Aero + landing-burn phases
 TARGET_THROTTLE = 0.9           # landing-burn throttle used in endpoint prediction
@@ -200,6 +210,69 @@ def _wait_for_aero_entry(b: Any, *, frame: Any) -> Any:
         time.sleep(0.05)
 
 
+def _run_correction_burn(b: Any, *, frame: Any, predictor: Any) -> None:
+    """Aero-entry ballistic check + correction burn.
+
+    Uses the drag-only boosterback predictor to compute the ballistic landing
+    miss.  If the horizontal miss exceeds ``CORRECTION_MARGIN``, the nose is
+    slewed horizontally toward the target; once it is within
+    ``CORRECTION_LATCH_ANGLE_DEG`` of that direction (a one-way latch) the
+    engine fires at full throttle until the miss closes below
+    ``CORRECTION_MARGIN``.
+    """
+    pacer = FramePacer(hz=LOOP_HZ)
+    latched = False
+    print("Correction burn: ballistic landing check with boosterback predictor...")
+    while True:
+        pacer.tick()
+        s = b.snapshot()
+        if s is None:
+            continue
+
+        result = predictor.predict_from(s, rtol=5e-6, atol=5e-6)
+        if result is None:
+            continue
+
+        mx = float(result.position[0])
+        my = float(result.position[1])
+        miss = float(np.hypot(mx, my))
+
+        if miss <= CORRECTION_MARGIN:
+            b.controls.cut_thrust()
+            if latched:
+                print(
+                    f"Correction burn complete — ballistic miss "
+                    f"{miss:.0f}m <= {CORRECTION_MARGIN:.0f}m."
+                )
+            else:
+                print(
+                    f"Ballistic miss {miss:.0f}m within {CORRECTION_MARGIN:.0f}m "
+                    f"— skipping correction burn."
+                )
+            break
+
+        if miss < 1.0:
+            target_direction = (0.0, 0.0, -1.0)
+        else:
+            target_direction = (-mx / miss, -my / miss, 0.0)
+
+        nose = np.asarray(s.direction, dtype=float)
+        td = np.asarray(target_direction, dtype=float)
+        cos_ang = float(np.dot(_normalize(nose), _normalize(td)))
+        angle = float(np.arccos(np.clip(cos_ang, -1.0, 1.0)))
+        if angle <= math.radians(CORRECTION_LATCH_ANGLE_DEG):
+            latched = True
+
+        throttle = 1.0 if latched else 0.0
+        b.controls.apply(
+            target_direction=target_direction,
+            reference_frame=frame,
+            up=(0.0, 0.0, 1.0),
+            roll_angle=0.0,
+            throttle=throttle,
+        )
+
+
 def _run_aero_and_landing(
     b: Any,
     *,
@@ -339,9 +412,9 @@ def _run_aero_and_landing(
                 print(msg, file=log)
                 log.flush()
                 phase = 2
-                b.controls.apply(legs=True, gear=True)
+                b.controls.apply(legs=True)
                 # Select the single central engine for touchdown.
-                b.controls.toggle_action_group(AG3_THREE_TO_ONE)
+                # b.controls.toggle_action_group(AG3_THREE_TO_ONE)
                 deploy_msg = (
                     "Deployed landing legs/gear, toggled action group 3 "
                     "(3-engine -> 1-engine)."
@@ -529,6 +602,9 @@ def main() -> None:
 
         # Phase 2: default +z coast until aero entry.
         entry_state = _wait_for_aero_entry(b, frame=frame)
+
+        # Phase 2.5: aero-entry ballistic check + correction burn.
+        _run_correction_burn(b, frame=frame, predictor=zb_predictor)
 
         # Phase 3: aero glide + landing burn.
         _run_aero_and_landing(
