@@ -162,6 +162,8 @@ class VesselHandle:
         mass: float | None = None,
         manual_beta: float | None = None,
         altitude_samples: int = 64,
+        beta_ref_altitude: float = 5000.0,
+        beta_ref_speed: float = 300.0,
     ) -> tuple[BodySpec, DragSpec]:
         """One-shot sample of the specs needed to build a
         :class:`~recovery.guidance.LandingPredictor`.
@@ -190,6 +192,8 @@ class VesselHandle:
             mass=mass,
             manual_beta=manual_beta,
             altitude_samples=altitude_samples,
+            beta_ref_altitude=beta_ref_altitude,
+            beta_ref_speed=beta_ref_speed,
         )
         return self.body_spec, drag_spec
 

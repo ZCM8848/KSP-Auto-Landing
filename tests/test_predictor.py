@@ -339,7 +339,7 @@ def test_sample_drag_spec_far() -> None:
 
 
 def test_sample_drag_spec_no_far_estimation() -> None:
-    """Without FAR and with mass, beta is estimated from drag force."""
+    """Without FAR and with mass, beta is estimated from a simulated force."""
     mock_body = MagicMock()
     mock_body.equatorial_radius = float(R)
     mock_body.atmosphere_depth = 70000.0
@@ -349,14 +349,12 @@ def test_sample_drag_spec_no_far_estimation() -> None:
     mock_body.density_at.return_value = 1.0
 
     mock_flight = MagicMock()
-    mock_flight.atmosphere_density = 1.0
-    mock_flight.drag = (0.0, 0.0, -500.0)
-    mock_flight.speed = 500.0
+    # Simulated aerodynamic force at the reference state (vertical tail-first
+    # descent): the drag opposes the downward velocity, so it points up (+z).
+    mock_flight.simulate_aerodynamic_force_at.return_value = (0.0, 0.0, 500.0)
 
     # beta = mass * rho * v^2 / (2 * drag_mag)
-    # = 30000 * 1.0 * 500^2 / (2 * 500)
-    # = 30000 * 250000 / 1000
-    # = 7500000  (kg/m2)
+    #      = 30000 * 1.0 * 300^2 / (2 * 500) = 2.7e6  (kg/m2)
     spec = sample_drag_spec(
         body=mock_body,
         flight=mock_flight,

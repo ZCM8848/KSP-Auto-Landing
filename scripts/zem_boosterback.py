@@ -19,7 +19,7 @@ from recovery import ConnectionManager, FramePacer
 from recovery.data.targets import LANDSPACE_LZ
 from recovery.guidance import DragModel, LandingPredictor
 
-VESSEL = "Booster B"
+VESSEL = "ZQ-3 demo Probe 2"
 
 MIN_ALT = 8000.0     # boosterback window (m)
 ROI_MISS = 50000.0   # ignore miss-increase below this threshold

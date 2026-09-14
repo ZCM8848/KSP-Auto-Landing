@@ -9,7 +9,6 @@ crosses into guidance.
 
 from __future__ import annotations
 
-from math import sqrt
 from typing import Any
 
 import numpy as np
@@ -67,11 +66,18 @@ def sample_drag_spec(
     mass: float | None = None,
     manual_beta: float | None = None,
     altitude_samples: int = 64,
+    beta_ref_altitude: float = 5000.0,
+    beta_ref_speed: float = 300.0,
 ) -> DragSpec:
     """Sample atmosphere density profile and ballistic coefficient.
 
     *space_center* is the kRPC ``SpaceCenter`` service root; its
     ``far_available`` flag selects the FAR ballistic-coefficient path.
+
+    Without FAR and without *manual_beta*, the ballistic coefficient is
+    estimated from a simulated aerodynamic force at a reference dense-air
+    state (*beta_ref_altitude* / *beta_ref_speed*), not the instantaneous
+    ``flight.drag`` (which is numerically unstable at boosterback altitude).
 
     **One-time RPC cost:** ~25 ms for 64 samples (measured on Kerbin).
 
@@ -97,7 +103,16 @@ def sample_drag_spec(
         [float(body.density_at(float(h))) for h in alts], dtype=float
     )
 
-    beta = _resolve_beta(space_center, flight, mass, manual_beta)
+    beta = _resolve_beta(
+        body,
+        flight,
+        target_frame,
+        mass,
+        manual_beta,
+        space_center=space_center,
+        ref_altitude=beta_ref_altitude,
+        ref_speed=beta_ref_speed,
+    )
 
     return DragSpec(
         ballistic_coefficient=beta,
@@ -109,28 +124,77 @@ def sample_drag_spec(
 
 
 def _resolve_beta(
-    space_center: Any | None,
+    body: Any,
     flight: Any,
+    target_frame: Any,
     mass: float | None,
     manual_beta: float | None,
+    space_center: Any | None = None,
+    ref_altitude: float = 5000.0,
+    ref_speed: float = 300.0,
 ) -> float:
-    """Ballistic coefficient via manual override, FAR, or drag-force estimate."""
+    """Resolve the ballistic coefficient (kg/m²).
+
+    Priority: *manual_beta* override, then the FAR-reported coefficient when
+    FAR is installed, then an estimate from a simulated aerodynamic force at a
+    reference dense-air state.  The reference-state path avoids the numerically
+    unstable instantaneous ``flight.drag`` at boosterback altitude.
+    """
     if manual_beta is not None:
         return float(manual_beta)
     if space_center is not None and getattr(space_center, "far_available", False):
         return float(getattr(flight, "ballistic_coefficient", 0.0))
-    if mass is not None:
-        rho = float(flight.atmosphere_density)
-        d = flight.drag
-        drag_mag = float(sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]))
-        spd = float(flight.speed)
-        if drag_mag > 1e-6 and spd > 1e-6 and rho > 1e-12:
-            return mass * rho * spd * spd / (2.0 * drag_mag)
-        return float("inf")
-    raise ValueError(
-        "Cannot determine ballistic coefficient: "
-        "FAR not installed, no manual_beta, and no mass for estimation"
+    if mass is None:
+        raise ValueError(
+            "Cannot determine ballistic coefficient: "
+            "FAR not installed, no manual_beta, and no mass for estimation"
+        )
+    return _beta_from_reference_force(
+        body, flight, target_frame, float(mass), ref_altitude, ref_speed
     )
+
+
+def _beta_from_reference_force(
+    body: Any,
+    flight: Any,
+    target_frame: Any,
+    mass: float,
+    ref_altitude: float,
+    ref_speed: float,
+) -> float:
+    """Estimate ``mass / (C_d·A)`` from a simulated force at a reference state.
+
+    The reference state is a vertical, tail-first (retrograde) descent at
+    *ref_altitude* metres and *ref_speed* m/s above the target — a dense-air
+    regime where the aerodynamic force is well-conditioned.  ``β = mass·ρ·v² /
+    (2·D)`` where *D* is the drag component of the simulated force along the
+    (upward) direction opposing the descent velocity.
+    """
+    center = np.asarray(body.position(target_frame), dtype=float)
+    cnorm = float(np.linalg.norm(center))
+    if cnorm < 1e-9:
+        return float("inf")
+    up = -center / cnorm
+    rho = float(body.density_at(ref_altitude))
+    if rho <= 1e-12:
+        return float("inf")
+    sea_r = float(body.equatorial_radius)
+    position = center + (sea_r + ref_altitude) * up
+    velocity = -up * ref_speed
+    quat = _nose_quat(up, velocity, up)
+    force = np.asarray(
+        flight.simulate_aerodynamic_force_at(
+            body,
+            tuple(float(x) for x in position),
+            tuple(float(x) for x in velocity),
+            quat,
+        ),
+        dtype=float,
+    )
+    drag_mag = float(np.dot(force, up))
+    if drag_mag <= 1e-6:
+        return float("inf")
+    return mass * rho * ref_speed * ref_speed / (2.0 * drag_mag)
 
 
 def _nose_quat(

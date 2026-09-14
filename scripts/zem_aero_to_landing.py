@@ -8,13 +8,7 @@ Phase 2 (coast): after boosterback ends but before aero entry, the nose is held
 toward the target frame's +z direction (engines-down attitude) while the booster
 descends into the atmosphere.
 
-Phase 3 (correction burn): at aero entry, a ballistic prediction with the
-drag-only boosterback predictor checks the horizontal landing miss; if it
-exceeds ``CORRECTION_MARGIN``, the nose slews toward the target and, once it
-is within ``CORRECTION_LATCH_ANGLE_DEG`` of that direction (latch), burns at
-full throttle until the miss closes below the margin.
-
-Phase 4 (aero + landing burn): once descending inside the atmosphere, the
+Phase 3 (aero + landing burn): once descending inside the atmosphere, the
 booster glides unpowered with aerodynamic lift, then ignites for landing-burn
 phases A and B.
 
@@ -33,7 +27,7 @@ from typing import Any
 import numpy as np
 
 from recovery import ConnectionManager, FramePacer
-from recovery.data.targets import LANDSPACE_LZ
+from recovery.data.targets import LZ3_JNSQ
 from recovery.guidance import (
     ConstantThrottle,
     ControlledPredictor,
@@ -49,18 +43,13 @@ from recovery.ksp.sampling import sample_lift_table
 # ---------------------------------------------------------------------------
 # User-tunable parameters
 # ---------------------------------------------------------------------------
-
-VESSEL = "ZQ-3 demo Probe"
-TARGET_LON = LANDSPACE_LZ.lon
-TARGET_LAT = LANDSPACE_LZ.lat
+VESSEL = "New Shepard Probe"
+TARGET_LON = LZ3_JNSQ.lon
+TARGET_LAT = LZ3_JNSQ.lat
 
 # Boosterback phase
 MIN_ALT = 8000.0                # boosterback window floor (m)
 ROI_MISS = 50000.0              # ignore miss-increase below this threshold (m)
-
-# Correction burn (aero-entry ballistic check)
-CORRECTION_MARGIN = 500.0        # ballistic landing horizontal miss to close (m)
-CORRECTION_LATCH_ANGLE_DEG = 2.0  # nose must be within this angle of target dir before firing (deg)
 
 # Aero + landing-burn phases
 TARGET_THROTTLE = 0.9           # landing-burn throttle used in endpoint prediction
@@ -68,12 +57,12 @@ IGNITE_MARGIN = 300.0           # ignite when predicted endpoint drops below thi
 PEG_VELOCITY = 30.0             # target absolute speed at IGNITE_MARGIN (m/s)
 T_GAIN = 2.0                    # time-to-go gain for phase-B polynomial guidance
 T_MIN = 5.0                     # minimum time-to-go for phase-B (s)
-ALPHA_MAX_DEG = 15.0            # maximum angle of attack (deg)
-KP = 0.2                        # position gain on predicted endpoint miss (1/s^2)
-KD = 0.15                       # velocity-damping gain (1/s)
+ALPHA_MAX_DEG = 5.0            # maximum angle of attack (deg)
+KP = 0.1                        # position gain on predicted endpoint miss (1/s^2)
+KD = 0.4                       # velocity-damping gain (1/s)
 DAMP_BLEND_ENDPOINT = 0.5       # endpoint-vs-current horizontal velocity blend
-R_DEADBAND = 0.0                # horizontal endpoint miss considered "on target" (m)
-NOSE_SMOOTHING = 0.2            # EMA weight for nose direction
+R_DEADBAND = 5.0                # horizontal endpoint miss considered "on target" (m)
+NOSE_SMOOTHING = 0.2            # EMA weight for nose direction smoothing (0.0=no smoothing, 1.0=full smoothing)
 ENTRY_VZ = 10.0                 # |vertical speed| threshold to enter aero (m/s)
 AERO_ENTRY_Q = 200.0            # minimum dynamic pressure (Pa) to enter aero
 LOOP_HZ = 50.0                  # control-loop rate
@@ -169,7 +158,7 @@ def _run_boosterback(b: Any, *, frame: Any, predictor: Any) -> None:
             target_direction=target_direction,
             reference_frame=frame,
             up=(0.0, 0.0, 1.0),
-            roll_angle=0.0,
+            roll_angle=90.0,
         )
 
         if miss < ROI_MISS and miss > min(error_hist):
@@ -208,69 +197,6 @@ def _wait_for_aero_entry(b: Any, *, frame: Any) -> Any:
         if s.velocity.z < -ENTRY_VZ and q >= AERO_ENTRY_Q:
             return s
         time.sleep(0.05)
-
-
-def _run_correction_burn(b: Any, *, frame: Any, predictor: Any) -> None:
-    """Aero-entry ballistic check + correction burn.
-
-    Uses the drag-only boosterback predictor to compute the ballistic landing
-    miss.  If the horizontal miss exceeds ``CORRECTION_MARGIN``, the nose is
-    slewed horizontally toward the target; once it is within
-    ``CORRECTION_LATCH_ANGLE_DEG`` of that direction (a one-way latch) the
-    engine fires at full throttle until the miss closes below
-    ``CORRECTION_MARGIN``.
-    """
-    pacer = FramePacer(hz=LOOP_HZ)
-    latched = False
-    print("Correction burn: ballistic landing check with boosterback predictor...")
-    while True:
-        pacer.tick()
-        s = b.snapshot()
-        if s is None:
-            continue
-
-        result = predictor.predict_from(s, rtol=5e-6, atol=5e-6)
-        if result is None:
-            continue
-
-        mx = float(result.position[0])
-        my = float(result.position[1])
-        miss = float(np.hypot(mx, my))
-
-        if miss <= CORRECTION_MARGIN:
-            b.controls.cut_thrust()
-            if latched:
-                print(
-                    f"Correction burn complete — ballistic miss "
-                    f"{miss:.0f}m <= {CORRECTION_MARGIN:.0f}m."
-                )
-            else:
-                print(
-                    f"Ballistic miss {miss:.0f}m within {CORRECTION_MARGIN:.0f}m "
-                    f"— skipping correction burn."
-                )
-            break
-
-        if miss < 1.0:
-            target_direction = (0.0, 0.0, -1.0)
-        else:
-            target_direction = (-mx / miss, -my / miss, 0.0)
-
-        nose = np.asarray(s.direction, dtype=float)
-        td = np.asarray(target_direction, dtype=float)
-        cos_ang = float(np.dot(_normalize(nose), _normalize(td)))
-        angle = float(np.arccos(np.clip(cos_ang, -1.0, 1.0)))
-        if angle <= math.radians(CORRECTION_LATCH_ANGLE_DEG):
-            latched = True
-
-        throttle = 1.0 if latched else 0.0
-        b.controls.apply(
-            target_direction=target_direction,
-            reference_frame=frame,
-            up=(0.0, 0.0, 1.0),
-            roll_angle=0.0,
-            throttle=throttle,
-        )
 
 
 def _run_aero_and_landing(
@@ -602,9 +528,6 @@ def main() -> None:
 
         # Phase 2: default +z coast until aero entry.
         entry_state = _wait_for_aero_entry(b, frame=frame)
-
-        # Phase 2.5: aero-entry ballistic check + correction burn.
-        _run_correction_burn(b, frame=frame, predictor=zb_predictor)
 
         # Phase 3: aero glide + landing burn.
         _run_aero_and_landing(
