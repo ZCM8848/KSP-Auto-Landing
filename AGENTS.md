@@ -23,7 +23,7 @@ mkdocs serve                 # live-reload docs server (http://127.0.0.1:8000)
 
 - `src/recovery/ksp/` is the **only** place that imports `krpc`. All KSP I/O goes through this layer (`ConnectionManager`, `VesselHandle`, `VesselControls`) plus `ksp/sampling.py` — the sole producer of the pure-data specs that guidance consumes. Guidance/control/data must stay KSP-free.
 - `src/recovery/types.py` — shared value types (`FlightState`, `Vector3`, `Quaternion`, `Situation`). `src/recovery/specs.py` — pure-data sampling specs (`BodySpec`, `DragSpec`).
-- `src/recovery/guidance/` — impact predictor (`LandingPredictor`, scipy RK45 + numba RK4 fast path), aero models (`DragModel` offline, `KrpcAeroModel` per-step RPC). Pure — imports only `types`/`specs`, never `ksp`.
+- `src/recovery/guidance/` — trajectory predictor (`ControlledPredictor`, numba RK4; the sole integrator — ballistic = coast segment), aero models (`LiftDragModel` linearised / drag-only, `LiftTableModel` nonlinear tables), GFOLD SOCP planner, `TofPredictor` ONNX. Pure — imports only `types`/`specs`, never `ksp`.
 - `src/recovery/control/` — local PID, `AutoPilot` (client-side stick control), `ApproachingModel`, `LocalAttitudeController`/`StickCommand` (snapshot-driven attitude wrapper), and `control_utils` vector math. Pure — imports only `types`, never `ksp`.
 - `src/recovery/data/targets.py` — frozen `LandingSite` coordinates (STOCK and JNSQ).
 - `main.py` and `scripts/*.py` are live demo/diagnostic entrypoints, not library code.
@@ -33,7 +33,7 @@ mkdocs serve                 # live-reload docs server (http://127.0.0.1:8000)
 - Lifecycle order matters: `add_booster()` → `register_target()` → `start()`. `register_target` after `start()` raises; frame `"target"` requires it.
 - `snapshot()` returns `None` until the telemetry thread produces its first frame — poll for readiness before driving a control loop.
 - Snapshots are frozen `FlightState` objects (thread-safe reads). Control loop reads snapshots; only throttle/attitude setters do RPCs.
-- Building a predictor: `b.sample_predictor_specs()` → `(BodySpec, DragSpec)` (the body part is the cached `b.body_spec`, one-time ~25 ms RPC) → `LandingPredictor.from_body_spec()` + `DragModel.from_spec()` (pure). `predict()` after that is pure local and safe at control-loop rates.
+- Building a predictor: `b.sample_predictor_specs(mass=float(b.raw.mass))` → `(BodySpec, DragSpec)` (the body part is the cached `b.body_spec`, one-time ~25 ms RPC) → `ControlledPredictor.from_body_spec()` + `LiftDragModel.from_drag_spec(spec, mass_ref=mass)` (pure, `cd0_area = mass/β`). `predict()` after that is pure local and safe at control-loop rates. Ballistic/boosterback uses a coast `VirtualControl` + drag-only `LiftDragModel`; aero/landing uses `sample_lift_table` → `LiftTableModel`.
 - The `"target"` reference-frame axis convention is inherited verbatim from the legacy implementation (`reference_frames.py` says "do not reinterpret these axes"). Don't "fix" it.
 - `abort_all()`/`close()` must run **inside** the `with` block; `abort_all()` returns the ids of boosters it could not abort (connection died mid-flight) and silently skips already-closed ones.
 

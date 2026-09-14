@@ -166,7 +166,7 @@ class VesselHandle:
         beta_ref_speed: float = 300.0,
     ) -> tuple[BodySpec, DragSpec]:
         """One-shot sample of the specs needed to build a
-        :class:`~recovery.guidance.LandingPredictor`.
+        :class:`~recovery.guidance.ControlledPredictor`.
 
         The body spec is the cached :attr:`body_spec`; only the drag spec is
         sampled here.  *mass* defaults to the vessel's current mass.  Requires

@@ -23,7 +23,7 @@ def sample_body_spec(
     lat: float,
     lon: float,
 ) -> BodySpec:
-    """Sample planetary constants for a :class:`LandingPredictor`.
+    """Sample planetary constants for a :class:`ControlledPredictor`.
 
     Reads gravitational parameter, rotation vector, body-centre position and
     surface radius at (*lat*, *lon*) — all expressed in *target_frame*.
@@ -205,9 +205,8 @@ def _nose_quat(
     """Return a quaternion rotating the vessel nose (+Y) onto *nose*.
 
     The roof reference (roll about the nose) is chosen perpendicular to both
-    the nose and ``world_up`` — the same roll convention as
-    :func:`recovery.guidance.aerodynamics._retrograde_quaternion`, expressed
-    in the frame of *velocity*.
+    the nose and ``world_up`` — the same roll convention used by the
+    aerodynamic force sampling, expressed in the frame of *velocity*.
     """
     n = nose / float(np.linalg.norm(nose))
     up = world_up / float(np.linalg.norm(world_up))

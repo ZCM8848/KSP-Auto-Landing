@@ -416,42 +416,53 @@ drag_spec = sample_drag_spec(
 )
 ```
 
-### `recovery.guidance.LandingPredictor`
+### `recovery.guidance.ControlledPredictor`
 
-RK45 numerical impact-point predictor; integrates the equations of motion to
-the surface in the body-fixed (target) frame.
+Fixed-step RK4 trajectory predictor; the sole integrator of the guidance
+layer.  Integrates the full `[position, velocity, mass]` state under a
+piecewise-constant `VirtualControl` (throttle / thrust / Isp / steering rule
+with time or altitude triggers) to the surface (impact) or to the
+`v · up = 0` crossing (endpoint).  The ballistic / boosterback case is a
+coast segment (`throttle = 0`); with a drag-only `LiftDragModel` it covers
+the coast-impact prediction.
 
 ```python
 # pure construction (no RPC)
-predictor = LandingPredictor.from_body_spec(body_spec, aero=drag_model)
+predictor = ControlledPredictor.from_body_spec(body_spec, aero=aero)
 
 # or pass scalars directly
-predictor = LandingPredictor(
-    mu=..., omega=..., body_center=..., body_radius=..., aero=None,
+predictor = ControlledPredictor(
+    mu=..., omega=..., body_center=..., body_radius=..., aero=None, dt=0.1,
 )
 ```
 
-::: recovery.guidance.predictor.LandingPredictor
+::: recovery.guidance.controlled.ControlledPredictor
 
-Dynamics: `a = g_μ(r) − 2ω×v − ω×(ω×r) + a_aero(r,v)`, where `a_aero` is an
-optional aerodynamic contribution.
+Dynamics: `a = g_μ(r) − 2ω×v − ω×(ω×r) + a_aero(r,v,nose,m) + a_thrust`,
+where the aerodynamic term is attitude- and mass-dependent and thrust is
+`throttle · max_thrust / mass` along the (unit) nose.  Mass is held constant
+within each RK4 step and decremented by forward Euler afterwards (a
+1st-order-in-`dt` operator split; see `tests/test_controlled_accuracy.py`).
 
 ### `recovery.guidance.ImpactResult`
 
-::: recovery.guidance.predictor.ImpactResult
+::: recovery.guidance.controlled.ImpactResult
 
-### Aerodynamic models (AeroModel protocol)
+### Aerodynamic models
 
-Every aero model implements `acceleration(position, velocity) -> Vec3`:
+Both models implement the mass-aware 4-argument protocol
+`acceleration(position, velocity, nose, mass) -> Vec3` — the body axis `nose`
+sets the angle of attack and *mass* is passed explicitly so variable-mass
+flight is correct:
 
 | Model | Source | RPC/step? | Use case |
 |---|---|---|---|
-| none (`aero=None`) | — | — | fast pure-ballistic prediction |
-| `KrpcAeroModel` | `Flight.simulate_aerodynamic_force_at` (AoA 180° / nose aft) | **yes** (one RPC per step) | offline validation, high-precision analysis |
-| `DragModel` | one-shot sampled density table + ballistic coefficient β | **no** | **hot control loop (zero RPC/step)** |
+| none (`aero=None`) | — | — | pure-ballistic coast prediction |
+| `LiftDragModel` | linearised `C_D(α)=C_D0(1+k·α²)`, `C_L(α)=C_Lα·α` (or drag-only `cl_area=0`, `k_ind=0`) | **no** | boosterback / coast drag (from a `DragSpec`) |
+| `LiftTableModel` | nonlinear discrete cl/cd tables (stalling preserved) | **no** | aero-glide + landing-burn prediction |
 
-::: recovery.guidance.aerodynamics.DragModel
-::: recovery.guidance.aerodynamics.KrpcAeroModel
+::: recovery.guidance.aerodynamics.LiftDragModel
+::: recovery.guidance.aerodynamics.LiftTableModel
 
 ### Typical usage: ZEM boosterback
 
@@ -462,17 +473,20 @@ with ConnectionManager() as km:
     km.start()
 
     frame = km.frame("booster", "target")
-    body_spec, drag_spec = b.sample_predictor_specs()   # one-shot RPC; body from the registered target
-    predictor = LandingPredictor.from_body_spec(
-        body_spec, aero=DragModel.from_spec(drag_spec)
-    )
+    # Sample with the vessel's current mass so cd0_area = mass_ref / β resolves
+    # to the mass-independent Cd·A.
+    sampling_mass = float(b.raw.mass)
+    body_spec, drag_spec = b.sample_predictor_specs(mass=sampling_mass)
+    aero = LiftDragModel.from_drag_spec(drag_spec, mass_ref=sampling_mass)
+    predictor = ControlledPredictor.from_body_spec(body_spec, aero=aero)
+    coast = VirtualControl((ControlSegment.coast(nose=RetrogradeNose()),), dry_mass=...)
 
     while True:
         s = b.snapshot()
-        r = predictor.predict_from(s, rtol=1e-6, atol=1e-6)
-        if r is None:
+        tr = predictor.predict_from(s, coast)
+        if tr.impact is None:
             continue
-        mx, my = r.position[0], r.position[1]
+        mx, my = tr.impact.position[0], tr.impact.position[1]
         miss = (mx**2 + my**2) ** 0.5
 
         # nose horizontal toward the target — thrust pushes purely horizontally

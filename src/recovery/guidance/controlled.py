@@ -1,26 +1,27 @@
 """Controlled trajectory predictor (virtual control -> full trajectory).
 
-:class:`ControlledPredictor` propagates a vessel under a piecewise-constant
-:class:`~recovery.guidance.control.VirtualControl` — engine events (throttle /
-engine-set thrust / Isp changes at time or altitude triggers) plus a rule-based
-steering law — and returns the *entire* state trajectory as feedback, not just
-the impact point.
+:class:`ControlledPredictor` is the sole trajectory integrator of the
+guidance layer.  It propagates a vessel under a piecewise-constant
+:class:`~recovery.guidance.control.VirtualControl` — engine events
+(throttle / engine-set thrust / Isp changes at time or altitude triggers)
+plus a rule-based steering law — and returns the *entire* state trajectory
+as feedback, not just the impact point.  The ballistic case is a coast
+segment (``throttle = 0``); with a drag-only :class:`LiftDragModel` it
+covers the boosterback / coast-impact prediction as well.
 
-This is an independent implementation that supersedes the ballistic-only
-:class:`~recovery.guidance.LandingPredictor` for anything that involves thrust
-or attitude.  The heavy lifting is the numba kernel
+The heavy lifting is the numba kernel
 :func:`~recovery.guidance._numba.rk4_controlled`.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 
 from ..specs import BodySpec
-from ..types import Vector3
+from ..types import FlightState, Vector3
 from ._numba import rk4_controlled
 from .aerodynamics import LiftDragModel, LiftTableModel
 from .control import (
@@ -32,7 +33,22 @@ from .control import (
     UpNose,
     VirtualControl,
 )
-from .predictor import ImpactResult
+
+
+@dataclass(frozen=True)
+class ImpactResult:
+    """A crossing state on a :class:`ControlledPredictor` trajectory.
+
+    Used for both the surface ``impact`` and the ``v·up = 0`` ``endpoint``
+    of a propagation.  The trajectory may include aerodynamic drag / lift and
+    thrust depending on the attached aero model and the virtual control.
+    """
+
+    position: tuple[float, float, float]
+    """Crossing point in the target reference frame (metres)."""
+
+    time: float
+    """Time of the crossing (seconds)."""
 
 
 @dataclass
@@ -87,12 +103,18 @@ class Trajectory:
 class ControlledPredictor:
     """Propagate a :class:`VirtualControl` to a full trajectory.
 
+    The sole trajectory integrator: gravity + Coriolis + centrifugal +
+    attitude-dependent aerodynamics + thrust + mass flow, in a fixed-step
+    RK4 with operator-split mass (held constant within each step, decremented
+    by forward Euler afterwards).
+
     Keyword Args:
         mu: Standard gravitational parameter (m^3/s^2).
         omega: Planet rotation vector in the target frame (rad/s).
         body_center: Body-centre position in the target frame (m).
         body_radius: Surface radius at the landing target (m).
-        drag: Optional :class:`DragModel` supplying the ballistic drag term.
+        aero: Optional :class:`LiftDragModel` / :class:`LiftTableModel`
+            supplying the attitude-dependent aerodynamic term.
         dt: Fixed integration step (s).
         t_max: Maximum propagation time (s).
     """
@@ -149,7 +171,7 @@ class ControlledPredictor:
         *,
         dt: float = 0.1,
         t_max: float = 600.0,
-    ) -> "ControlledPredictor":
+    ) -> ControlledPredictor:
         """Construct from a pure-data :class:`BodySpec` (no network calls)."""
         return cls(
             mu=spec.mu,
@@ -289,4 +311,25 @@ class ControlledPredictor:
             impact=impact,
             endpoint=endpoint,
             hit=bool(hit == 1),
+        )
+
+    def predict_from(
+        self,
+        state: FlightState,
+        control: VirtualControl,
+        *,
+        dt: float | None = None,
+        t_max: float | None = None,
+        stop_on_endpoint: bool = False,
+    ) -> Trajectory:
+        """Equivalent of :meth:`predict` reading position, velocity and mass
+        directly from a :class:`~recovery.types.FlightState` snapshot."""
+        return self.predict(
+            state.position,
+            state.velocity,
+            state.mass,
+            control,
+            dt=dt,
+            t_max=t_max,
+            stop_on_endpoint=stop_on_endpoint,
         )

@@ -1,4 +1,4 @@
-"""ZEM boosterback guidance using DragModel impact predictor.
+"""ZEM boosterback guidance using the ControlledPredictor (drag-only coast).
 
 High-altitude, full-throttle burn to null the zero-effort miss.  The vessel
 points its nose horizontally toward the target so that engine thrust pushes
@@ -17,7 +17,13 @@ import numpy as np
 
 from recovery import ConnectionManager, FramePacer
 from recovery.data.targets import LANDSPACE_LZ
-from recovery.guidance import DragModel, LandingPredictor
+from recovery.guidance import (
+    ControlledPredictor,
+    ControlSegment,
+    LiftDragModel,
+    RetrogradeNose,
+    VirtualControl,
+)
 
 VESSEL = "ZQ-3 demo Probe 2"
 
@@ -34,10 +40,12 @@ def main() -> None:
 
         frame = km.frame("zem", "target")
 
-        body_spec, drag_spec = b.sample_predictor_specs()
-        predictor = LandingPredictor.from_body_spec(
-            body_spec, aero=DragModel.from_spec(drag_spec)
-        )
+        # Sample with the vessel's current mass so the drag-only aero model's
+        # cd0_area = mass_ref / β resolves to the mass-independent Cd·A.
+        sampling_mass = float(b.raw.mass)
+        body_spec, drag_spec = b.sample_predictor_specs(mass=sampling_mass)
+        aero = LiftDragModel.from_drag_spec(drag_spec, mass_ref=sampling_mass)
+        predictor = ControlledPredictor.from_body_spec(body_spec, aero=aero)
 
         b.physics_range = 200000.0
         b.controls.target_smoothing_time = 0.3
@@ -52,6 +60,7 @@ def main() -> None:
         t_last_flush = t_start
         buf: list[str] = []
         pacer = FramePacer(hz=50)
+        coast_ctl: VirtualControl | None = None
         header = (
             f"{'t':>6s}  {'loop_us':>7s}  {'alt':>6s}"
             f"  {'miss':>8s}  {'tti':>6s}  {'rpc':>3s}  {'kN':>8s}"
@@ -66,18 +75,23 @@ def main() -> None:
             if s is None:
                 continue
 
+            if coast_ctl is None:
+                coast_ctl = VirtualControl(
+                    (ControlSegment.coast(nose=RetrogradeNose()),), dry_mass=s.dry_mass,
+                )
+
             if s.surface_altitude < MIN_ALT:
                 msg = f"Below {MIN_ALT:.0f}m boosterback window — coasting."
                 print(msg)
                 print(msg, file=log)
                 break
 
-            result = predictor.predict_from(s, rtol=5e-6, atol=5e-6)
-            if result is None:
+            tr = predictor.predict_from(s, coast_ctl)
+            if tr.impact is None:
                 continue
 
-            mx = float(result.position[0])
-            my = float(result.position[1])
+            mx = float(tr.impact.position[0])
+            my = float(tr.impact.position[1])
             miss = float(np.hypot(mx, my))
 
             # nose horizontally toward target
@@ -94,7 +108,7 @@ def main() -> None:
                 f"{loop_us:7d}  "
                 f"{s.surface_altitude:6.0f}  "
                 f"{miss:8.0f}  "
-                f"{result.time:6.1f}  "
+                f"{tr.impact.time:6.1f}  "
                 f"   -  "
                 f"{s.thrust * 1e-3:8.0f}"
             )

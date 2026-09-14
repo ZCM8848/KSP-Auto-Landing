@@ -18,7 +18,6 @@ from recovery.guidance import (
     ControlledPredictor,
     ControlSegment,
     FixedNose,
-    LandingPredictor,
     LiftDragModel,
     RetrogradeNose,
     TowardTargetNose,
@@ -26,8 +25,8 @@ from recovery.guidance import (
     UpNose,
     VirtualControl,
 )
-from recovery.guidance.aerodynamics import DragModel
 from recovery.specs import BodySpec
+from tests.scipy_controlled import ScipyControlledPredictor
 
 MU = 3.5316e12
 R = 600_000.0
@@ -54,14 +53,6 @@ def body() -> BodySpec:
 
 
 @pytest.fixture
-def drag_model() -> DragModel:
-    alts, vals = _density_table()
-    return DragModel(ballistic_coefficient=BETA, density_fn=_density,
-                     body_center=CENTER, sea_level_radius=R,
-                     density_alts=alts, density_vals=vals)
-
-
-@pytest.fixture
 def lift_model() -> LiftDragModel:
     alts, vals = _density_table()
     return LiftDragModel(cd0_area=M0 / BETA, cl_area=0.0, k_ind=0.0, clamp_aoa=1.0,
@@ -70,54 +61,52 @@ def lift_model() -> LiftDragModel:
 
 
 # ---------------------------------------------------------------------------
-# Regression: LiftDragModel (cl_area=0) == DragModel
+# Regression: zero-lift LiftDragModel reproduces the analytic ballistic drag
 # ---------------------------------------------------------------------------
 
 
-def test_liftdrag_zero_lift_matches_dragmodel_acceleration(
-    drag_model: DragModel, lift_model: LiftDragModel,
-) -> None:
-    """Zero-lift LiftDragModel and DragModel produce the same drag acceleration.
-
-    cd0_area = M0 / beta, so for retrograde (AoA=0) and constant mass m=M0 the
-    two models reduce to the same -0.5*rho*|v|^2/beta term.
-    """
+def test_liftdrag_zero_lift_matches_ballistic_drag(lift_model: LiftDragModel) -> None:
+    """Zero-lift LiftDragModel (``cl_area=0``, ``k_ind=0``) reproduces the
+    analytic ballistic drag acceleration ``a = -½·ρ·|v|/β · v`` at AoA = 0
+    (retrograde nose), with ``cd0_area = mass_ref / β`` evaluated at
+    ``mass = mass_ref``."""
     states = [
         ((15000.0, 0.0, 50000.0), (150.0, 0.0, -500.0)),
         ((12000.0, 0.0, 15000.0), (120.0, 0.0, -350.0)),
         ((8000.0, 0.0, 5000.0), (80.0, 0.0, -220.0)),
     ]
+    center = np.asarray(CENTER, dtype=float)
     for pos, vel in states:
         p = np.asarray(pos, dtype=float)
         v = np.asarray(vel, dtype=float)
-        vm = np.linalg.norm(v)
+        vm = float(np.linalg.norm(v))
         nose = -v / vm  # retrograde -> AoA = 0
-        a_drag = np.asarray(drag_model.acceleration(p, v), dtype=float)
-        a_lift = np.asarray(lift_model.acceleration(p, v, nose, M0), dtype=float)
-        np.testing.assert_allclose(a_lift, a_drag, atol=1e-12, rtol=1e-12)
+        acc = np.asarray(lift_model.acceleration(p, v, nose, M0), dtype=float)
+        alt = float(np.linalg.norm(p - center)) - R
+        rho = float(_density(alt))
+        expected = -0.5 * rho * vm / BETA * v
+        np.testing.assert_allclose(acc, expected, atol=1e-9)
 
 
-def test_liftdrag_ballistic_impact_matches_dragmodel(
-    body: BodySpec, drag_model: DragModel, lift_model: LiftDragModel,
+def test_coast_impact_matches_scipy_reference(
+    body: BodySpec, lift_model: LiftDragModel,
 ) -> None:
-    """A ballistic coast under LiftDragModel lands at the DragModel impact point.
-
-    With the impact-point interpolation, the controlled (LiftDragModel) and
-    ballistic (DragModel) predictors agree to well under a metre (previously
-    they differed by ~|v|·dt, i.e. tens of metres at dt=0.1).
-    """
-    landing = LandingPredictor.from_body_spec(body, aero=drag_model)
+    """A drag-only coast impact agrees with the scipy reference to well under a
+    metre — the coast has no mass flow, so the only numba-vs-scipy gap is RK4
+    truncation and the surface-crossing interpolation."""
     controlled = ControlledPredictor.from_body_spec(body, aero=lift_model,
                                                     dt=0.1, t_max=600.0)
+    ref = ScipyControlledPredictor.from_body_spec(body, aero=lift_model,
+                                                  rtol=1e-10, atol=1e-10)
+
     pos = (15000.0, 0.0, 50000.0)
     vel = (150.0, 0.0, -500.0)
+    ctl = VirtualControl((ControlSegment.coast(),), M0)
 
-    r_ball = landing.predict(position=pos, velocity=vel, dt=0.1)
-    tr = controlled.predict(pos, vel, M0, VirtualControl((ControlSegment.coast(),), M0))
-    assert r_ball is not None
-    assert tr.impact is not None
-
-    d = np.linalg.norm(np.asarray(r_ball.position) - np.asarray(tr.impact.position))
+    tr = controlled.predict(pos, vel, M0, ctl)
+    r = ref.predict(pos, vel, M0, ctl)
+    assert tr.impact is not None and r.impact is not None
+    d = float(np.linalg.norm(np.asarray(tr.impact.position) - np.asarray(r.impact.position)))
     assert d < 2.0, f"impact points differ by {d:.3f} m"
 
 

@@ -1,6 +1,6 @@
 """Guidance algorithms: impact prediction, GFOLD solver, trajectory workers."""
 
-from .aerodynamics import AeroModel, DragModel, KrpcAeroModel, LiftDragModel, LiftTableModel
+from .aerodynamics import LiftDragModel, LiftTableModel
 from .control import (
     BrakeToThrottle,
     ConstantThrottle,
@@ -15,7 +15,7 @@ from .control import (
     UpNose,
     VirtualControl,
 )
-from .controlled import ControlledPredictor, Trajectory
+from .controlled import ControlledPredictor, ImpactResult, Trajectory
 from .gfold import (
     GfoldParams,
     build_config,
@@ -27,21 +27,16 @@ from .gfold import (
     solve_optimal,
     tof_of,
 )
-from .predictor import ImpactResult, LandingPredictor
 from .tofnet import TofPredictor
 
 __all__ = [
-    "AeroModel",
     "BrakeToThrottle",
     "ConstantThrottle",
     "ControlSegment",
     "ControlledPredictor",
-    "DragModel",
     "FixedNose",
     "GfoldParams",
     "ImpactResult",
-    "KrpcAeroModel",
-    "LandingPredictor",
     "LiftDragModel",
     "LiftTableModel",
     "NoseRule",

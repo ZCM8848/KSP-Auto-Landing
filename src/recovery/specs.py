@@ -15,7 +15,7 @@ import numpy as np
 
 @dataclass(frozen=True)
 class BodySpec:
-    """Planetary constants for a :class:`~recovery.guidance.LandingPredictor`.
+    """Planetary constants for a :class:`~recovery.guidance.ControlledPredictor`.
 
     All spatial vectors are expressed in a single target reference frame.
     """
@@ -38,10 +38,13 @@ class BodySpec:
 
 @dataclass(frozen=True)
 class DragSpec:
-    """Atmosphere drag parameters for a :class:`~recovery.guidance.DragModel`.
+    """Atmosphere drag parameters for a :class:`~recovery.guidance.LiftDragModel`.
 
     All spatial vectors are expressed in the same target reference frame used
-    by the matching :class:`BodySpec`.
+    by the matching :class:`BodySpec`.  The ``ballistic_coefficient`` (β =
+    ``mass / (C_d·A)``) is consumed by
+    :meth:`LiftDragModel.from_drag_spec`, which converts it to the
+    mass-independent ``cd0_area = mass_ref / β``.
     """
 
     ballistic_coefficient: float

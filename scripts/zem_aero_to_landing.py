@@ -32,8 +32,7 @@ from recovery.guidance import (
     ConstantThrottle,
     ControlledPredictor,
     ControlSegment,
-    DragModel,
-    LandingPredictor,
+    LiftDragModel,
     LiftTableModel,
     RetrogradeNose,
     VirtualControl,
@@ -62,7 +61,7 @@ KP = 0.1                        # position gain on predicted endpoint miss (1/s^
 KD = 0.4                       # velocity-damping gain (1/s)
 DAMP_BLEND_ENDPOINT = 0.5       # endpoint-vs-current horizontal velocity blend
 R_DEADBAND = 5.0                # horizontal endpoint miss considered "on target" (m)
-NOSE_SMOOTHING = 0.2            # EMA weight for nose direction smoothing (0.0=no smoothing, 1.0=full smoothing)
+NOSE_SMOOTHING = 0.2            # EMA weight for nose smoothing (0=no, 1=full)
 ENTRY_VZ = 10.0                 # |vertical speed| threshold to enter aero (m/s)
 AERO_ENTRY_Q = 200.0            # minimum dynamic pressure (Pa) to enter aero
 LOOP_HZ = 50.0                  # control-loop rate
@@ -129,6 +128,7 @@ def _run_boosterback(b: Any, *, frame: Any, predictor: Any) -> None:
     b.controls.apply(reference_frame=frame, throttle=1.0)
     error_hist: list[float] = [float("inf")]
     pacer = FramePacer(hz=LOOP_HZ)
+    coast_ctl: VirtualControl | None = None
     print("Boosterback: full-throttle burn to null the zero-effort miss...")
     while True:
         pacer.tick()
@@ -136,16 +136,21 @@ def _run_boosterback(b: Any, *, frame: Any, predictor: Any) -> None:
         if s is None:
             continue
 
+        if coast_ctl is None:
+            coast_ctl = VirtualControl(
+                (ControlSegment.coast(nose=RetrogradeNose()),), dry_mass=s.dry_mass,
+            )
+
         if s.surface_altitude < MIN_ALT:
             print(f"Below {MIN_ALT:.0f}m boosterback window — coasting.")
             break
 
-        result = predictor.predict_from(s, rtol=5e-6, atol=5e-6)
-        if result is None:
+        tr = predictor.predict_from(s, coast_ctl)
+        if tr.impact is None:
             continue
 
-        mx = float(result.position[0])
-        my = float(result.position[1])
+        mx = float(tr.impact.position[0])
+        my = float(tr.impact.position[1])
         miss = float(np.hypot(mx, my))
 
         # Nose horizontally toward the target so thrust pushes the impact
@@ -515,13 +520,15 @@ def main() -> None:
         b.controls.target_smoothing_time = 0.3
         b.controls.rcs = True
 
-        body_spec, drag_spec = b.sample_predictor_specs()
+        sampling_mass = float(b.raw.mass)
+        body_spec, drag_spec = b.sample_predictor_specs(mass=sampling_mass)
         density_fn, density_alts, density_vals = _build_density_fn(drag_spec)
 
-        # Boosterback uses the simple drag-only impact predictor.
-        zb_predictor = LandingPredictor.from_body_spec(
-            body_spec, aero=DragModel.from_spec(drag_spec)
-        )
+        # Boosterback uses the drag-only coast impact predictor; sampling with
+        # the vessel's current mass makes cd0_area = mass_ref / β resolve to
+        # the mass-independent Cd·A.
+        zb_aero = LiftDragModel.from_drag_spec(drag_spec, mass_ref=sampling_mass)
+        zb_predictor = ControlledPredictor.from_body_spec(body_spec, aero=zb_aero)
 
         # Phase 1: boosterback.
         _run_boosterback(b, frame=frame, predictor=zb_predictor)
