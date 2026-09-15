@@ -56,7 +56,7 @@ IGNITE_MARGIN = 300.0           # ignite when predicted endpoint drops below thi
 PEG_VELOCITY = 30.0             # target absolute speed at IGNITE_MARGIN (m/s)
 T_GAIN = 2.0                    # time-to-go gain for phase-B polynomial guidance
 T_MIN = 5.0                     # minimum time-to-go for phase-B (s)
-ALPHA_MAX_DEG = 5.0            # maximum angle of attack (deg)
+ALPHA_MAX_DEG = 15.0            # maximum angle of attack (deg)
 KP = 0.1                        # position gain on predicted endpoint miss (1/s^2)
 KD = 0.4                       # velocity-damping gain (1/s)
 DAMP_BLEND_ENDPOINT = 0.5       # endpoint-vs-current horizontal velocity blend
@@ -64,6 +64,7 @@ R_DEADBAND = 5.0                # horizontal endpoint miss considered "on target
 NOSE_SMOOTHING = 0.2            # EMA weight for nose smoothing (0=no, 1=full)
 ENTRY_VZ = 10.0                 # |vertical speed| threshold to enter aero (m/s)
 AERO_ENTRY_Q = 200.0            # minimum dynamic pressure (Pa) to enter aero
+SAFE_AERO_SPEED = 450.0         # re-entry burn targets |v| below this (m/s)
 LOOP_HZ = 50.0                  # control-loop rate
 
 # Action group numbers used by toggle_action_group in this vessel setup.
@@ -204,6 +205,49 @@ def _wait_for_aero_entry(b: Any, *, frame: Any) -> Any:
         time.sleep(0.05)
 
 
+def _run_reentry_burn(b: Any, *, frame: Any) -> Any:
+    """Phase 2.5: retrograde full-throttle burn to bleed off entry speed.
+
+    Fires opposite the velocity vector at full throttle until the absolute
+    speed drops below ``SAFE_AERO_SPEED``, then hands off to the aero /
+    landing phase.  Triggered immediately on the aero-entry condition (the
+    same trigger that starts the aero phase), so the vessel is already
+    descending into the atmosphere when this fires.
+
+    Returns the post-burn snapshot, which becomes the aero phase's entry
+    state — so the lift table is sampled at the actual glide-start flight
+    condition, not the pre-burn high-speed one.
+    """
+    pacer = FramePacer(hz=LOOP_HZ)
+    print(
+        f"Re-entry burn: retrograde full-throttle until |v| < "
+        f"{SAFE_AERO_SPEED:.0f} m/s..."
+    )
+    while True:
+        pacer.tick()
+        s = b.snapshot()
+        if s is None:
+            continue
+
+        v = np.array(s.velocity, dtype=float)
+        v_mag = float(np.linalg.norm(v))
+
+        if v_mag < SAFE_AERO_SPEED:
+            msg = (
+                f"Re-entry burn complete: |v|={v_mag:.1f} m/s "
+                f"< {SAFE_AERO_SPEED:.0f} m/s; entering aero phase."
+            )
+            print(msg)
+            b.controls.cut_thrust()
+            return s
+
+        b.controls.apply(
+            target_direction=tuple(-_normalize(v)),
+            reference_frame=frame,
+            throttle=1.0,
+        )
+
+
 def _run_aero_and_landing(
     b: Any,
     *,
@@ -242,6 +286,27 @@ def _run_aero_and_landing(
     )
     predictor = ControlledPredictor.from_body_spec(body_spec, aero=aero)
 
+    # Pre-warm the numba kernel so its one-time JIT compilation is excluded
+    # from the aero-phase timing log.  The result is discarded and the control
+    # output is unaffected.
+    predictor.predict(
+        entry_state.position,
+        entry_state.velocity,
+        entry_state.mass,
+        VirtualControl(
+            (
+                ControlSegment(
+                    throttle=ConstantThrottle(TARGET_THROTTLE),
+                    max_thrust=entry_state.max_thrust,
+                    isp=entry_state.specific_impulse,
+                    nose=RetrogradeNose(),
+                ),
+            ),
+            dry_mass=entry_state.dry_mass,
+        ),
+        stop_on_endpoint=True,
+    )
+
     alpha_max = math.radians(ALPHA_MAX_DEG)
     cl_at_max = float(np.interp(alpha_max, alpha_pts, cl_table))
 
@@ -270,6 +335,22 @@ def _run_aero_and_landing(
     print(intro, file=log)
     log.flush()
 
+    # Aero-phase predictor timing log: one CSV row per predict call, flushed
+    # immediately so data survives even if the vessel breaks up mid-flight.
+    timing = open("zem_aero_predict_timing.csv", "w", encoding="utf-8", newline="")
+    timing.write(
+        "t_wall,phase,alt,speed,mass,loop_us,predict_us,n_steps,t_end,kind,alpha_deg\n"
+    )
+    timing.flush()
+
+    def _log_predict() -> None:
+        timing.write(
+            f"{time.monotonic():.3f},{phase},{s.surface_altitude:.2f},"
+            f"{speed:.2f},{s.mass:.1f},{loop_us},{predict_us},{n_steps},"
+            f"{t_end:.3f},{kind},{alpha_deg:.3f}\n"
+        )
+        timing.flush()
+
     phase = 0  # 0=aero, 1=landing burn A, 2=landing burn B
     target_pos_b = np.array([0.0, 0.0, half_length])
     p_end_prev: np.ndarray | None = None
@@ -281,6 +362,16 @@ def _run_aero_and_landing(
         s = b.snapshot()
         if s is None:
             continue
+
+        t_loop = time.perf_counter_ns()
+        speed = float(np.linalg.norm(np.asarray(s.velocity, dtype=float)))
+        # Aero-phase timing defaults (filled in only for phase 0 predictions).
+        loop_us = 0
+        predict_us = 0
+        n_steps = 0
+        t_end = float("nan")
+        kind = "-"
+        alpha_deg = float("nan")
 
         if phase == 2:
             # Landing-burn phase B: polynomial guidance to touchdown.
@@ -393,15 +484,25 @@ def _run_aero_and_landing(
             ),
         ), dry_mass=s.dry_mass)
 
+        t_pred = time.perf_counter_ns()
         traj = predictor.predict(
             s.position, s.velocity, s.mass, ref_control, stop_on_endpoint=True,
         )
+        predict_us = (time.perf_counter_ns() - t_pred) // 1000
+        n_steps = traj.n
+        if n_steps:
+            t_end = float(traj.times[-1])
 
         if traj.endpoint is not None:
             p_end = np.asarray(traj.endpoint.position, dtype=float)
+            kind = "endpoint"
         elif traj.impact is not None:
             p_end = np.asarray(traj.impact.position, dtype=float)
+            kind = "impact"
         else:
+            kind = "none"
+            loop_us = (time.perf_counter_ns() - t_loop) // 1000
+            _log_predict()
             print("Prediction did not reach endpoint or impact — skipping frame.")
             continue
 
@@ -417,6 +518,8 @@ def _run_aero_and_landing(
             print(msg)
             print(msg, file=log)
             log.flush()
+            loop_us = (time.perf_counter_ns() - t_loop) // 1000
+            _log_predict()
             phase = 1
             t_last_log = now
             continue
@@ -490,6 +593,10 @@ def _run_aero_and_landing(
             throttle=0.0,
         )
 
+        alpha_deg = math.degrees(alpha_cmd)
+        loop_us = (time.perf_counter_ns() - t_loop) // 1000
+        _log_predict()
+
         now = time.monotonic()
         if now - t_last_log >= 1.0:
             line = (
@@ -502,6 +609,7 @@ def _run_aero_and_landing(
             log.flush()
             t_last_log = now
 
+    timing.close()
     log.close()
 
 
@@ -535,6 +643,11 @@ def main() -> None:
 
         # Phase 2: default +z coast until aero entry.
         entry_state = _wait_for_aero_entry(b, frame=frame)
+
+        # Phase 2.5: re-entry burn — retrograde full-throttle until |v|
+        # drops below SAFE_AERO_SPEED (uses the aero-entry trigger).  The
+        # post-burn snapshot becomes the aero phase's entry state.
+        entry_state = _run_reentry_burn(b, frame=frame)
 
         # Phase 3: aero glide + landing burn.
         _run_aero_and_landing(
