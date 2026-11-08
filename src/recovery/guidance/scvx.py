@@ -147,6 +147,30 @@ class ScvxConfig:
     is what the live controller should track.  The nodal iterate is kept as the
     default for backwards-compatible plan shapes (``n`` nodes)."""
 
+    free_ignition: bool = False
+    """Let the 6-DOF OCP choose the engine ignition time.
+
+    The scalar thrust control becomes a burn-throttle fraction in ``[0, 1]``.
+    A smooth gate around a free ``ignition_time`` state multiplies the engine
+    thrust: zero before ignition, then ``[min_throttle, 1] * T_max``.  This is
+    a continuous relaxation of the engine-on/off discontinuity; the gate width
+    is :attr:`ignition_gate_width`.
+    """
+
+    ignition_gate_width: float = 0.5
+    """Sigmoid gate width (s) for :attr:`free_ignition`."""
+
+    ignition_guess: float = 15.0
+    """Initial guess for the free ignition time (s after the horizon start)."""
+
+    max_descent_speed: float | None = None
+    """Optional cap on downward speed (m/s, positive magnitude).
+
+    Useful with :attr:`free_ignition`: an unconstrained fuel-optimal plan may
+    delay ignition until the vehicle is falling very fast, which is hard to
+    track laterally.  ``None`` leaves the velocity box unchanged.
+    """
+
 
 def _smooth_norm(vector: Any, epsilon: float, ox: Any) -> Any:
     """Differentiable norm ``sqrt(|v|² + ε²)``.
@@ -337,6 +361,7 @@ class DescentProblem:
         angular_velocity: Any = None,
         torque: Any = None,
         attitude_final: np.ndarray | None = None,
+        ignition_time: Any = None,
     ) -> None:
         self._problem = problem
         self._position = position
@@ -355,6 +380,7 @@ class DescentProblem:
         self._angular_velocity = angular_velocity
         self._torque = torque
         self._attitude_final = attitude_final
+        self._ignition_time = ignition_time
         self._engine: EngineModel | None = None
         self._slices: dict[str, slice] | None = None
         self._last_plan_source: str = ""
@@ -363,6 +389,11 @@ class DescentProblem:
     def dof(self) -> str:
         """Kinematic model used by this problem (``"3dof"`` or ``"6dof"``)."""
         return self._dof
+
+    @property
+    def free_ignition(self) -> bool:
+        """Whether this problem optimizes a free engine ignition time."""
+        return self._ignition_time is not None
 
     @property
     def xy_limit(self) -> float:
@@ -453,6 +484,11 @@ class DescentProblem:
         time guess when supplied (e.g. from TOF-Net).
         """
         self.set_time_hint(tf_hint)
+        if self._ignition_time is not None:
+            guess = float(self._config.ignition_guess)
+            if tf_hint is not None and np.isfinite(tf_hint):
+                guess = min(max(0.25 * float(tf_hint), 1.0), self._horizon_max)
+            self._ignition_time.guess = np.full((self._n, 1), guess)
         p0 = np.asarray(state.position, dtype=float)
         v0 = np.asarray(state.velocity, dtype=float)
         m0 = float(state.mass)
@@ -588,7 +624,11 @@ class DescentProblem:
                 t_max = float(self._engine.available_thrust)
                 t_min = self._config.min_throttle * t_max
                 thrust_guess = np.clip(thrust_guess, t_min, t_max)
-        self._thrust.guess = thrust_guess.reshape(-1, 1)
+        if self._config.free_ignition:
+            # The control is a burn-throttle fraction, not a force.
+            self._thrust.guess = np.full((self._n, 1), 0.6)
+        else:
+            self._thrust.guess = thrust_guess.reshape(-1, 1)
         self._torque.guess = torque_guess
 
     @property
@@ -703,6 +743,28 @@ class DescentProblem:
         velocities = np.asarray(states[:, sl["velocity"]], dtype=float)
         masses = np.asarray(states[:, sl["mass"]], dtype=float).reshape(-1)
         thrust_scalar = np.asarray(controls[:, sl["thrust"]], dtype=float)
+        ignition_time_value: float | None = None
+        if self.free_ignition:
+            t_series = np.asarray(states[:, sl["time"]], dtype=float).reshape(-1)
+            ignition_series = np.asarray(
+                states[:, sl["ignition_time"]], dtype=float
+            ).reshape(-1)
+            burn_throttle = np.asarray(
+                controls[:, sl["thrust"]], dtype=float
+            ).reshape(-1)
+            if self._engine is not None:
+                thrust_cap = float(self._engine.available_thrust)
+            else:
+                thrust_cap = 1.0
+            thrust_min = self._config.min_throttle * thrust_cap
+            width = max(float(self._config.ignition_gate_width), 1e-3)
+            gate = 1.0 / (
+                1.0 + np.exp(-(t_series - ignition_series) / width)
+            )
+            thrust_scalar = (
+                gate * (thrust_min + (thrust_cap - thrust_min) * burn_throttle)
+            ).reshape(-1, 1)
+            ignition_time_value = float(ignition_series[0]) if ignition_series.size else None
         cost = float(getattr(state, "J_tr", float("nan")))
         iterations = int(getattr(state, "k", 0))
 
@@ -717,6 +779,7 @@ class DescentProblem:
                 iterations=iterations,
                 cost=cost,
                 converged=bool(converged),
+                ignition_time=ignition_time_value,
             )
 
         attitude = np.asarray(states[:, sl["attitude"]], dtype=float)
@@ -741,6 +804,7 @@ class DescentProblem:
             attitudes=attitude,
             angular_velocities=angular_velocity,
             torques=torques,
+            ignition_time=ignition_time_value,
         )
 
     def _read_six_dof_plan(
@@ -760,6 +824,25 @@ class DescentProblem:
         angular_velocity = np.array(x[:, sl["angular_velocity"]], dtype=float)
         thrust = np.array(u[:, sl["thrust"]], dtype=float).reshape(-1)
         torque = np.array(u[:, sl["torque"]], dtype=float)
+        ignition_time_value: float | None = None
+        if self.free_ignition:
+            t_series = np.array(x[:, sl["time"]], dtype=float).reshape(-1)
+            ignition_series = np.array(
+                x[:, sl["ignition_time"]], dtype=float
+            ).reshape(-1)
+            if self._engine is not None:
+                thrust_cap = float(self._engine.available_thrust)
+            else:
+                thrust_cap = 1.0
+            thrust_min = self._config.min_throttle * thrust_cap
+            width = max(float(self._config.ignition_gate_width), 1e-3)
+            gate = 1.0 / (
+                1.0 + np.exp(-(t_series - ignition_series) / width)
+            )
+            thrust = gate * (thrust_min + (thrust_cap - thrust_min) * thrust)
+            ignition_time_value = (
+                float(ignition_series[0]) if ignition_series.size else None
+            )
 
         # Body +y is the nose; the inertial thrust direction is R(q) @ e_y.
         directions = np.empty((attitude.shape[0], 3), dtype=float)
@@ -780,6 +863,7 @@ class DescentProblem:
             attitudes=attitude,
             angular_velocities=angular_velocity,
             torques=torque,
+            ignition_time=ignition_time_value,
         )
 
 
@@ -1116,6 +1200,10 @@ def build_six_dof_problem(
     velocity = ox.State("velocity", shape=(3,))
     velocity.min = np.array([-v_limit, -v_limit, -v_limit])
     velocity.max = np.array([v_limit, v_limit, v_limit])
+    if config.max_descent_speed is not None:
+        velocity.min = np.array(
+            [-v_limit, -v_limit, -float(config.max_descent_speed)]
+        )
     velocity.initial = v0
     velocity.final = np.zeros(3)
     velocity.guess = np.linspace(v0, np.zeros(3), n)
@@ -1142,11 +1230,20 @@ def build_six_dof_problem(
     angular.guess = np.tile(body_rate0, (n, 1))
 
     thrust = ox.Control("thrust", shape=(1,))
-    thrust.min = np.array([t_min])
-    thrust.max = np.array([t_max])
-    thrust.scaling_min = np.array([t_min])
-    thrust.scaling_max = np.array([max(config.thrust_scaling * t_max, t_min)])
-    thrust.guess = np.full((n, 1), min(max(m0 * g_local, t_min), t_max))
+    if config.free_ignition:
+        # Burn-throttle fraction: the physical engine throttle is reconstructed
+        # from this fraction and the smooth ignition gate.
+        thrust.min = np.array([0.0])
+        thrust.max = np.array([1.0])
+        thrust.scaling_min = np.array([0.0])
+        thrust.scaling_max = np.array([config.thrust_scaling])
+        thrust.guess = np.full((n, 1), 0.6)
+    else:
+        thrust.min = np.array([t_min])
+        thrust.max = np.array([t_max])
+        thrust.scaling_min = np.array([t_min])
+        thrust.scaling_max = np.array([max(config.thrust_scaling * t_max, t_min)])
+        thrust.guess = np.full((n, 1), min(max(m0 * g_local, t_min), t_max))
 
     torque = ox.Control("torque", shape=(3,))
     torque.min = -torque_limit
@@ -1160,6 +1257,38 @@ def build_six_dof_problem(
     accel_bias = ox.Parameter("accel_bias", shape=(3,), value=np.zeros(3))
     inertia_param = ox.Parameter("inertia", shape=(3,), value=inertia)
     torque_max_param = ox.Parameter("torque_max", shape=(3,), value=torque_limit)
+
+    time_axis = ox.Time(
+        initial=0.0,
+        final=ox.Free(tf_guess),
+        min=0.0,
+        max=horizon_max,
+        guess=np.linspace(0.0, tf_guess, n).reshape(-1, 1),
+        time_dilation_min=0.3 * tf_guess,
+        time_dilation_max=3.0 * tf_guess,
+    )
+
+    ignition_time: Any = None
+    if config.free_ignition:
+        width = max(float(config.ignition_gate_width), 1e-3)
+        ignition_time = ox.State("ignition_time", shape=(1,))
+        ignition_time.min = np.array([0.0])
+        ignition_time.max = np.array([horizon_max])
+        ignition_time.initial = [ox.Free(float(config.ignition_guess))]
+        ignition_time.final = [ox.Free(float(config.ignition_guess))]
+        ignition_time.guess = np.full((n, 1), config.ignition_guess)
+        gate = 1.0 / (
+            1.0
+            + ox.Exp(
+                -(time_axis[0] - ignition_time[0]) / width
+            )
+        )
+        effective_thrust = gate * (
+            config.min_throttle * thrust_max
+            + (1.0 - config.min_throttle) * thrust_max * thrust[0]
+        )
+    else:
+        effective_thrust = thrust[0]
 
     center = np.asarray(body.body_center, dtype=float)
     omega = np.asarray(body.omega, dtype=float)
@@ -1181,7 +1310,7 @@ def build_six_dof_problem(
 
     # Body→inertial rotation; thrust acts along body +y.
     rotation_body = _quat_to_dcm_expr(attitude_state, ox)
-    body_thrust = ox.Concat(0.0, thrust[0], 0.0)
+    body_thrust = ox.Concat(0.0, effective_thrust, 0.0)
     thrust_inertial = rotation_body @ body_thrust
 
     w1 = angular[0]
@@ -1212,13 +1341,18 @@ def build_six_dof_problem(
     dynamics = {
         "position": velocity,
         "velocity": thrust_inertial / mass[0] + gravity + rotation + drag_accel + accel_bias,
-        "mass": -thrust[0] / (isp * G0),
+        "mass": -effective_thrust / (isp * G0),
         "attitude": attitude_dot,
         "angular_velocity": angular_dot,
     }
+    if ignition_time is not None:
+        dynamics["ignition_time"] = 0.0
 
     constraints: list[Any] = []
-    for component in (position, velocity, mass, attitude_state, angular):
+    state_components: tuple[Any, ...] = (position, velocity, mass, attitude_state, angular)
+    if ignition_time is not None:
+        state_components = state_components + (ignition_time,)
+    for component in state_components:
         constraints.extend(
             [
                 ox.ctcs(component <= component.max, idx=0),
@@ -1228,8 +1362,12 @@ def build_six_dof_problem(
     norm_squared = ox.Sum(attitude_state * attitude_state)
     constraints.append(ox.ctcs(norm_squared <= 1.0 + config.quat_norm_tol, idx=0))
     constraints.append(ox.ctcs(1.0 - config.quat_norm_tol <= norm_squared, idx=0))
-    constraints.append(ox.ctcs(thrust[0] <= thrust_max, idx=1))
-    constraints.append(ox.ctcs(0.0 <= thrust[0], idx=1))
+    if config.free_ignition:
+        constraints.append(ox.ctcs(thrust[0] <= 1.0, idx=1))
+        constraints.append(ox.ctcs(0.0 <= thrust[0], idx=1))
+    else:
+        constraints.append(ox.ctcs(thrust[0] <= thrust_max, idx=1))
+        constraints.append(ox.ctcs(0.0 <= thrust[0], idx=1))
     constraints.append(ox.ctcs(-torque_max_param <= torque, idx=1))
     constraints.append(ox.ctcs(torque <= torque_max_param, idx=1))
 
@@ -1246,19 +1384,10 @@ def build_six_dof_problem(
         ox.ctcs(lateral <= (tan_slope * height_above_site) ** 2, idx=3)
     )
 
-    time_axis = ox.Time(
-        initial=0.0,
-        final=ox.Free(tf_guess),
-        min=0.0,
-        max=horizon_max,
-        guess=np.linspace(0.0, tf_guess, n).reshape(-1, 1),
-        time_dilation_min=0.3 * tf_guess,
-        time_dilation_max=3.0 * tf_guess,
-    )
-
     problem = ox.Problem(
         dynamics=dynamics,
-        states=[position, velocity, mass, attitude_state, angular],
+        states=[position, velocity, mass, attitude_state, angular]
+        + ([ignition_time] if ignition_time is not None else []),
         controls=[thrust, torque],
         time=time_axis,
         constraints=constraints,
@@ -1287,6 +1416,7 @@ def build_six_dof_problem(
         angular_velocity=angular,
         torque=torque,
         attitude_final=q_final,
+        ignition_time=ignition_time,
     )
 
 

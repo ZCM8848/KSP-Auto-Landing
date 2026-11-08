@@ -82,6 +82,9 @@ class Plan:
     torques: np.ndarray | None = field(default=None, repr=False)
     """Node body-frame control torques (N·m), shape ``(N, 3)``."""
 
+    ignition_time: float | None = field(default=None, repr=False)
+    """Free-ignition time relative to the plan start (s), when optimized."""
+
     def __post_init__(self) -> None:
         n = int(np.asarray(self.times).shape[0])
         if n < 2:
@@ -234,6 +237,11 @@ class Plan:
             attitudes=attitudes,
             angular_velocities=_shifted_optional(self.angular_velocities),
             torques=_shifted_optional(self.torques),
+            ignition_time=(
+                None
+                if self.ignition_time is None
+                else max(float(self.ignition_time) - elapsed, 0.0)
+            ),
         )
 
 

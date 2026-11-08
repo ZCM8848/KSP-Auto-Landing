@@ -1,4 +1,4 @@
-"""Grasshopper hop: vertical ascent to 10 km, engine cutoff, 6-DOF SCvx landing.
+﻿"""Grasshopper hop: vertical ascent to 10 km, engine cutoff, 6-DOF SCvx landing.
 
 Mission profile
 ---------------
@@ -58,22 +58,23 @@ TARGET = LAUNCHPAD_JNSQ
 
 ASCENT_ALT = 10_000.0     # cutoff altitude above the pad surface (m)
 VZ_MAX = 150.0            # maximum ascent vertical speed (m/s)
-A_BRAKE = 4.0             # ascent profile deceleration near cutoff (m/s²)
+A_BRAKE = 4.0             # ascent profile deceleration near cutoff (m/s虏)
 ASCENT_KP = 0.25          # vertical-speed loop gain (1/s)
 
-COAST_S = 4.0             # engine-off coast before the SCvx solve (s)
-DESCENT_VZ = -200.0       # start the SCvx descent at this vertical speed (m/s)
+COAST_S = 4.0             # minimum engine-off coast before the free-ignition solve (s)
+DESCENT_VZ = -200.0       # state that seeds the free-ignition OCP (m/s)
 MIN_THROTTLE = 0.40       # engine lower throttle limit
 LOOP_HZ = 50.0            # control-loop rate
 SCVX_N = 18               # transcription nodes
-SCVX_ITERS = 40           # SCP iterations per refresh
-SCVX_TF_HINT = 45.0       # initial time-of-flight seed (s)
+SCVX_ITERS = 40          # SCP iterations per refresh (free ignition needs more)
+SCVX_TF_HINT = 45.0       # free-final-time / free-ignition seed (s)
+IGNITION_GUESS = 15.0     # initial guess for the free ignition time (s)
 TERMINAL_ALT = 500.0      # hand off from SCvx to terminal guidance at this height (m)
-TERM_KP = 0.8             # terminal horizontal position gain (1/s²)
+TERM_KP = 0.8             # terminal horizontal position gain (1/s虏)
 TERM_KD = 1.8             # terminal horizontal velocity gain (1/s)
-TERM_MAX_HACC = 4.0       # terminal horizontal acceleration limit (m/s²)
+TERM_MAX_HACC = 4.0       # terminal horizontal acceleration limit (m/s虏)
 
-# Plan-tracking feedback (thrust-acceleration correction, m/s²).
+# Plan-tracking feedback (thrust-acceleration correction, m/s虏).
 KP_POS = 0.20
 KD_VEL = 1.00
 MAX_FEEDBACK = 2.0
@@ -195,6 +196,18 @@ def _plan_thrust(
     """
     desired_p, desired_v, _ = plan.state_at(elapsed)  # type: ignore[attr-defined]
     feedforward = np.asarray(plan.thrust_at(elapsed), dtype=float)  # type: ignore[attr-defined]
+    planned_magnitude = float(np.linalg.norm(feedforward))
+    if planned_magnitude <= 1e-6:
+        # A planned coast is exact: do not let position feedback light the
+        # engine early.  Keep the planned attitude (or vertical if absent).
+        axes = getattr(plan, "attitude_axes", None)
+        nose = (0.0, 0.0, 1.0)
+        if axes is not None:
+            result = axes(elapsed)
+            if result is not None:
+                nose = tuple(float(x) for x in result[0])
+        return 0.0, nose, np.asarray(desired_p, dtype=float)
+
     error_p = np.asarray(desired_p, dtype=float) - np.asarray(state.position, dtype=float)
     error_v = np.asarray(desired_v, dtype=float) - np.asarray(state.velocity, dtype=float)
     feedback = KP_POS * error_p + KD_VEL * error_v
@@ -210,11 +223,8 @@ def _plan_thrust(
 
     # A true coast command stays a coast.  A positive command is pushed into
     # the engine's admissible band; the OCP is allowed to choose zero thrust
-    # (engine cutoff is legal), but it must not ask the engine for 1–39 %.
-    planned_magnitude = float(np.linalg.norm(feedforward))
+    # (engine cutoff is legal), but it must not ask the engine for 1鈥?9 %.
     magnitude = float(state.mass) * float(np.linalg.norm(acceleration))
-    if planned_magnitude <= 1e-6 and magnitude < MIN_THROTTLE * thrust_capability:
-        return 0.0, tuple(direction), np.asarray(desired_p, dtype=float)
     magnitude = _clamp(magnitude, MIN_THROTTLE * thrust_capability, thrust_capability)
     return magnitude / thrust_capability, tuple(direction), np.asarray(desired_p, dtype=float)
 
@@ -393,7 +403,7 @@ def main() -> None:
         )
         print(
             f"Body: r={body_spec.body_radius:.0f} m mu={body_spec.mu:.3e} "
-            f"CdA={drag_spec.cd_area:.3f} m² beta={drag_spec.ballistic_coefficient:.1f}"
+            f"CdA={drag_spec.cd_area:.3f} m虏 beta={drag_spec.ballistic_coefficient:.1f}"
         )
 
         booster.physics_range = 200_000.0
@@ -415,7 +425,7 @@ def main() -> None:
         print(
             f"Engine: Tmax={engine_model.available_thrust:.0f} N "
             f"Isp={engine_model.isp:.1f} s; "
-            f"torque={attitude_model.max_torque} N·m"
+            f"torque={attitude_model.max_torque} N路m"
         )
 
         # Size and compile the 6-DOF OCP while still on the pad.  The actual
@@ -425,7 +435,7 @@ def main() -> None:
             state,
             mass=float(state.mass),
             altitude=9_700.0,
-            vertical_speed=DESCENT_VZ,
+            vertical_speed=-200.0,
             ut=float(state.ut) + 60.0,
         )
         config = ScvxConfig(
@@ -435,6 +445,9 @@ def main() -> None:
             horizon_factor=2.0,
             horizon_min=1.0,
             multishot_plan=True,
+            free_ignition=False,
+            ignition_guess=IGNITION_GUESS,
+
         )
         problem = build_six_dof_problem(
             body_spec,
@@ -484,6 +497,7 @@ def main() -> None:
 
         phase = "ascent"
         coast_ut = 0.0
+        descent_started_ut = 0.0
         latest_plan: object | None = None
         last_plan_time = time.monotonic()
         last_plan_id: int | None = None
@@ -577,7 +591,8 @@ def main() -> None:
                         coast_ut = float(s.ut)
                         print(
                             f"Engine cutoff at z={s.position.z:.1f} m "
-                            f"vz={s.velocity.z:.1f} m/s; coasting {COAST_S:.1f}s"
+                            f"vz={s.velocity.z:.1f} m/s; coasting to "
+                            f"{DESCENT_VZ:.0f} m/s for free-ignition solve"
                         )
                     continue
 
@@ -601,7 +616,6 @@ def main() -> None:
                         float(s.ut) - coast_ut >= COAST_S
                         and s.velocity.z <= DESCENT_VZ
                     ):
-                        # Start MPC from the actual post-coast measurement.
                         service.refresh(
                             BOOSTER_ID,
                             s,
@@ -610,8 +624,9 @@ def main() -> None:
                             attitude=AttitudeModel.from_state(s),
                         )
                         phase = "descent"
+                        descent_started_ut = float(s.ut)
                         print(
-                            f"SCvx descent seeded at z={s.position.z:.1f} m "
+                            f"Free-ignition SCvx seeded at z={s.position.z:.1f} m "
                             f"vz={s.velocity.z:.1f} m/s mass={s.mass:.0f} kg"
                         )
                     continue
@@ -659,17 +674,30 @@ def main() -> None:
                     latest_plan = service.latest_plan(BOOSTER_ID)
                     plan_stats = service.stats(BOOSTER_ID)
                     plan_ready = latest_plan is not None and (
-                        last_plan_id is not None or plan_stats.converged
+                        last_plan_id is not None
+                        or (
+                            plan_stats.solver_converged
+                            if config.free_ignition
+                            else plan_stats.converged
+                        )
                     )
                     if not plan_ready:
+                        if float(s.ut) - descent_started_ut > 20.0:
+                            raise RuntimeError(
+                                "free-ignition SCvx plan not ready after 20 s "
+                                f"(iterations={plan_stats.iterations}, "
+                                f"converged={plan_stats.converged}, "
+                                f"solver={plan_stats.solver_converged}, "
+                                f"error={service.last_error(BOOSTER_ID)!r})"
+                            )
                         sticks = attitude.step(s, (0.0, 0.0, 1.0))
                         booster.controls.apply(
-                            throttle=MIN_THROTTLE,
+                            throttle=0.0,
                             pitch=sticks.pitch,
                             yaw=sticks.yaw,
                             roll=sticks.roll,
                         )
-                        log_row(s=s, throttle=MIN_THROTTLE, plan_elapsed=0.0,
+                        log_row(s=s, throttle=0.0, plan_elapsed=0.0,
                                 desired_p=None, solver_error=service.last_error(BOOSTER_ID))
                         continue
 
@@ -681,6 +709,12 @@ def main() -> None:
                             print(
                                 f"[solver] plan source={last_plan_source!r} "
                                 f"(multishot expected)"
+                            )
+                        ignition = getattr(latest_plan, "ignition_time", None)
+                        if ignition is not None:
+                            print(
+                                f"[solver] free ignition at t_plan="
+                                f"{float(ignition):.2f}s, source={last_plan_source}"
                             )
 
                     # Use the current game clock for plan phase; a telemetry frame
