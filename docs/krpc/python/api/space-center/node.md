@@ -75,7 +75,7 @@ class Node
     :   Returns the burn vector for the maneuver node.
 
         Parameters:
-        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the returned vector is in. Defaults to [`Vessel.orbital_reference_frame`](./vessel.md#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame").
+        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame") *or* *None*) – The reference frame that the returned vector is in. Defaults to [`Vessel.orbital_reference_frame`](./vessel.md#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame").
 
         Returns:
         :   A vector whose direction is the direction of the maneuver node burn, and magnitude is the delta-v of the burn in meters per second.
@@ -94,7 +94,7 @@ class Node
     :   Returns the remaining burn vector for the maneuver node.
 
         Parameters:
-        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the returned vector is in. Defaults to [`Vessel.orbital_reference_frame`](./vessel.md#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame").
+        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame") *or* *None*) – The reference frame that the returned vector is in. Defaults to [`Vessel.orbital_reference_frame`](./vessel.md#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame").
 
         Returns:
         :   A vector whose direction is the direction of the maneuver node burn, and magnitude is the delta-v of the burn in meters per second.
@@ -174,11 +174,11 @@ class Node
 
         - The origin is at the position of the maneuver node.
         - The x-axis points in the orbital anti-radial direction of the original
-          orbit, at the position of the maneuver node.
+            orbit, at the position of the maneuver node.
         - The y-axis points in the orbital prograde direction of the original
-          orbit, at the position of the maneuver node.
+            orbit, at the position of the maneuver node.
         - The z-axis points in the orbital normal direction of the original orbit,
-          at the position of the maneuver node.
+            at the position of the maneuver node.
 
         Attribute:
         :   Read-only, cannot be set

@@ -35,7 +35,7 @@ class Stage
     :   Returns a [`Stage.resources()`](#SpaceCenter.Stage.resources "SpaceCenter.Stage.resources") object for this stage.
 
         Parameters:
-        :   **cumulative** (*bool*) – When `False`, only resources assigned to this stage. When `True`, resources for this stage and all later activation or decouple stage numbers are included. On activation stages, unstaged resource containers (for example fuel tanks) are grouped with the first higher activation stage before they are detached. Defaults to `True` so decouple-stage calls match the legacy `Vessel.ResourcesInDecoupleStage` RPC.
+        :   **cumulative** (*bool*) – When `False`, only resources assigned to this stage. When `True`, resources for this stage and all later activation or decouple stage numbers are included. On activation stages, unstaged resource containers (for example fuel tanks) are grouped with the first higher activation stage before they are detached.
 
         Return type:
         :   [`Resources`](./resources.md#SpaceCenter.Resources "SpaceCenter.Resources")
@@ -43,9 +43,6 @@ class Stage
         > **Note**
         >
         > This is an RPC method: call `resources()` (optional `cumulative` argument).
-        > The default `cumulative=true` matches the legacy
-        > [`Vessel.resources_in_decouple_stage()`](./vessel.md#SpaceCenter.Vessel.resources_in_decouple_stage "SpaceCenter.Vessel.resources_in_decouple_stage") RPC.
-        > For decouple stages, grouping is the same as that deprecated method.
         > For activation stages, unstaged resource containers (for example fuel tanks)
         > are grouped with the first higher activation stage before they detach, matching
         > the C# `Resources()` documentation.
@@ -173,7 +170,7 @@ class Stage
         :   float
 
     start\_mass
-    :   Start mass for this stage, in kg.
+    :   The mass of the vessel after the stage activates, in kg.
 
         Attribute:
         :   Read-only, cannot be set
@@ -182,7 +179,7 @@ class Stage
         :   float
 
     end\_mass
-    :   End mass for this stage, in kg.
+    :   The mass of the vessel when the stage burns out, in kg.
 
         Attribute:
         :   Read-only, cannot be set
@@ -191,19 +188,28 @@ class Stage
         :   float
 
     dry\_mass
-    :   Dry mass for this stage, in kg.
+    :   The dry mass of the vessel after the stage activates, in kg.
 
         Attribute:
         :   Read-only, cannot be set
 
         Return type:
         :   float
+
+        > **Note**
+        >
+        > Includes the parts of all later stages.
 
     fuel\_mass
-    :   Fuel mass for this stage, in kg.
+    :   The fuel mass of the vessel when the stage activates, in kg.
 
         Attribute:
         :   Read-only, cannot be set
 
         Return type:
         :   float
+
+        > **Note**
+        >
+        > Includes the fuel of all later stages, and the fuel left in the parts the stage
+        > decouples. The stage burns [`Stage.start_mass`](#SpaceCenter.Stage.start_mass "SpaceCenter.Stage.start_mass") minus [`Stage.end_mass`](#SpaceCenter.Stage.end_mass "SpaceCenter.Stage.end_mass").

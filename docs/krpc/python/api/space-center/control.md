@@ -12,6 +12,21 @@ class Control
     > and the custom axes) are zeroed when all clients that have set one or more of
     > these inputs are no longer connected. The throttle is an exception: it keeps
     > its value when clients disconnect.
+    >
+    > A kerbal on EVA is a vessel, and is driven by these same controls. The
+    > translation inputs move it: [`Control.forward`](#SpaceCenter.Control.forward "SpaceCenter.Control.forward") and [`Control.right`](#SpaceCenter.Control.right "SpaceCenter.Control.right") walk
+    > it about, relative to the direction it is facing, and all three translate its
+    > jetpack once that is deployed. Walking is not throttled by the size of the
+    > input, only started by it. The rotation inputs turn it, at a rate proportional
+    > to the input: [`Control.yaw`](#SpaceCenter.Control.yaw "SpaceCenter.Control.yaw") steers it as it walks, and all three turn its
+    > jetpack. Turning the jetpack releases the kerbal from the orientation it was
+    > holding; it stops and holds its new orientation once the input returns to zero.
+    > [`Control.rcs`](#SpaceCenter.Control.rcs "SpaceCenter.Control.rcs") deploys and stows the jetpack and [`Control.lights`](#SpaceCenter.Control.lights "SpaceCenter.Control.lights")
+    > switches the helmet lamp. The remaining controls do nothing for a kerbal.
+    > A kerbal is also sent out and brought back in from here: with
+    > [`CrewMember.eva()`](./vessel.md#SpaceCenter.CrewMember.eva "SpaceCenter.CrewMember.eva") and [`Control.board()`](#SpaceCenter.Control.board "SpaceCenter.Control.board"), and
+    > [`Control.grab_ladder()`](#SpaceCenter.Control.grab_ladder "SpaceCenter.Control.grab_ladder") and [`Control.release_ladder()`](#SpaceCenter.Control.release_ladder "SpaceCenter.Control.release_ladder") for the ladders it
+    > passes on the way.
 
     source
     :   The source of the vessels control, for example by a kerbal or a probe core.
@@ -143,6 +158,12 @@ class Control
         Game Scenes:
         :   Flight
 
+        > **Note**
+        >
+        > For a kerbal on EVA this is whether its jetpack is deployed. Deploying it
+        > requires the kerbal to have one and to be the active vessel; otherwise
+        > setting this does nothing.
+
     reaction\_wheels
     :   Returns whether all reactive wheels on the vessel are active,
         and sets the active state of all reaction wheels.
@@ -210,6 +231,11 @@ class Control
 
         Game Scenes:
         :   Flight
+
+        > **Note**
+        >
+        > For a kerbal on EVA this is its helmet lamp. Switching it requires the
+        > kerbal to be the active vessel; otherwise setting this does nothing.
 
     brakes
     :   The state of the wheel brakes.
@@ -503,6 +529,28 @@ class Control
         Game Scenes:
         :   Flight
 
+    precision\_mode
+    :   Whether precision control mode is enabled.
+        Equivalent to the Caps Lock key.
+        This is a game setting rather than a vessel setting,
+        and can only be accessed for the active vessel.
+        Unlike the pitch, yaw and roll control inputs, precision mode is not cleared
+        when clients disconnect.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   bool
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > Precision mode weakens the RCS thrust that the control inputs produce. A block
+        > driven by [`RCS.input_override`](./parts.md#SpaceCenter.RCS.input_override "SpaceCenter.RCS.input_override") is exempt.
+
     forward
     :   The state of the forward translational control.
         A value between -1 and 1.
@@ -713,7 +761,7 @@ class Control
     :   Returns `True` if the given action group is enabled.
 
         Parameters:
-        :   **group** (*int*) – A number between 0 and 9 inclusive, or between 0 and 250 inclusive when the [Extended Action Groups mod](https://forum.kerbalspaceprogram.com/index.php?/topic/67235-122dec1016-action-groups-extended-250-action-groups-in-flight-editing-now-kosremotetech/) is installed.
+        :   **group** (*int*) – A number between 0 and 9 inclusive, or between 0 and 250 inclusive when the [Extended Action Groups mod](https://forum.kerbalspaceprogram.com/topic/67235-122dec1016-action-groups-extended-250-action-groups-in-flight-editing-now-kosremotetech/) is installed.
 
         Return type:
         :   bool
@@ -727,7 +775,8 @@ class Control
         Parameters:
         :   - **group** (*int*) –
 
-              A number between 0 and 9 inclusive, or between 0 and 250 inclusive when the [Extended Action Groups mod](https://forum.kerbalspaceprogram.com/index.php?/topic/67235-122dec1016-action-groups-extended-250-action-groups-in-flight-editing-now-kosremotetech/) is installed.
+                A number between 0 and 9 inclusive, or between 0 and 250 inclusive when the [Extended Action Groups mod](https://forum.kerbalspaceprogram.com/topic/67235-122dec1016-action-groups-extended-250-action-groups-in-flight-editing-now-kosremotetech/) is installed.
+
             - **state** (*bool*)
 
         Game Scenes:
@@ -739,7 +788,7 @@ class Control
         Parameters:
         :   **group** (*int*) –
 
-            A number between 0 and 9 inclusive, or between 0 and 250 inclusive when the [Extended Action Groups mod](https://forum.kerbalspaceprogram.com/index.php?/topic/67235-122dec1016-action-groups-extended-250-action-groups-in-flight-editing-now-kosremotetech/) is installed.
+            A number between 0 and 9 inclusive, or between 0 and 250 inclusive when the [Extended Action Groups mod](https://forum.kerbalspaceprogram.com/topic/67235-122dec1016-action-groups-extended-250-action-groups-in-flight-editing-now-kosremotetech/) is installed.
 
         Game Scenes:
         :   Flight
@@ -752,7 +801,7 @@ class Control
         Parameters:
         :   **group** (*int*) –
 
-            A number between 0 and 9 inclusive, or between 0 and 250 inclusive when the [Extended Action Groups mod](https://forum.kerbalspaceprogram.com/index.php?/topic/67235-122dec1016-action-groups-extended-250-action-groups-in-flight-editing-now-kosremotetech/) is installed.
+            A number between 0 and 9 inclusive, or between 0 and 250 inclusive when the [Extended Action Groups mod](https://forum.kerbalspaceprogram.com/topic/67235-122dec1016-action-groups-extended-250-action-groups-in-flight-editing-now-kosremotetech/) is installed.
 
         Return type:
         :   list([`ActionGroupAction`](#SpaceCenter.ActionGroupAction "SpaceCenter.ActionGroupAction"))
@@ -802,15 +851,81 @@ class Control
         Game Scenes:
         :   Flight
 
-class ActionGroupAction
+    airlock
+    :   The part whose hatch the kerbal is standing at, and so the one
+        [`Control.board()`](#SpaceCenter.Control.board "SpaceCenter.Control.board") would put it in. `None` if it is not at a hatch or the
+        vessel is not a kerbal on EVA.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`Part`](./parts.md#SpaceCenter.Part "SpaceCenter.Part") or None
+
+        Game Scenes:
+        :   Flight
+
+    board()
+    :   Climb into the part whose hatch the kerbal is standing at, ending the EVA. The
+        kerbal takes a seat in that part and its own vessel ceases to exist. If the
+        kerbal was the active vessel, the game switches to the vessel it boarded.
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > A kerbal can only board through a hatch it is already at, which
+        > [`Control.airlock`](#SpaceCenter.Control.airlock "SpaceCenter.Control.airlock") reports; it does not walk to one. Throws an exception if
+        > the vessel is not a kerbal on EVA, if the kerbal is not at a hatch, if boarding
+        > is disabled for the game, if the part has no free seat, or if the kerbal is
+        > carrying science data that the part cannot store, as the game asks what to do
+        > with it in that case.
+
+    ladder
+    :   The ladder the kerbal is holding on to, or `None` if it is not holding one
+        or the vessel is not a kerbal on EVA.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`Part`](./parts.md#SpaceCenter.Part "SpaceCenter.Part") or None
+
+        Game Scenes:
+        :   Flight
+
+    grab\_ladder()
+    :   Take hold of the ladder the kerbal is standing at, as pressing the grab key
+        in-game does. A kerbal can only take hold of a ladder it is already alongside;
+        it does not walk to one. [`Control.ladder`](#SpaceCenter.Control.ladder "SpaceCenter.Control.ladder") reports the one it ends up
+        holding. Does nothing if the kerbal is already holding a ladder.
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > Throws an exception if the vessel is not a kerbal on EVA, if there is no ladder
+        > within reach, or if the kerbal is doing something it cannot grab a ladder from.
+
+    release\_ladder()
+    :   Let go of the ladder the kerbal is holding, as pressing the jump key in-game
+        does. Does nothing if it is not holding one.
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > Throws an exception if the vessel is not a kerbal on EVA.
+
+class ActionGroupAction(*part*, *module*, *name*, *id*)
 :   An action, belonging to a part module, that is assigned to an action group.
     Obtained by calling [`Control.get_action_group_actions()`](#SpaceCenter.Control.get_action_group_actions "SpaceCenter.Control.get_action_group_actions").
 
     part
     :   The part that the action acts on.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   [`Part`](./parts.md#SpaceCenter.Part "SpaceCenter.Part")
@@ -821,26 +936,17 @@ class ActionGroupAction
         the Extended Action Groups mod is installed, as it can assign actions defined
         directly on a part, rather than on one of its modules, to an action group.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
-        :   [`Module`](./parts.md#SpaceCenter.Module "SpaceCenter.Module")
+        :   [`Module`](./parts.md#SpaceCenter.Module "SpaceCenter.Module") or None
 
     name
     :   The human-readable name of the action, as shown in the action group editor.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   str
 
     id
     :   The non-localized identifier for the action.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   str

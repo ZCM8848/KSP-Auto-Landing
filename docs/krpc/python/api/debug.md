@@ -1,0 +1,7 @@
+# Debug API
+
+Provides RPCs to modify the state of the simulation directly, in ways the game normally
+does not allow. Everything here is cheating: it has the same effect on a save, and the same
+consequences, as the game’s own debug menu.
+
+- [Debug](./debug/debug.md)

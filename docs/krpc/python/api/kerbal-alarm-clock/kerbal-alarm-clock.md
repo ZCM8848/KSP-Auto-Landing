@@ -1,7 +1,7 @@
 # KerbalAlarmClock
 
 This service provides functionality to interact with
-[Kerbal Alarm Clock](https://forum.kerbalspaceprogram.com/index.php?/topic/22809-13x-kerbal-alarm-clock-v3850-may-30/).
+[Kerbal Alarm Clock](https://forum.kerbalspaceprogram.com/topic/22809-112x-kerbal-alarm-clock-v31300-april-10/).
 
 available
 :   Whether Kerbal Alarm Clock is available.
@@ -30,7 +30,7 @@ static alarm\_with\_name(*name*)
     :   **name** (*str*) – Name of the alarm to search for.
 
     Return type:
-    :   [`Alarm`](./alarm.md#KerbalAlarmClock.Alarm "KerbalAlarmClock.Alarm")
+    :   [`Alarm`](./alarm.md#KerbalAlarmClock.Alarm "KerbalAlarmClock.Alarm") or None
 
 static alarms\_with\_type(*type*)
 :   Get a list of alarms of the specified *type*.

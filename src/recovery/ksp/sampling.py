@@ -9,6 +9,7 @@ crosses into guidance.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
@@ -120,6 +121,7 @@ def sample_drag_spec(
         density_vals=densities,
         body_center=center,
         sea_level_radius=sea_r,
+        cd_area=(float(mass) / beta) if (mass is not None and beta > 0.0) else None,
     )
 
 
@@ -136,14 +138,22 @@ def _resolve_beta(
     """Resolve the ballistic coefficient (kg/m²).
 
     Priority: *manual_beta* override, then the FAR-reported coefficient when
-    FAR is installed, then an estimate from a simulated aerodynamic force at a
-    reference dense-air state.  The reference-state path avoids the numerically
-    unstable instantaneous ``flight.drag`` at boosterback altitude.
+    FAR is installed **and reports a positive value**, then an estimate from a
+    simulated aerodynamic force at a reference dense-air state.  The reference-
+    state path avoids the numerically unstable instantaneous ``flight.drag`` at
+    boosterback altitude; it is also the fallback when FAR reports zero (e.g.
+    while the vessel is at rest).
     """
     if manual_beta is not None:
         return float(manual_beta)
     if space_center is not None and getattr(space_center, "far_available", False):
-        return float(getattr(flight, "ballistic_coefficient", 0.0))
+        beta = float(getattr(flight, "ballistic_coefficient", 0.0))
+        # FAR reports 0 when the vessel is at rest (or flying with no drag),
+        # so a non-positive value is not a usable coefficient — fall through
+        # to the simulated-force estimate instead of returning 0 (which would
+        # later divide by zero in ``LiftDragModel.from_drag_spec``).
+        if math.isfinite(beta) and beta > 0.0:
+            return beta
     if mass is None:
         raise ValueError(
             "Cannot determine ballistic coefficient: "

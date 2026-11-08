@@ -16,6 +16,22 @@ class Camera
         Game Scenes:
         :   Flight
 
+    next\_camera()
+    :   Switch to the next available camera.
+        In flight, this moves to the next flight camera mode. In IVA, it moves the
+        view to the next crew member in the active vessel.
+
+        Game Scenes:
+        :   Flight
+
+    previous\_camera()
+    :   Switch to the previous available camera.
+        In flight, this moves to the previous flight camera mode. In IVA, it moves
+        the view to the previous crew member in the active vessel.
+
+        Game Scenes:
+        :   Flight
+
     pitch
     :   The pitch of the camera, in degrees.
         A value between [`Camera.min_pitch`](#SpaceCenter.Camera.min_pitch "SpaceCenter.Camera.min_pitch") and [`Camera.max_pitch`](#SpaceCenter.Camera.max_pitch "SpaceCenter.Camera.max_pitch")
@@ -172,7 +188,7 @@ class Camera
         :   Can be read or written
 
         Return type:
-        :   [`CelestialBody`](./celestial-body.md#SpaceCenter.CelestialBody "SpaceCenter.CelestialBody")
+        :   [`CelestialBody`](./celestial-body.md#SpaceCenter.CelestialBody "SpaceCenter.CelestialBody") or None
 
         Game Scenes:
         :   Flight
@@ -186,7 +202,7 @@ class Camera
         :   Can be read or written
 
         Return type:
-        :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel")
+        :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel") or None
 
         Game Scenes:
         :   Flight
@@ -200,32 +216,24 @@ class Camera
         :   Can be read or written
 
         Return type:
-        :   [`Node`](./node.md#SpaceCenter.Node "SpaceCenter.Node")
+        :   [`Node`](./node.md#SpaceCenter.Node "SpaceCenter.Node") or None
 
         Game Scenes:
         :   Flight
 
     focussed\_crew\_member
-    :   When the internal camera is active the kerbal that is in focus
+    :   In IVA mode, the crew member whose view the camera is showing.
+        Returns `None` if no crew member is in view.
         Returns an error if the camera is not in IVA mode.
+        Setting this moves the view to the given crew member, switching the camera to
+        IVA mode if it is not already. The crew member must be in the active vessel,
+        and in a part whose interior the game has placed them in.
 
         Attribute:
         :   Can be read or written
 
         Return type:
-        :   [`CrewMember`](./vessel.md#SpaceCenter.CrewMember "SpaceCenter.CrewMember")
-
-        Game Scenes:
-        :   Flight
-
-    next\_camera()
-    :   Switch to the next available camera
-
-        Game Scenes:
-        :   Flight
-
-    previous\_camera()
-    :   Switch to the previous available camera
+        :   [`CrewMember`](./vessel.md#SpaceCenter.CrewMember "SpaceCenter.CrewMember") or None
 
         Game Scenes:
         :   Flight

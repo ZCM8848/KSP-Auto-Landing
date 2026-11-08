@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 
+from .perf import PROFILER
+
 
 class FramePacer:
     """Paces a loop to a target frequency with drift correction.
@@ -78,22 +80,24 @@ class FramePacer:
         ``period`` if the preceding tick was slow — the pacer catches up by
         skipping missed boundaries rather than queuing them).
         """
-        now = time.monotonic()
-        elapsed = now - self._origin
-        # The tiny ``1e-12`` epsilon guards against floating-point round-off
-        # landing just below an exact frame boundary (``elapsed * hz`` ending
-        # in .999…9), which would otherwise make ``int()`` silently drop a
-        # frame.
-        frame = int(elapsed * self._hz + 1e-12) + 1
-        target = self._origin + frame * self.period
-        delay = target - now
-        if delay > 0:
-            time.sleep(delay)
-            now = target
-        dt = self.period if self._prev is None else now - self._prev
-        if dt <= 0:
-            dt = self.period
-        if self._max_dt is not None:
-            dt = min(dt, self._max_dt)
-        self._prev = now
-        return dt
+        with PROFILER.section("pace.tick"):
+            now = time.monotonic()
+            elapsed = now - self._origin
+            # The tiny ``1e-12`` epsilon guards against floating-point round-off
+            # landing just below an exact frame boundary (``elapsed * hz`` ending
+            # in .999…9), which would otherwise make ``int()`` silently drop a
+            # frame.
+            frame = int(elapsed * self._hz + 1e-12) + 1
+            target = self._origin + frame * self.period
+            delay = target - now
+            if delay > 0:
+                with PROFILER.section("pace.sleep"):
+                    time.sleep(delay)
+                now = target
+            dt = self.period if self._prev is None else now - self._prev
+            if dt <= 0:
+                dt = self.period
+            if self._max_dt is not None:
+                dt = min(dt, self._max_dt)
+            self._prev = now
+            return dt

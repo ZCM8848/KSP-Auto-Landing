@@ -257,3 +257,7 @@ class Waypoint
 
         Game Scenes:
         :   Flight
+
+        > **Note**
+        >
+        > Any further use of this object throws an exception.

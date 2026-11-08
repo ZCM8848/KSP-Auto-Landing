@@ -29,7 +29,7 @@ class CelestialBody
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Orbit`](./orbit.md#SpaceCenter.Orbit "SpaceCenter.Orbit")
+        :   [`Orbit`](./orbit.md#SpaceCenter.Orbit "SpaceCenter.Orbit") or None
 
     mass
     :   The mass of the body, in kilograms.
@@ -79,7 +79,7 @@ class CelestialBody
 
     rotation\_angle
     :   The current rotation angle of the body, in radians.
-        A value between 0 and 2·pi
+        A value between 0 and 2 pi.
 
         Attribute:
         :   Read-only, cannot be set
@@ -89,7 +89,7 @@ class CelestialBody
 
     initial\_rotation
     :   The initial rotation angle of the body (at UT 0), in radians.
-        A value between 0 and 2·pi
+        A value between 0 and 2 pi.
 
         Attribute:
         :   Read-only, cannot be set
@@ -189,6 +189,76 @@ class CelestialBody
         Return type:
         :   tuple(float, float, float)
 
+    surface\_reference\_frame(*latitude*, *longitude*[, *altitude=0.0*])
+    :   Create a reference frame fixed to the surface at the given latitude and longitude.
+
+        - The origin is the given altitude above the surface, at the
+            given latitude and longitude.
+        - The axes rotate with the body.
+        - The x-axis points out from the center of the body.
+        - The y-axis points north.
+        - The z-axis points east.
+
+        Parameters:
+        :   - **latitude** (*float*) – Latitude in degrees.
+            - **longitude** (*float*) – Longitude in degrees.
+            - **altitude** (*float*) – Altitude of the origin above the surface, in meters.
+
+        Return type:
+        :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
+
+        > **Note**
+        >
+        > Each call returns a new frame, as for [`ReferenceFrame.create_relative()`](./reference-frame.md#SpaceCenter.ReferenceFrame.create_relative "SpaceCenter.ReferenceFrame.create_relative").
+
+    msl\_normal(*latitude*, *longitude*, *reference\_frame*)
+    :   The normal to the sphere at mean sea level, at the given latitude and longitude,
+        in the given reference frame. This points straight up, away from the center of
+        the body, and takes no account of the shape of the terrain.
+
+        Parameters:
+        :   - **latitude** (*float*) – Latitude in degrees.
+            - **longitude** (*float*) – Longitude in degrees.
+            - **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – Reference frame for the returned normal vector.
+
+        Returns:
+        :   The normal as a unit vector.
+
+        Return type:
+        :   tuple(float, float, float)
+
+    surface\_normal(*latitude*, *longitude*, *reference\_frame*)
+    :   The normal to the surface at the given latitude and longitude, in the given reference
+        frame. This describes the slope of the terrain, and is the normal of the surface of
+        the water when over water.
+
+        Parameters:
+        :   - **latitude** (*float*) – Latitude in degrees.
+            - **longitude** (*float*) – Longitude in degrees.
+            - **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – Reference frame for the returned normal vector.
+
+        Returns:
+        :   The normal as a unit vector.
+
+        Return type:
+        :   tuple(float, float, float)
+
+    bedrock\_normal(*latitude*, *longitude*, *reference\_frame*)
+    :   The normal to the surface at the given latitude and longitude, in the given reference
+        frame. This describes the slope of the terrain, and is the normal of the sea-bed
+        when over water.
+
+        Parameters:
+        :   - **latitude** (*float*) – Latitude in degrees.
+            - **longitude** (*float*) – Longitude in degrees.
+            - **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – Reference frame for the returned normal vector.
+
+        Returns:
+        :   The normal as a unit vector.
+
+        Return type:
+        :   tuple(float, float, float)
+
     altitude\_at\_position(*position*, *reference\_frame*)
     :   The altitude, in meters, of the given position in the given reference frame.
 
@@ -264,6 +334,25 @@ class CelestialBody
         Return type:
         :   float
 
+    has\_ocean
+    :   `True` if the body has an ocean.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+    ocean\_density
+    :   The density of the body’s ocean, in \(kg/m^3\).
+        Returns zero if the body has no ocean.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
     atmospheric\_density\_at\_position(*position*, *reference\_frame*)
     :   The atmospheric density at the given position, in \(kg/m^3\),
         in the given reference frame.
@@ -317,7 +406,7 @@ class CelestialBody
         > for trajectory prediction.
 
     pressure\_at(*altitude*)
-    :   Gets the air pressure, in Pascals, for the specified
+    :   Gets the static pressure, in Pascals, for the specified
         altitude above sea level, in meters.
 
         Parameters:
@@ -325,6 +414,10 @@ class CelestialBody
 
         Return type:
         :   float
+
+        > **Note**
+        >
+        > Below sea level on a body with an ocean, this includes the pressure of the water.
 
     biomes
     :   The biomes present on this body.
@@ -371,12 +464,12 @@ class CelestialBody
         - The origin is at the center of the body.
         - The axes rotate with the body.
         - The x-axis points from the center of the body
-          towards the intersection of the prime meridian and equator (the
-          position at 0° longitude, 0° latitude).
+            towards the intersection of the prime meridian and equator (the
+            position at 0° longitude, 0° latitude).
         - The y-axis points from the center of the body
-          towards the north pole.
+            towards the north pole.
         - The z-axis points from the center of the body
-          towards the equator at 90°E longitude.
+            towards the equator at 90°E longitude.
 
         Attribute:
         :   Read-only, cannot be set
@@ -396,11 +489,11 @@ class CelestialBody
         - The origin is at the center of the body.
         - The axes do not rotate.
         - The x-axis points in an arbitrary direction through the
-          equator.
+            equator.
         - The y-axis points from the center of the body towards
-          the north pole.
+            the north pole.
         - The z-axis points in an arbitrary direction through the
-          equator.
+            equator.
 
         Attribute:
         :   Read-only, cannot be set
@@ -414,7 +507,7 @@ class CelestialBody
 
         - The origin is at the center of the body.
         - The axes rotate with the orbital prograde/normal/radial
-          directions.
+            directions.
         - The x-axis points in the orbital anti-radial direction.
         - The y-axis points in the orbital prograde direction.
         - The z-axis points in the orbital normal direction.

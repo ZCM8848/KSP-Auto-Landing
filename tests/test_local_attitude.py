@@ -17,7 +17,6 @@ import numpy as np
 import pytest
 
 from recovery.control import AutoPilot, LocalAttitudeController
-from recovery.control.control_utils import normalize
 from recovery.control.local_attitude import (
     RollAuthorityEstimator,
     max_acc_from_snapshot,
@@ -125,7 +124,9 @@ def test_roll_from_axes_krpc_cases() -> None:
     # bottom = +y -> dorsal = -y -> +90 (kRPC positive roll)
     assert roll_from_axes((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)) == pytest.approx(math.pi / 2, abs=1e-9)
     # bottom = -y -> dorsal = +y -> -90
-    assert roll_from_axes((0.0, 0.0, 1.0), (0.0, -1.0, 0.0)) == pytest.approx(-math.pi / 2, abs=1e-9)
+    assert roll_from_axes((0.0, 0.0, 1.0), (0.0, -1.0, 0.0)) == pytest.approx(
+        -math.pi / 2, abs=1e-9
+    )
 
 
 def test_roll_from_axes_up_parallel_nose_returns_none() -> None:

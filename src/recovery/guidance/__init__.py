@@ -1,4 +1,4 @@
-"""Guidance algorithms: impact prediction, GFOLD solver, trajectory workers."""
+"""Guidance algorithms: trajectory prediction, aero models, TOF-Net."""
 
 from .aerodynamics import LiftDragModel, LiftTableModel
 from .control import (
@@ -16,31 +16,49 @@ from .control import (
     VirtualControl,
 )
 from .controlled import ControlledPredictor, ImpactResult, Trajectory
-from .gfold import (
-    GfoldParams,
-    build_config,
-    command,
-    command_at_time,
-    features_of,
-    replan,
-    solve,
-    solve_optimal,
-    tof_of,
+from .correction import Correction, TerminalCorrector
+from .plan import GuidanceCommand, Plan, PlanExecutor, TerminalTarget, plan_to_virtual_control
+from .scvx import (
+    AttitudeModel,
+    DescentProblem,
+    EngineModel,
+    ScvxConfig,
+    ScvxPlanner,
+    ScvxSolveService,
+    SolveStats,
+    build_descent_problem,
+    build_six_dof_problem,
 )
-from .tofnet import TofPredictor
+from .terminal import PolynomialConfig, PolynomialTerminalGuidance
+from .tofnet import TofFeatureParams, TofPredictor, features_of
 
 __all__ = [
+    "AttitudeModel",
     "BrakeToThrottle",
     "ConstantThrottle",
     "ControlSegment",
     "ControlledPredictor",
+    "Correction",
+    "DescentProblem",
+    "EngineModel",
     "FixedNose",
-    "GfoldParams",
+    "GuidanceCommand",
     "ImpactResult",
     "LiftDragModel",
     "LiftTableModel",
     "NoseRule",
+    "Plan",
+    "PlanExecutor",
+    "PolynomialConfig",
+    "PolynomialTerminalGuidance",
     "RetrogradeNose",
+    "ScvxConfig",
+    "ScvxPlanner",
+    "ScvxSolveService",
+    "SolveStats",
+    "TerminalCorrector",
+    "TerminalTarget",
+    "TofFeatureParams",
     "TofPredictor",
     "TowardTargetNose",
     "Trajectory",
@@ -49,12 +67,8 @@ __all__ = [
     "TriggerKind",
     "UpNose",
     "VirtualControl",
-    "build_config",
-    "command",
-    "command_at_time",
+    "build_descent_problem",
+    "build_six_dof_problem",
     "features_of",
-    "replan",
-    "solve",
-    "solve_optimal",
-    "tof_of",
+    "plan_to_virtual_control",
 ]

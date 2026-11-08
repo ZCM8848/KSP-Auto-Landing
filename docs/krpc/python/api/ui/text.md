@@ -1,16 +1,31 @@
 # Text
 
 class Text
-:   A text label. See [`Panel.add_text()`](./panel.md#UI.Panel.add_text "UI.Panel.add_text").
+:   A text label.
+    Added to a [`Canvas`](./canvas.md#UI.Canvas "UI.Canvas") or a [`Panel`](./panel.md#UI.Panel "UI.Panel").
 
     rect\_transform
-    :   The rect transform for the text.
+    :   The rect transform for the UI object.
 
         Attribute:
         :   Read-only, cannot be set
 
         Return type:
         :   [`RectTransform`](./rect-transform.md#UI.RectTransform "UI.RectTransform")
+
+    layout\_element
+    :   How much space the UI object asks a layout for.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`LayoutElement`](./layout-element.md#UI.LayoutElement "UI.LayoutElement")
+
+        > **Note**
+        >
+        > Only has an effect when the object is in a panel that has a layout. A canvas is
+        > not inside a layout and does not have one.
 
     visible
     :   Whether the UI object is visible.
@@ -21,6 +36,13 @@ class Text
         Return type:
         :   bool
 
+        > **Note**
+        >
+        > This is the object’s own setting, which is what it was last set to. An object is
+        > only drawn when everything it is inside is visible as well, so an interface can
+        > be built with its parts visible, inside a panel that is not, and shown all at
+        > once by making that panel visible.
+
     content
     :   The text string
 
@@ -30,6 +52,17 @@ class Text
         Return type:
         :   str
 
+    word\_wrap
+    :   Whether the text wraps onto further lines when it is wider than the space it
+        has. Text that does not wrap carries on past the edge, and its preferred size
+        is that of a single line, so a changing value leaves a layout in place.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   bool
+
     font
     :   Name of the font
 
@@ -38,6 +71,11 @@ class Text
 
         Return type:
         :   str
+
+        > **Note**
+        >
+        > Empty if the game provided no font to draw the text with, in which case it is
+        > not drawn. See [`Text.available_fonts`](#UI.Text.available_fonts "UI.Text.available_fonts") for the names that can be set.
 
     available\_fonts
     :   A list of all available fonts.
@@ -67,13 +105,13 @@ class Text
         :   [`FontStyle`](#UI.FontStyle "UI.FontStyle")
 
     color
-    :   Set the color
+    :   The color the text is drawn in.
 
         Attribute:
         :   Can be read or written
 
         Return type:
-        :   tuple(float, float, float)
+        :   [`StdLib.ColorRGBA`](../stdlib.md#StdLib.ColorRGBA "StdLib.ColorRGBA")
 
     alignment
     :   Alignment.

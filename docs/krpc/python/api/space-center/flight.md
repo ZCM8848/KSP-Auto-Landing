@@ -98,6 +98,23 @@ class Flight
         Game Scenes:
         :   Flight
 
+    surface\_normal
+    :   The normal to the surface under the vessel, in the reference frame
+        [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame"). This describes the slope of the terrain,
+        and points straight up when the vessel is over water.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Returns:
+        :   The normal as a unit vector.
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
     velocity
     :   The velocity of the vessel, in the reference frame [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame").
 
@@ -231,8 +248,9 @@ class Flight
 
         > **Note**
         >
-        > An absolute Euler angle, ill-conditioned when the vessel points near vertical (pitch →
-        > ±90°), where heading and roll become ambiguous. For an always-defined attitude use
+        > An absolute Euler angle, ill-conditioned when the vessel points near vertical (a pitch
+        > near -90° or +90°), where heading and roll become ambiguous. For an always-defined
+        > attitude use
         > [`Flight.rotation`](#SpaceCenter.Flight.rotation "SpaceCenter.Flight.rotation") or [`Flight.direction`](#SpaceCenter.Flight.direction "SpaceCenter.Flight.direction").
 
     heading
@@ -250,8 +268,9 @@ class Flight
 
         > **Note**
         >
-        > An absolute Euler angle, undefined when the vessel points near vertical (pitch → ±90°).
-        > For an always-defined attitude use [`Flight.rotation`](#SpaceCenter.Flight.rotation "SpaceCenter.Flight.rotation") or [`Flight.direction`](#SpaceCenter.Flight.direction "SpaceCenter.Flight.direction").
+        > An absolute Euler angle, undefined when the vessel points near vertical (a pitch near
+        > -90° or +90°). For an always-defined attitude use [`Flight.rotation`](#SpaceCenter.Flight.rotation "SpaceCenter.Flight.rotation") or
+        > [`Flight.direction`](#SpaceCenter.Flight.direction "SpaceCenter.Flight.direction").
 
     roll
     :   The roll of the vessel relative to the horizon, in degrees.
@@ -268,8 +287,9 @@ class Flight
 
         > **Note**
         >
-        > An absolute Euler angle, ill-conditioned when the vessel points near vertical (pitch →
-        > ±90°), where the vertical-plane reference vanishes. For an always-defined attitude use
+        > An absolute Euler angle, ill-conditioned when the vessel points near vertical (a pitch
+        > near -90° or +90°), where the vertical-plane reference vanishes. For an always-defined
+        > attitude use
         > [`Flight.rotation`](#SpaceCenter.Flight.rotation "SpaceCenter.Flight.rotation"); for a well-defined roll use the auto-pilot’s
         > `TargetRoll` / `RollError` against a chosen up reference.
 
@@ -426,7 +446,7 @@ class Flight
     dynamic\_pressure
     :   The dynamic pressure acting on the vessel, in Pascals. This is a measure of the
         strength of the aerodynamic forces. It is equal to
-        ½ · air density · velocity².
+        \(\frac{1}{2} . \mbox{air density} . \mbox{velocity}^2\).
         It is commonly denoted \(Q\).
 
         Attribute:
@@ -439,7 +459,7 @@ class Flight
         :   Flight
 
     static\_pressure
-    :   The static atmospheric pressure acting on the vessel, in Pascals.
+    :   The static pressure acting on the vessel, in Pascals.
 
         Attribute:
         :   Read-only, cannot be set
@@ -450,8 +470,207 @@ class Flight
         Game Scenes:
         :   Flight
 
+        > **Note**
+        >
+        > Below the waterline this includes the pressure of the water above the vessel’s
+        > center of mass.
+
     static\_pressure\_at\_msl
     :   The static atmospheric pressure at mean sea level, in Pascals.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    displacement
+    :   The volume of water the vessel displaces when fully submerged, in
+        \(m^3\).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    displaced\_volume
+    :   The volume of water the vessel is displacing, in \(m^3\).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    submerged\_portion
+    :   The fraction of the vessel below the waterline, between 0 and 1. This is
+        [`Flight.displaced_volume`](#SpaceCenter.Flight.displaced_volume "SpaceCenter.Flight.displaced_volume") over [`Flight.displacement`](#SpaceCenter.Flight.displacement "SpaceCenter.Flight.displacement").
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    center\_of\_buoyancy
+    :   The point the total buoyant force on the vessel acts through, in reference frame
+        [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame"). Returns `None` if no part of the vessel is in
+        the water.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Returns:
+        :   The position as a vector.
+
+        Return type:
+        :   tuple(float, float, float) or None
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > A hull at rest carries this on the same vertical line as
+        > [`Flight.center_of_mass`](#SpaceCenter.Flight.center_of_mass "SpaceCenter.Flight.center_of_mass"). A horizontal offset between the two turns the weight
+        > and the buoyancy into a couple that rolls or pitches the vessel.
+
+    buoyant\_force
+    :   The total buoyant force acting on the vessel, in reference frame
+        [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame").
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Returns:
+        :   A vector pointing in the direction that the force acts, with its magnitude equal to the strength of the force in Newtons.
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > A vessel floating at rest carries a buoyant force equal to its weight.
+
+    buoyant\_acceleration
+    :   The acceleration of the vessel due to the buoyant force acting on it
+        ([`Flight.buoyant_force`](#SpaceCenter.Flight.buoyant_force "SpaceCenter.Flight.buoyant_force") divided by the vessel’s mass),
+        in reference frame [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame").
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Returns:
+        :   A vector pointing in the direction that the vessel is accelerated, with its magnitude equal to the acceleration in \(m/s^2\).
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
+    buoyant\_torque
+    :   The torque the buoyant force exerts on the vessel about its center of mass,
+        in reference frame [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame").
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Returns:
+        :   A vector pointing along the axis of the torque, with its magnitude equal to the strength of the torque in newton-meters.
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
+    fully\_submerged\_center\_of\_buoyancy
+    :   The point the buoyant force acts through with the vessel fully submerged, in
+        reference frame [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame"). Returns `None` if no part of
+        the vessel displaces any water.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Returns:
+        :   The position as a vector.
+
+        Return type:
+        :   tuple(float, float, float) or None
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The point is fixed relative to the hull. [`Flight.center_of_buoyancy`](#SpaceCenter.Flight.center_of_buoyancy "SpaceCenter.Flight.center_of_buoyancy") moves as
+        > the vessel rides the waves.
+
+    buoyant\_force\_at(*density*, *gravity*)
+    :   The buoyant force on the vessel when fully submerged in a fluid of the given
+        density, in Newtons.
+
+        Parameters:
+        :   - **density** (*float*) – The density of the fluid, in \(kg/m^3\).
+            - **gravity** (*float*) – The acceleration due to gravity, in \(m/s^2\).
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    buoyant\_torque\_at(*density*, *gravity*)
+    :   The torque the buoyant force exerts about the vessel’s center of mass when fully
+        submerged in a fluid of the given density, in reference frame
+        [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame"). Gravity acts towards the center of the body.
+
+        Parameters:
+        :   - **density** (*float*) – The density of the fluid, in \(kg/m^3\).
+            - **gravity** (*float*) – The acceleration due to gravity, in \(m/s^2\).
+
+        Returns:
+        :   A vector pointing along the axis of the torque, with its magnitude equal to the strength of the torque in newton-meters.
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
+    depth
+    :   The depth of the center of mass of the vessel below the waterline, in meters.
+        Negative above the waterline.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    submerged\_dynamic\_pressure
+    :   The dynamic pressure of the water acting on the vessel, in Pascals.
+        Returns zero if no part of the vessel is below the waterline.
 
         Attribute:
         :   Read-only, cannot be set
@@ -478,6 +697,13 @@ class Flight
         Game Scenes:
         :   Flight
 
+        > **Note**
+        >
+        > This is the force the aerodynamics model actually applied to the vessel on the
+        > last physics frame, summed over its parts, so it points where the air pushes the
+        > vessel whatever the vessel’s orientation. It equals [`Flight.lift`](#SpaceCenter.Flight.lift "SpaceCenter.Flight.lift") plus
+        > [`Flight.side_force`](#SpaceCenter.Flight.side_force "SpaceCenter.Flight.side_force") plus [`Flight.drag`](#SpaceCenter.Flight.drag "SpaceCenter.Flight.drag").
+
     aerodynamic\_torque
     :   The net aerodynamic torque currently acting on the vessel about its center of
         mass, in reference frame [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame"). The magnitude is in
@@ -497,14 +723,11 @@ class Flight
 
         > **Note**
         >
-        > This is the live counterpart to [`Flight.aerodynamic_force`](#SpaceCenter.Flight.aerodynamic_force "SpaceCenter.Flight.aerodynamic_force"): it reconstructs
-        > the per-part aerodynamic forces and application points that the game applied on
-        > the current physics frame and levers them about the center of mass, rather than
-        > re-simulating them for hypothetical conditions the way
+        > This is the live counterpart to [`Flight.aerodynamic_force`](#SpaceCenter.Flight.aerodynamic_force "SpaceCenter.Flight.aerodynamic_force"): it is the torque
+        > the aerodynamics model applied on the current physics frame, taken about the
+        > center of mass, rather than one re-simulated for hypothetical conditions the way
         > [`Flight.simulate_aerodynamic_torque_at()`](#SpaceCenter.Flight.simulate_aerodynamic_torque_at "SpaceCenter.Flight.simulate_aerodynamic_torque_at") does. It is intended for validating the
-        > simulator against the live game state. Not available when
-        > [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/)
-        > is installed, as FAR does not expose a live per-frame torque.
+        > simulator against the live game state.
 
     simulate\_aerodynamic\_force\_at(*body*, *position*, *velocity*, *rotation*)
     :   Simulate and return the total aerodynamic forces acting on the vessel,
@@ -561,7 +784,7 @@ class Flight
         >
         > The position, velocity, rotation and angular velocity arguments, and the returned
         > torque, are all expressed in reference frame [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame"). When
-        > [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/)
+        > [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/)
         > is installed the angular velocity argument is ignored.
         > Atmospheric temperature and density are evaluated at the current universal time.
         >
@@ -585,10 +808,10 @@ class Flight
             - **ut** (*float*) – The universal time used for the atmospheric ephemeris. It selects the body/Sun geometry used for temperature and density, but does not change or propagate [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame") or any of the state arguments.
 
         Returns:
-        :   A pair containing the aerodynamic force in newtons followed by the aerodynamic torque in newton-meters about the vessel’s center of mass. Both are vectors in reference frame [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame").
+        :   The aerodynamic force, and the aerodynamic torque about the vessel’s center of mass. Both are vectors in reference frame [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame").
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`Wrench`](#SpaceCenter.Wrench "SpaceCenter.Wrench")
 
         Game Scenes:
         :   Flight
@@ -603,7 +826,7 @@ class Flight
         >
         > This is an instantaneous rigid-body result based on the vessel’s current parts,
         > drag cubes and control-surface state. When
-        > [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/)
+        > [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/)
         > is installed the angular velocity and *ut* arguments are ignored.
 
     lift
@@ -622,6 +845,36 @@ class Flight
         Game Scenes:
         :   Flight
 
+        > **Note**
+        >
+        > The part of [`Flight.aerodynamic_force`](#SpaceCenter.Flight.aerodynamic_force "SpaceCenter.Flight.aerodynamic_force") that acts across the air stream and
+        > towards the top of the vessel: perpendicular to the air stream, in the plane the
+        > vessel’s nose and its top sit in. A vessel flying with sideslip is also pushed out
+        > of that plane, and that part of the force is [`Flight.side_force`](#SpaceCenter.Flight.side_force "SpaceCenter.Flight.side_force"). Zero for a
+        > vessel flying exactly sideways, which has no such plane to speak of.
+
+    side\_force
+    :   The aerodynamic side force currently acting on the vessel.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Returns:
+        :   A vector pointing in the direction that the force acts, with its magnitude equal to the strength of the force in Newtons.
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The part of [`Flight.aerodynamic_force`](#SpaceCenter.Flight.aerodynamic_force "SpaceCenter.Flight.aerodynamic_force") that acts across the air stream and out
+        > of the vessel’s side, which is what the air does to a vessel flying with sideslip.
+        > It is perpendicular to both [`Flight.lift`](#SpaceCenter.Flight.lift "SpaceCenter.Flight.lift") and [`Flight.drag`](#SpaceCenter.Flight.drag "SpaceCenter.Flight.drag"), and the
+        > three of them sum to [`Flight.aerodynamic_force`](#SpaceCenter.Flight.aerodynamic_force "SpaceCenter.Flight.aerodynamic_force").
+
     drag
     :   The [aerodynamic drag](https://en.wikipedia.org/wiki/Aerodynamic_force) currently acting on the vessel.
 
@@ -636,6 +889,11 @@ class Flight
 
         Game Scenes:
         :   Flight
+
+        > **Note**
+        >
+        > The part of [`Flight.aerodynamic_force`](#SpaceCenter.Flight.aerodynamic_force "SpaceCenter.Flight.aerodynamic_force") along the air stream, opposing the
+        > vessel’s motion through the air.
 
     aerodynamic\_acceleration
     :   The acceleration of the vessel due to the total aerodynamic forces acting on it
@@ -726,7 +984,7 @@ class Flight
 
         > **Note**
         >
-        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/).
+        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/).
 
     true\_air\_speed
     :   The [true air speed](https://en.wikipedia.org/wiki/True_airspeed)
@@ -833,7 +1091,7 @@ class Flight
 
         > **Note**
         >
-        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/).
+        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/).
 
     drag\_coefficient
     :   The coefficient of drag. This is the amount of drag produced by the vessel.
@@ -850,7 +1108,7 @@ class Flight
 
         > **Note**
         >
-        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/).
+        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/).
 
     lift\_coefficient
     :   The coefficient of lift. This is the amount of lift produced by the vessel, and
@@ -867,7 +1125,7 @@ class Flight
 
         > **Note**
         >
-        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/).
+        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/).
 
     ballistic\_coefficient
     :   The [ballistic coefficient](https://en.wikipedia.org/wiki/Ballistic_coefficient).
@@ -883,7 +1141,7 @@ class Flight
 
         > **Note**
         >
-        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/).
+        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/).
 
     thrust\_specific\_fuel\_consumption
     :   The thrust specific fuel consumption for the jet engines on the vessel. This is a
@@ -902,4 +1160,19 @@ class Flight
 
         > **Note**
         >
-        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/).
+        > Requires [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/).
+
+class Wrench(*force*, *torque*)
+:   A force and a torque that act together.
+
+    force
+    :   The force, in Newtons.
+
+        Return type:
+        :   tuple(float, float, float)
+
+    torque
+    :   The torque, in Newton meters.
+
+        Return type:
+        :   tuple(float, float, float)

@@ -1,6 +1,16 @@
 # Drawing API
 
 - [Drawing](./drawing/drawing.md)
+- [Arc](./drawing/arc.md)
+- [Box](./drawing/box.md)
+- [Circle](./drawing/circle.md)
+- [Image](./drawing/image.md)
 - [Line](./drawing/line.md)
+- [MapMarker](./drawing/map-marker.md)
+- [NavballMarker](./drawing/navball-marker.md)
+- [OrbitPath](./drawing/orbit-path.md)
+- [Point](./drawing/point.md)
 - [Polygon](./drawing/polygon.md)
+- [Polyline](./drawing/polyline.md)
+- [Sphere](./drawing/sphere.md)
 - [Text](./drawing/text.md)

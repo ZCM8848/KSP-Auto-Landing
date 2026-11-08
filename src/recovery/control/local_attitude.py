@@ -25,7 +25,6 @@ from collections.abc import Sequence
 from typing import NamedTuple
 
 import numpy as np
-from scipy.spatial.transform import Rotation
 
 from ..types import FlightState, Vector3
 from .auto_pilot import AutoPilot
@@ -172,6 +171,8 @@ class RollAuthorityEstimator:
             return self._estimate
         dt = float(ut) - self._prev_ut
         prev_rate = self._prev_rate
+        if prev_rate is None:
+            return self._estimate
         self._prev_ut = float(ut)
         self._prev_rate = float(rate)
         if not 0.0 < dt <= self._max_dt:
@@ -251,6 +252,7 @@ class LocalAttitudeController:
             self._last_cfg_ut = s.ut
 
         up_v = np.asarray(DEFAULT_UP if up is None else up, dtype=float)
+        up_seq = tuple(float(component) for component in up_v)
         nose = np.asarray(s.direction, dtype=float)
         nose_norm = np.linalg.norm(nose)
         singular = nose_norm == 0.0
@@ -273,14 +275,14 @@ class LocalAttitudeController:
         else:
             effective_roll = math.radians(float(roll_target))
 
-        cur_roll = roll_from_axes(s.direction, s.bottom_axis, up_v)
+        cur_roll = roll_from_axes(s.direction, s.bottom_axis, up_seq)
         ctrl_x, ctrl_y, ctrl_z = self._ap.update(
             (0.0 if cur_roll is None else cur_roll, s.direction.x, s.direction.y, s.direction.z),
             (effective_roll, *target_dir),
             (-s.angular_velocity.x, -s.angular_velocity.y, -s.angular_velocity.z),
             rot_flag=-1,
             roll_flag=1.0,
-            up=up_v,
+            up=up_seq,
         )
         if self._self_tune_roll:
             nose = np.asarray(s.direction, dtype=float)

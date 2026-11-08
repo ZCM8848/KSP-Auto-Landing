@@ -77,7 +77,7 @@ class Comms
         :   Flight
 
 class CommLink
-:   Represents a communication node in the network. For example, a vessel or the KSC.
+:   Represents a communication link between two nodes in the network.
 
     type
     :   The type of link.
@@ -107,7 +107,7 @@ class CommLink
         :   [`CommNode`](#SpaceCenter.CommNode "SpaceCenter.CommNode")
 
     end
-    :   Start point of the link.
+    :   End point of the link.
 
         Attribute:
         :   Read-only, cannot be set
@@ -128,14 +128,11 @@ class CommLinkType
     relay
     :   Link is to a relay satellite.
 
-class CommNode
+class CommNode(*name*, *is\_home*, *is\_control\_point*, *is\_vessel*, *vessel*)
 :   Represents a communication node in the network. For example, a vessel or the KSC.
 
     name
     :   Name of the communication node.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   str
@@ -143,17 +140,11 @@ class CommNode
     is\_home
     :   Whether the communication node is on Kerbin.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   bool
 
     is\_control\_point
     :   Whether the communication node is a control point, for example a manned vessel.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   bool
@@ -161,17 +152,11 @@ class CommNode
     is\_vessel
     :   Whether the communication node is a vessel.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   bool
 
     vessel
-    :   The vessel for this communication node.
-
-        Attribute:
-        :   Read-only, cannot be set
+    :   The vessel for this communication node, or null if the node is not a vessel.
 
         Return type:
-        :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel")
+        :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel") or None

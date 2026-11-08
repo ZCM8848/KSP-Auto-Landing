@@ -1,0 +1,132 @@
+# Dropdown
+
+class Dropdown
+:   A control for choosing one of a list of options, which are shown when it is clicked.
+    Added to a [`Canvas`](./canvas.md#UI.Canvas "UI.Canvas") or a [`Panel`](./panel.md#UI.Panel "UI.Panel").
+
+    rect\_transform
+    :   The rect transform for the UI object.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`RectTransform`](./rect-transform.md#UI.RectTransform "UI.RectTransform")
+
+    layout\_element
+    :   How much space the UI object asks a layout for.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`LayoutElement`](./layout-element.md#UI.LayoutElement "UI.LayoutElement")
+
+        > **Note**
+        >
+        > Only has an effect when the object is in a panel that has a layout. A canvas is
+        > not inside a layout and does not have one.
+
+    visible
+    :   Whether the UI object is visible.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   bool
+
+        > **Note**
+        >
+        > This is the object’s own setting, which is what it was last set to. An object is
+        > only drawn when everything it is inside is visible as well, so an interface can
+        > be built with its parts visible, inside a panel that is not, and shown all at
+        > once by making that panel visible.
+
+    options
+    :   The options that the dropdown offers.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   list(str)
+
+        > **Note**
+        >
+        > Setting the options resets the selection to the first of them, or to nothing
+        > when the list is empty.
+
+    selected\_index
+    :   The position in [`Dropdown.options`](#UI.Dropdown.options "UI.Dropdown.options") of the option that is chosen.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   int
+
+        > **Note**
+        >
+        > Zero while the dropdown has no options, as there is nothing to choose.
+
+    changed
+    :   Whether the chosen option has been changed.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   bool
+
+        > **Note**
+        >
+        > This property is set to true when the user chooses an option, and not when a
+        > client chooses one.
+        > A client script should reset the property to false in order to detect subsequent changes.
+
+    interactable
+    :   Whether the control responds to the user.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   bool
+
+        > **Note**
+        >
+        > A control that is not interactable is drawn grayed out and ignores the user,
+        > but is still visible. Set its visibility to false to hide it instead.
+
+    color
+    :   The color the control is tinted with. White, the default, leaves the control drawn
+        as the skin has it.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   [`StdLib.ColorRGBA`](../stdlib.md#StdLib.ColorRGBA "StdLib.ColorRGBA")
+
+        > **Note**
+        >
+        > The tint multiplies the sprite the control is drawn with, in every state, so
+        > a control can show a state of its own, an engaged autopilot for instance, by
+        > color. It is applied to the part of the control that responds to the user:
+        > the body of a button, dropdown or input field, the box of a toggle, and the
+        > handle of a slider. A control’s label is tinted through the color of its
+        > text.
+
+    tooltip
+    :   A short piece of text shown beside the pointer while it rests on the
+        control. Empty, the default, shows nothing.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   str
+
+    remove()
+    :   Remove the UI object.

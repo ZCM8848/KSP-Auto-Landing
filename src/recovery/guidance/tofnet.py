@@ -7,9 +7,9 @@ is baked into the exported ONNX graph, so this module only feeds raw features
 through ``onnxruntime``.
 
 The 14-feature order is the contract with the offline training pipeline (the
-``GFOLD-solver`` project); :func:`recovery.guidance.gfold.features_of` is the
-canonical producer of that vector from a :class:`~recovery.types.FlightState`
-and :class:`~recovery.guidance.gfold.GfoldParams`.
+``GFOLD-solver`` project); :func:`features_of` is the canonical producer of that
+vector from a :class:`~recovery.types.FlightState` and
+:class:`TofFeatureParams`.
 
 ``onnxruntime`` is imported lazily inside :meth:`TofPredictor.__init__`, so
 importing this module (and hence the whole ``guidance`` package) never requires
@@ -19,15 +19,23 @@ it to be installed.
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Sequence
+from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 
 import numpy as np
 
+from ..types import FlightState
+
+G0 = 9.80665
+"""Standard gravity (m/s²), used to convert specific impulse to the
+``fuel_consumption`` feature ``1 / (Isp * G0)``.  This must match the value
+the network was trained with — it is *not* the local surface gravity."""
+
 #: Feature order — the training contract (see GFOLD-solver ``common/config.py``
-#: ``FEATURES``).  ``features_of`` in :mod:`recovery.guidance.gfold` must emit
-#: values in exactly this order.
+#: ``FEATURES``).  :func:`features_of` must emit values in exactly this order.
 FEATURES: tuple[str, ...] = (
     "x",
     "y",
@@ -47,6 +55,76 @@ FEATURES: tuple[str, ...] = (
 
 _DEFAULT_ONNX = "tofnet.onnx"
 _DEFAULT_META = "tofnet.onnx.json"
+
+
+@dataclass(frozen=True)
+class TofFeatureParams:
+    """The mission-parameter columns of the 14-dim TOF-Net feature vector.
+
+    These are the quantities the network needs but that are not part of the
+    instantaneous flight state: the throttle envelope and the two guidance
+    angles.  Defaults match the training pipeline's landing profile.
+    """
+
+    min_throttle: float = 0.2
+    """Minimum thrust fraction (``real_max_thrust * min_throttle``)."""
+
+    max_throttle: float = 1.0
+    """Maximum thrust fraction (``real_max_thrust * max_throttle``)."""
+
+    glide_slope_angle_deg: float = 30.0
+    """Glide-slope cone half-angle about +z (deg)."""
+
+    max_angle_deg: float = 25.0
+    """Maximum angle between the thrust vector and +z (deg)."""
+
+
+def _require_positive_isp(isp: float) -> float:
+    """Return *isp* as a float, raising if it is not a positive finite value.
+
+    A non-positive (or non-finite, e.g. NaN) specific impulse means the
+    active engines are not firing (or the telemetry stream is stale).
+    ``1 / (Isp * G0)`` would then either divide by zero or silently fabricate
+    a nonsensical mass-flow rate, so we fail loudly instead of guessing a
+    fallback.
+    """
+    isp = float(isp)
+    if not math.isfinite(isp) or isp <= 0.0:
+        raise ValueError(f"specific_impulse must be a positive finite value, got {isp}")
+    return isp
+
+
+def features_of(state: FlightState, params: TofFeatureParams) -> list[float]:
+    """Return the 14-dim TOF-Net feature vector for *state* and *params*.
+
+    The order is :data:`FEATURES`: position (x, y, z), velocity (vx, vy, vz),
+    dry mass, fuel, max thrust, min/max throttle fraction, fuel consumption,
+    glide-slope angle, max thrust-pointing angle.
+
+    ``fuel_consumption`` uses the standard-gravity constant ``G0`` (Isp unit
+    conversion), *not* the surface gravity — this must match the value the
+    network was trained with.
+    """
+    p = state.position
+    v = state.velocity
+    isp = _require_positive_isp(state.specific_impulse)
+    thrust = state.available_thrust if state.available_thrust > 0.0 else state.max_thrust
+    return [
+        p.x,
+        p.y,
+        p.z,
+        v.x,
+        v.y,
+        v.z,
+        state.dry_mass,
+        state.mass - state.dry_mass,
+        thrust,
+        params.min_throttle,
+        params.max_throttle,
+        1.0 / (float(isp) * G0),
+        params.glide_slope_angle_deg,
+        params.max_angle_deg,
+    ]
 
 
 class TofPredictor:

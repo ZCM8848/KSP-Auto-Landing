@@ -92,6 +92,15 @@ class LiftDragModel:
         alts = spec.density_alts
         vals = spec.density_vals
         depth = float(alts[-1])
+        if spec.cd_area is not None:
+            cd0_area = float(spec.cd_area)
+        elif float(spec.ballistic_coefficient) > 0.0:
+            cd0_area = float(mass_ref) / float(spec.ballistic_coefficient)
+        else:
+            raise ValueError(
+                "DragSpec has neither a positive cd_area nor a positive "
+                "ballistic coefficient; re-sample with a known mass"
+            )
 
         def _interp(h: float) -> float:
             if h < 0.0:
@@ -101,7 +110,7 @@ class LiftDragModel:
             return float(np.interp(h, alts, vals))
 
         return cls(
-            cd0_area=mass_ref / float(spec.ballistic_coefficient),
+            cd0_area=cd0_area,
             cl_area=cl_area,
             k_ind=k_ind,
             clamp_aoa=clamp_aoa,

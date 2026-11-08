@@ -97,8 +97,9 @@ class Telemetry:
             return self._snapshot
 
     def _register(self, name: str, func: Callable[..., Any], *args: Any) -> None:
+        # kRPC >= 0.7 streams start server-side on creation; there is no
+        # ``Stream.start()`` any more.
         stream = self._client.add_stream(func, *args)
-        stream.start()
         self._streams.append((name, stream))
 
     def _register_streams(self) -> None:

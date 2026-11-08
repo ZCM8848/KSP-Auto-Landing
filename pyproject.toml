@@ -8,11 +8,10 @@ version = "0.1.0"
 description = "Extensible multi-booster kRPC rocket recovery framework"
 requires-python = ">=3.12"
 dependencies = [
-    "krpc>=0.5",
+    "krpc>=0.7",
     "numpy",
     "scipy",
     "numba",
-    "gfold",
 ]
 
 [project.optional-dependencies]
@@ -50,11 +49,15 @@ module = "numba"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "gfold"
+module = "onnxruntime"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "onnxruntime"
+module = "openscvx"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "openscvx.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

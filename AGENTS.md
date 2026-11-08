@@ -6,6 +6,7 @@ KSP booster-recovery framework (`ksp-auto-landing`). Python **>= 3.12**, `src/` 
 
 ```powershell
 pip install -e .              # editable install (one-time setup; makes `recovery` importable everywhere)
+pip install -e OpenSCvx       # optional SCvx planner backend (submodule at OpenSCvx/)
 python -m pytest              # unit tests — no KSP needed (fake kRPC client)
 python -m pytest -m live      # live integration — needs KSP + kRPC server running
 ruff check .                  # lint
@@ -17,13 +18,13 @@ mkdocs serve                 # live-reload docs server (http://127.0.0.1:8000)
 - Install the package editable (`pip install -e .`) so `recovery` is importable everywhere; `scripts/` run against the installed package. pytest additionally uses `pythonpath = ["src"]` from pyproject, so tests also work without installing.
 - `python -m pytest` **skips** `live`-marked tests automatically (see `tests/conftest.py`); only `-m live` runs them.
 - Live tests target vessel `$env:KSP_VESSEL` (default `"Booster 1"`).
-- Docs reference a conda env `KRPC` (e.g. `D:\miniconda3\envs\KRPC\python.exe`); `.vscode/settings.json` also assumes conda.
+- Docs reference a miniforge env `KRPC` (`D:\miniforge3\envs\KRPC\python.exe`); `.vscode/settings.json` also assumes conda. The kRPC client and server are **0.7**: `Client.add_stream()` starts streams server-side, so there is no `Stream.start()`.
 
 ## Architecture
 
 - `src/recovery/ksp/` is the **only** place that imports `krpc`. All KSP I/O goes through this layer (`ConnectionManager`, `VesselHandle`, `VesselControls`) plus `ksp/sampling.py` — the sole producer of the pure-data specs that guidance consumes. Guidance/control/data must stay KSP-free.
 - `src/recovery/types.py` — shared value types (`FlightState`, `Vector3`, `Quaternion`, `Situation`). `src/recovery/specs.py` — pure-data sampling specs (`BodySpec`, `DragSpec`).
-- `src/recovery/guidance/` — trajectory predictor (`ControlledPredictor`, numba RK4; the sole integrator — ballistic = coast segment), aero models (`LiftDragModel` linearised / drag-only, `LiftTableModel` nonlinear tables), GFOLD SOCP planner, `TofPredictor` ONNX. Pure — imports only `types`/`specs`, never `ksp`.
+- `src/recovery/guidance/` — trajectory predictor (`ControlledPredictor`, numba RK4; the sole integrator — ballistic = coast segment), aero models (`LiftDragModel` linearised / drag-only, `LiftTableModel` nonlinear tables), TOF-Net (`TofPredictor`, `features_of`), immutable `Plan` + `PlanExecutor`, cubic `PolynomialTerminalGuidance`, predictor-in-the-loop `TerminalCorrector`, and the asynchronous OpenSCvx descent planner (3-DOF and 6-DOF quaternion+torque builders, `ScvxSolveService` for multiple boosters, `ScvxPlanner` single-vessel wrapper; lazy `openscvx` import). Pure — imports only `types`/`specs`, never `ksp`.
 - `src/recovery/control/` — local PID, `AutoPilot` (client-side stick control), `ApproachingModel`, `LocalAttitudeController`/`StickCommand` (snapshot-driven attitude wrapper), and `control_utils` vector math. Pure — imports only `types`, never `ksp`.
 - `src/recovery/data/targets.py` — frozen `LandingSite` coordinates (STOCK and JNSQ).
 - `main.py` and `scripts/*.py` are live demo/diagnostic entrypoints, not library code.
@@ -40,12 +41,12 @@ mkdocs serve                 # live-reload docs server (http://127.0.0.1:8000)
 ## Lint / type config quirks
 
 - The control layer (`auto_pilot`, `control_utils`, `dynamics`, `local_attitude`) is fully typed and linted; its control law is guarded bit-for-bit by `tests/test_local_attitude.py`.
-- Third-party libs without type stubs (`numba`, `gfold`, `onnxruntime`, `scipy`) use `ignore_missing_imports` in mypy; all first-party `src/` code (including the `_numba` kernels) typechecks under strict mypy.
+- Third-party libs without type stubs (`numba`, `onnxruntime`, `scipy`) use `ignore_missing_imports` in mypy; all first-party `src/` code (including the `_numba` kernels) typechecks under strict mypy.
 
 ## Key docs
 
 - `docs/ksp-gateway-api.md` — authoritative API reference for the KSP layer (English narrative + auto-generated reference from source docstrings via mkdocstrings): lifecycle, coordinate frames, thread model, debug drawing, guidance usage. Read it before changing `src/recovery/ksp/`. The docstrings in `src/` are the single source of truth for API details.
-- `docs/krpc/` and `gfold_Python_API文档.md` — vendored kRPC / gfold reference material.
+- `docs/krpc/` — vendored kRPC reference material.
 
 ## Conventions
 

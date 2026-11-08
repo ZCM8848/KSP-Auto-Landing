@@ -1,26 +1,24 @@
 # Reference Frames
 
 - [Introduction](#introduction)
-
-  - [Origin Position and Axis Orientation](#origin-position-and-axis-orientation)
-
-    - [Celestial Body Reference Frame](#celestial-body-reference-frame)
-    - [Vessel Orbital Reference Frame](#vessel-orbital-reference-frame)
-    - [Vessel Reference Frame](#vessel-reference-frame)
-  - [Linear Velocity and Angular Velocity](#linear-velocity-and-angular-velocity)
+    - [Origin Position and Axis Orientation](#origin-position-and-axis-orientation)
+        - [Celestial Body Reference Frame](#celestial-body-reference-frame)
+        - [Vessel Orbital Reference Frame](#vessel-orbital-reference-frame)
+        - [Vessel Reference Frame](#vessel-reference-frame)
+    - [Linear Velocity and Angular Velocity](#linear-velocity-and-angular-velocity)
 - [Available Reference Frames](#available-reference-frames)
 - [Custom Reference Frames](#custom-reference-frames)
 - [Converting Between Reference Frames](#converting-between-reference-frames)
 - [Visual Debugging](#visual-debugging)
 - [Examples](#examples)
-
-  - [Navball directions](#navball-directions)
-  - [Orbital directions](#orbital-directions)
-  - [Surface ‘prograde’](#surface-prograde)
-  - [Vessel Speed](#vessel-speed)
-  - [Vessel Velocity](#vessel-velocity)
-  - [Angle of attack](#angle-of-attack)
-  - [Landing Site](#landing-site)
+    - [Navball directions](#navball-directions)
+    - [Orbital directions](#orbital-directions)
+    - [Surface ‘prograde’](#surface-prograde)
+    - [Vessel Speed](#vessel-speed)
+    - [Vessel Velocity](#vessel-velocity)
+    - [Navball speed modes](#navball-speed-modes)
+    - [Angle of attack](#angle-of-attack)
+    - [Landing Site](#landing-site)
 
 ## [Introduction](#id4)
 
@@ -57,10 +55,10 @@ for Kerbin has the following properties:
 - The origin is at the center of Kerbin,
 - the y-axis points from the center of Kerbin to the north pole,
 - the x-axis points from the center of Kerbin to the intersection of the prime
-  meridian and equator (the surface position at 0° longitude, 0° latitude),
+    meridian and equator (the surface position at 0° longitude, 0° latitude),
 - the z-axis points from the center of Kerbin to the equator at 90°E longitude,
 - and the axes rotate with the planet, i.e. the reference frame has the same
-  rotational/angular velocity as Kerbin.
+    rotational/angular velocity as Kerbin.
 
 This means that the reference frame is *fixed* relative to Kerbin – it moves
 with the center of the planet, and also rotates with the planet. Therefore,
@@ -97,8 +95,8 @@ prograde/normal/radial directions.
 - the x-axis points in the anti-radial direction of the vessels orbit,
 - the z-axis points in the normal direction of the vessels orbit,
 - and the axes rotate to match any changes to the prograde/normal/radial directions,
-  for example when the prograde direction changes as the vessel continues on its
-  orbit.
+    for example when the prograde direction changes as the vessel continues on its
+    orbit.
 
 #### [Vessel Reference Frame](#id8)
 
@@ -135,6 +133,25 @@ matches the current orbital velocity of Kerbin.
 
 kRPC provides the following reference frames:
 
+- [`Vessel.reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.reference_frame "SpaceCenter.Vessel.reference_frame")
+- [`Vessel.orbital_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame")
+- [`Vessel.surface_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.surface_reference_frame "SpaceCenter.Vessel.surface_reference_frame")
+- [`Vessel.surface_velocity_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.surface_velocity_reference_frame "SpaceCenter.Vessel.surface_velocity_reference_frame")
+- [`Vessel.orbit_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.orbit_speed_reference_frame "SpaceCenter.Vessel.orbit_speed_reference_frame")
+- [`Vessel.surface_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.surface_speed_reference_frame "SpaceCenter.Vessel.surface_speed_reference_frame")
+- [`Vessel.target_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.target_speed_reference_frame "SpaceCenter.Vessel.target_speed_reference_frame")
+- [`CelestialBody.reference_frame`](../python/api/space-center/celestial-body.md#SpaceCenter.CelestialBody.reference_frame "SpaceCenter.CelestialBody.reference_frame")
+- [`CelestialBody.non_rotating_reference_frame`](../python/api/space-center/celestial-body.md#SpaceCenter.CelestialBody.non_rotating_reference_frame "SpaceCenter.CelestialBody.non_rotating_reference_frame")
+- [`CelestialBody.orbital_reference_frame`](../python/api/space-center/celestial-body.md#SpaceCenter.CelestialBody.orbital_reference_frame "SpaceCenter.CelestialBody.orbital_reference_frame")
+- [`Orbit.reference_frame`](../python/api/space-center/orbit.md#SpaceCenter.Orbit.reference_frame "SpaceCenter.Orbit.reference_frame")
+- [`Orbit.orbital_reference_frame`](../python/api/space-center/orbit.md#SpaceCenter.Orbit.orbital_reference_frame "SpaceCenter.Orbit.orbital_reference_frame")
+- [`Node.reference_frame`](../python/api/space-center/node.md#SpaceCenter.Node.reference_frame "SpaceCenter.Node.reference_frame")
+- [`Node.orbital_reference_frame`](../python/api/space-center/node.md#SpaceCenter.Node.orbital_reference_frame "SpaceCenter.Node.orbital_reference_frame")
+- [`Part.reference_frame`](../python/api/space-center/parts.md#SpaceCenter.Part.reference_frame "SpaceCenter.Part.reference_frame")
+- [`Part.center_of_mass_reference_frame`](../python/api/space-center/parts.md#SpaceCenter.Part.center_of_mass_reference_frame "SpaceCenter.Part.center_of_mass_reference_frame")
+- [`DockingPort.reference_frame`](../python/api/space-center/parts.md#SpaceCenter.DockingPort.reference_frame "SpaceCenter.DockingPort.reference_frame")
+- [`Thruster.thrust_reference_frame`](../python/api/space-center/parts.md#SpaceCenter.Thruster.thrust_reference_frame "SpaceCenter.Thruster.thrust_reference_frame")
+
 Relative and hybrid reference frames can also be constructed from the above.
 
 ## [Custom Reference Frames](#id11)
@@ -158,6 +175,13 @@ orbited (inherited from [`CelestialBody.reference_frame`](../python/api/space-ce
 reference frames can be constructed by calling
 [`ReferenceFrame.create_hybrid()`](../python/api/space-center/reference-frame.md#SpaceCenter.ReferenceFrame.create_hybrid "SpaceCenter.ReferenceFrame.create_hybrid").
 
+Each call returns a new frame, and the server holds it until the client removes
+it or disconnects. Call [`ReferenceFrame.remove()`](../python/api/space-center/reference-frame.md#SpaceCenter.ReferenceFrame.remove "SpaceCenter.ReferenceFrame.remove") on a frame once you are
+done with it.
+
+A frame that follows a moving object inherits that component from the frame of
+the object itself, instead of being constructed again on every update.
+
 The parent reference frame(s) of a custom reference frame can also be other
 custom reference frames. For example, you could combine the two example frames
 from above: construct a hybrid reference frame, centered on the vessel and
@@ -171,16 +195,22 @@ orbited.
 kRPC provides utility methods to convert positions, directions, rotations and
 velocities between the different reference frames:
 
+- [`SpaceCenter.transform_position()`](../python/api/space-center/space-center.md#SpaceCenter.transform_position "SpaceCenter.transform_position")
+- [`SpaceCenter.transform_direction()`](../python/api/space-center/space-center.md#SpaceCenter.transform_direction "SpaceCenter.transform_direction")
+- [`SpaceCenter.transform_rotation()`](../python/api/space-center/space-center.md#SpaceCenter.transform_rotation "SpaceCenter.transform_rotation")
+- [`SpaceCenter.transform_velocity()`](../python/api/space-center/space-center.md#SpaceCenter.transform_velocity "SpaceCenter.transform_velocity")
+
 ## [Visual Debugging](#id13)
 
 References frames can be confusing, and choosing the correct one is a challenge
 in itself. To aid debugging, kRPCs drawing functionality can be used to
 visualize direction vectors in-game.
 
-[`Drawing.add_direction_from_com()`](../python/api/drawing/drawing.md#Drawing.add_direction_from_com "Drawing.add_direction_from_com") will draw a direction vector, starting from the
-center of mass of the active vessel. For example, the following code draws the
-direction of the current vessels velocity relative to the surface of the body it
-is orbiting:
+[`Drawing.add_axes()`](../python/api/drawing/drawing.md#Drawing.add_axes "Drawing.add_axes") draws the axes of a reference frame as red, green and blue
+arrows, for the x, y and z axes. [`Drawing.add_direction_from_com()`](../python/api/drawing/drawing.md#Drawing.add_direction_from_com "Drawing.add_direction_from_com") draws a
+direction vector, starting from the center of mass of the active vessel. The
+following code draws the axes of [`Vessel.surface_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.surface_reference_frame "SpaceCenter.Vessel.surface_reference_frame"), and a
+labeled arrow in the direction of the vessel’s velocity relative to the surface:
 
 ```python
 import krpc
@@ -188,8 +218,14 @@ import krpc
 conn = krpc.connect(name="Visual Debugging")
 vessel = conn.space_center.active_vessel
 
+# Draw the axes of the surface reference frame
+conn.drawing.add_axes(vessel.surface_reference_frame)
+
+# Draw the direction of the surface velocity, as a labeled arrow
 ref_frame = vessel.surface_velocity_reference_frame
-conn.drawing.add_direction_from_com((0, 1, 0), ref_frame)
+line = conn.drawing.add_direction_from_com((0, 1, 0), ref_frame)
+line.end_arrow = True
+line.label = "Surface velocity"
 while True:
     pass
 ```
@@ -319,6 +355,7 @@ This code uses the [`Vessel.surface_velocity_reference_frame`](../python/api/spa
 below:
 
 ![../_images/vessel-surface-velocity.png](../_images/vessel-surface-velocity.png)
+
 > **See also**
 >
 > If you only need the surface prograde or retrograde direction as a
@@ -342,6 +379,7 @@ rotates with the body.
 
 ```python
 import time
+
 import krpc
 
 conn = krpc.connect(name="Vessel speed")
@@ -355,6 +393,13 @@ while True:
     print("Orbital speed = %.1f m/s, Surface speed = %.1f m/s" % (obt_speed, srf_speed))
     time.sleep(1)
 ```
+
+> **See also**
+>
+> [`Vessel.orbit_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.orbit_speed_reference_frame "SpaceCenter.Vessel.orbit_speed_reference_frame") and
+> [`Vessel.surface_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.surface_speed_reference_frame "SpaceCenter.Vessel.surface_speed_reference_frame") give the same two speeds
+> directly, in frames centered on the vessel and oriented like the navball is in
+> each mode. See [Navball speed modes](#tutorial-reference-frames-navball-speed).
 
 ### [Vessel Velocity](#id19)
 
@@ -373,6 +418,7 @@ the body.
 
 ```python
 import time
+
 import krpc
 
 conn = krpc.connect(name="Orbital speed")
@@ -387,7 +433,64 @@ while True:
     time.sleep(1)
 ```
 
-### [Angle of attack](#id20)
+> **See also**
+>
+> [`Vessel.surface_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.surface_speed_reference_frame "SpaceCenter.Vessel.surface_speed_reference_frame") gives the same velocity
+> without constructing a frame, although in its own prograde/normal/radial axes
+> rather than as upwards, north and east components. See
+> [Navball speed modes](#tutorial-reference-frames-navball-speed).
+
+### [Navball speed modes](#id20)
+
+The navball measures speed against one of three things, depending on the speed
+mode it is in: the body being orbited (‘orbit’ mode), the surface of that body
+(‘surface’ mode) or the vessel’s target (‘target’ mode).
+[`Vessel.orbit_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.orbit_speed_reference_frame "SpaceCenter.Vessel.orbit_speed_reference_frame"),
+[`Vessel.surface_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.surface_speed_reference_frame "SpaceCenter.Vessel.surface_speed_reference_frame") and
+[`Vessel.target_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.target_speed_reference_frame "SpaceCenter.Vessel.target_speed_reference_frame") are reference frames that move with
+each of these in turn.
+
+The velocity of the vessel in one of them is therefore the velocity the navball
+shows in that mode, and [`Flight.speed`](../python/api/space-center/flight.md#SpaceCenter.Flight.speed "SpaceCenter.Flight.speed") is the speed it displays.
+
+Each frame is also oriented like the navball is in that mode, in the same
+arrangement as [`Vessel.orbital_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame"): the y-axis points where
+the prograde marker does, the z-axis where the normal marker does and the x-axis
+in the anti-radial direction, towards the body. A direction of
+`(0,1,0)` in the frame is therefore prograde and `(0,-1,0)` is
+retrograde, whichever mode the frame is for, and the velocity of the vessel in
+the frame points along its y-axis.
+
+Because the velocity gives these frames their orientation, they are singular
+when it is zero: the surface speed frame cannot be used by a vessel that is
+stationary on the ground, nor the target speed frame by one that has matched
+velocity with its target.
+
+This example prints the speeds the navball shows in orbit and surface modes:
+
+```python
+import time
+
+import krpc
+
+conn = krpc.connect(name="Navball speed")
+vessel = conn.space_center.active_vessel
+obt_frame = vessel.orbit_speed_reference_frame
+srf_frame = vessel.surface_speed_reference_frame
+
+while True:
+    obt_speed = vessel.flight(obt_frame).speed
+    srf_speed = vessel.flight(srf_frame).speed
+    print("Orbital speed = %.1f m/s, Surface speed = %.1f m/s" % (obt_speed, srf_speed))
+    time.sleep(1)
+```
+
+> **Note**
+>
+> [`Vessel.target_speed_reference_frame`](../python/api/space-center/vessel.md#SpaceCenter.Vessel.target_speed_reference_frame "SpaceCenter.Vessel.target_speed_reference_frame") requires a target to be
+> set, and raises an error otherwise.
+
+### [Angle of attack](#id21)
 
 This example computes the angle between the direction the vessel is pointing in,
 and the direction that the vessel is moving in (relative to the surface):
@@ -395,13 +498,13 @@ and the direction that the vessel is moving in (relative to the surface):
 ```python
 import math
 import time
+
 import krpc
 
 conn = krpc.connect(name="Angle of attack")
 vessel = conn.space_center.active_vessel
 
 while True:
-
     d = vessel.direction(vessel.orbit.body.reference_frame)
     v = vessel.velocity(vessel.orbit.body.reference_frame)
 
@@ -435,20 +538,21 @@ which is the signed angle of attack in the vessel’s pitch plane, in the range
 -90° to +90° (with the sideways component reported separately by
 [`Flight.sideslip_angle`](../python/api/space-center/flight.md#SpaceCenter.Flight.sideslip_angle "SpaceCenter.Flight.sideslip_angle")).
 
-### [Landing Site](#id21)
+### [Landing Site](#id22)
 
-This example computes a reference frame that is located on the surface of a body
+This example creates a reference frame that is located on the surface of a body
 at a given altitude, which could be used as the target for a landing auto pilot.
+[`CelestialBody.surface_reference_frame()`](../python/api/space-center/celestial-body.md#SpaceCenter.CelestialBody.surface_reference_frame "SpaceCenter.CelestialBody.surface_reference_frame") creates the frame, and
+[`Drawing.add_axes()`](../python/api/drawing/drawing.md#Drawing.add_axes "Drawing.add_axes") draws it.
 
 ```python
 import time
-from math import sin, cos, pi
+
 import krpc
 
 conn = krpc.connect(name="Landing Site")
 vessel = conn.space_center.active_vessel
 body = vessel.orbit.body
-create_relative = conn.space_center.ReferenceFrame.create_relative
 
 # Define the landing site as the top of the VAB
 landing_latitude = -(0 + (5.0 / 60) + (48.38 / 60 / 60))
@@ -457,34 +561,12 @@ landing_altitude = 111
 
 # Determine landing site reference frame
 # (orientation: x=zenith, y=north, z=east)
-landing_position = body.surface_position(
-    landing_latitude, landing_longitude, body.reference_frame
-)
-q_long = (
-    0,
-    sin(-landing_longitude * 0.5 * pi / 180),
-    0,
-    cos(-landing_longitude * 0.5 * pi / 180),
-)
-q_lat = (
-    0,
-    0,
-    sin(landing_latitude * 0.5 * pi / 180),
-    cos(landing_latitude * 0.5 * pi / 180),
-)
-landing_reference_frame = create_relative(
-    create_relative(
-        create_relative(body.reference_frame, landing_position, q_long),
-        (0, 0, 0),
-        q_lat,
-    ),
-    (landing_altitude, 0, 0),
+landing_reference_frame = body.surface_reference_frame(
+    landing_latitude, landing_longitude, landing_altitude
 )
 
 # Draw axes
-conn.drawing.add_line((0, 0, 0), (1, 0, 0), landing_reference_frame)
-conn.drawing.add_line((0, 0, 0), (0, 1, 0), landing_reference_frame)
-conn.drawing.add_line((0, 0, 0), (0, 0, 1), landing_reference_frame)
+conn.drawing.add_axes(landing_reference_frame)
 
 while True:
     time.sleep(1)

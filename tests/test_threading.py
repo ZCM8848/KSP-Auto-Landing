@@ -109,7 +109,7 @@ def test_debug_proxy_lazy_init_is_singleton(monkeypatch: pytest.MonkeyPatch) -> 
 def test_start_concurrent_registers_streams_once(monkeypatch: pytest.MonkeyPatch) -> None:
     """Concurrent ``start()`` calls must launch the telemetry thread once.
 
-    Each ``Telemetry._register_streams`` call appends 28 streams to the
+    Each ``Telemetry._register_streams`` call appends 29 streams to the
     client; an un-locked ``_started`` check lets two threads both pass and
     register a second telemetry (streams count doubles).
     """
@@ -121,7 +121,7 @@ def test_start_concurrent_registers_streams_once(monkeypatch: pytest.MonkeyPatch
 
     _run_threads(4, km.start)
 
-    assert len(client.streams) == 28, (
+    assert len(client.streams) == 29, (
         f"telemetry streams={len(client.streams)}; a duplicate start doubles them"
     )
     km.close()
@@ -225,11 +225,7 @@ def test_telemetry_stop_skips_remove_if_thread_stuck() -> None:
 
     class BlockingStream:
         def __init__(self) -> None:
-            self.started = False
             self.removed = False
-
-        def start(self) -> None:
-            self.started = True
 
         def remove(self) -> None:
             self.removed = True

@@ -191,13 +191,10 @@ class FakeSpaceCenter:
 class FakeStream:
     def __init__(self, getter: Callable[[], Any]) -> None:
         self._getter = getter
-        self.started = False
-
-    def start(self) -> None:
-        self.started = True
+        self.removed = False
 
     def remove(self) -> None:
-        self.started = False
+        self.removed = True
 
     def __call__(self) -> Any:
         return self._getter()

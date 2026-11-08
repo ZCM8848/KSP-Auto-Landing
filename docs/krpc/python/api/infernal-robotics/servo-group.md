@@ -17,6 +17,12 @@ class ServoGroup
         Game Scenes:
         :   Flight
 
+        > **Note**
+        >
+        > Renaming a group renames it for every servo in it. This object identifies the
+        > group by its name, so a rename destroys every object for the group, including the
+        > one the rename was made through. Obtain the group again under the new name.
+
     forward\_key
     :   The key assigned to be the “forward” key for the group.
 
@@ -66,7 +72,7 @@ class ServoGroup
         :   Flight
 
     vessel
-    :   The vessel the group belongs to, or `None` if it is not available.
+    :   The vessel the group belongs to.
 
         Attribute:
         :   Read-only, cannot be set
@@ -159,7 +165,7 @@ class ServoGroup
         :   **name** (*str*) – Name of servo to find.
 
         Return type:
-        :   [`Servo`](./servo.md#InfernalRobotics.Servo "InfernalRobotics.Servo")
+        :   [`Servo`](./servo.md#InfernalRobotics.Servo "InfernalRobotics.Servo") or None
 
         Game Scenes:
         :   Flight

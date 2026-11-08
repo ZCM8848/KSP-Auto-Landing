@@ -1,0 +1,3 @@
+[submodule "OpenSCvx"]
+	path = OpenSCvx
+	url = https://github.com/OpenSCvx/OpenSCvx.git

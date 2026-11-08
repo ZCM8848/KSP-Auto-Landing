@@ -117,6 +117,15 @@ class VesselHandle:
         """
         return self._connection.snapshot()
 
+    def current_ut(self) -> float:
+        """Current game universal time (one RPC call).
+
+        Useful for telemetry-latency compensation: ``current_ut() - snapshot.ut``
+        is the age of a snapshot in game seconds.  Do not call this in a tight
+        loop at high rates; one call per control frame is fine.
+        """
+        return float(self._connection.client.space_center.ut)
+
     def frame(self, name: str = "target") -> Any:
         """Return a kRPC reference frame handle by name.
 

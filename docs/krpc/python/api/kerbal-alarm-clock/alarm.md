@@ -178,3 +178,7 @@ class Alarm
 
     remove()
     :   Removes the alarm. Any further use of this object throws an exception.
+
+        > **Note**
+        >
+        > Any further use of this object throws an exception.

@@ -38,11 +38,20 @@ from recovery.guidance import (
     VirtualControl,
 )
 from recovery.ksp.sampling import sample_lift_table
+from recovery.perf import PROFILER
+
+
+def _pf_us(sections: dict[str, int], name: str) -> int:
+    """Convert a profiler section total from nanoseconds to microseconds."""
+    return sections.get(name, 0) // 1000
+
 
 # ---------------------------------------------------------------------------
 # User-tunable parameters
 # ---------------------------------------------------------------------------
-VESSEL = "New Shepard Probe"
+# VESSEL = "New Shepard Probe 2"
+# VESSEL = "ZQ-3 empty Probe"
+VESSEL = "B1"
 TARGET_LON = LZ3_JNSQ.lon
 TARGET_LAT = LZ3_JNSQ.lat
 
@@ -64,7 +73,7 @@ R_DEADBAND = 5.0                # horizontal endpoint miss considered "on target
 NOSE_SMOOTHING = 0.2            # EMA weight for nose smoothing (0=no, 1=full)
 ENTRY_VZ = 10.0                 # |vertical speed| threshold to enter aero (m/s)
 AERO_ENTRY_Q = 200.0            # minimum dynamic pressure (Pa) to enter aero
-SAFE_AERO_SPEED = 450.0         # re-entry burn targets |v| below this (m/s)
+SAFE_AERO_SPEED = 750.0         # re-entry burn targets |v| below this (m/s)
 LOOP_HZ = 50.0                  # control-loop rate
 
 # Action group numbers used by toggle_action_group in this vessel setup.
@@ -335,21 +344,34 @@ def _run_aero_and_landing(
     print(intro, file=log)
     log.flush()
 
-    # Aero-phase predictor timing log: one CSV row per predict call, flushed
-    # immediately so data survives even if the vessel breaks up mid-flight.
+    # Aero-phase timing log: one CSV row per predict call, flushed immediately
+    # so data survives even if the vessel breaks up mid-flight.  `pacer_us` /
+    # `snap_us` / `apply_us` are direct script-side timers (tier 1); the `pf_*`
+    # columns come from the opt-in framework profiler (tier 2), split into each
+    # individual AutoPilot RPC.
     timing = open("zem_aero_predict_timing.csv", "w", encoding="utf-8", newline="")
     timing.write(
-        "t_wall,phase,alt,speed,mass,loop_us,predict_us,n_steps,t_end,kind,alpha_deg\n"
+        "t_wall,phase,alt,speed,mass,loop_us,pacer_us,snap_us,apply_us,predict_us,"
+        "n_steps,t_end,kind,alpha_deg,"
+        "pf_apply_us,pf_throttle_us,pf_refframe_us,pf_dir_us,pf_up_us,pf_roll_us,"
+        "pf_engaged_us,pf_engage_us,pf_sleep_us\n"
     )
     timing.flush()
 
     def _log_predict() -> None:
         timing.write(
             f"{time.monotonic():.3f},{phase},{s.surface_altitude:.2f},"
-            f"{speed:.2f},{s.mass:.1f},{loop_us},{predict_us},{n_steps},"
-            f"{t_end:.3f},{kind},{alpha_deg:.3f}\n"
+            f"{speed:.2f},{s.mass:.1f},{loop_us},{pacer_us},{snap_us},{apply_us},"
+            f"{predict_us},{n_steps},{t_end:.3f},{kind},{alpha_deg:.3f},"
+            f"{_pf_us(pf, 'ctl.apply')},{_pf_us(pf, 'ctl.throttle')},"
+            f"{_pf_us(pf, 'ctl.refframe')},{_pf_us(pf, 'ctl.dir')},"
+            f"{_pf_us(pf, 'ctl.up')},{_pf_us(pf, 'ctl.roll')},"
+            f"{_pf_us(pf, 'ctl.engaged')},{_pf_us(pf, 'ctl.engage')},"
+            f"{_pf_us(pf, 'pace.sleep')}\n"
         )
         timing.flush()
+
+    PROFILER.enable()
 
     phase = 0  # 0=aero, 1=landing burn A, 2=landing burn B
     target_pos_b = np.array([0.0, 0.0, half_length])
@@ -358,8 +380,14 @@ def _run_aero_and_landing(
     nose_prev: np.ndarray | None = None
 
     while True:
+        PROFILER.take()  # discard sections from any non-logged frame
+        t_pacer = time.perf_counter_ns()
         pacer.tick()
+        pacer_us = (time.perf_counter_ns() - t_pacer) // 1000
+
+        t_snap = time.perf_counter_ns()
         s = b.snapshot()
+        snap_us = (time.perf_counter_ns() - t_snap) // 1000
         if s is None:
             continue
 
@@ -367,11 +395,13 @@ def _run_aero_and_landing(
         speed = float(np.linalg.norm(np.asarray(s.velocity, dtype=float)))
         # Aero-phase timing defaults (filled in only for phase 0 predictions).
         loop_us = 0
+        apply_us = 0
         predict_us = 0
         n_steps = 0
         t_end = float("nan")
         kind = "-"
         alpha_deg = float("nan")
+        pf: dict[str, int] = {}
 
         if phase == 2:
             # Landing-burn phase B: polynomial guidance to touchdown.
@@ -502,6 +532,7 @@ def _run_aero_and_landing(
         else:
             kind = "none"
             loop_us = (time.perf_counter_ns() - t_loop) // 1000
+            pf = PROFILER.take()
             _log_predict()
             print("Prediction did not reach endpoint or impact — skipping frame.")
             continue
@@ -519,6 +550,7 @@ def _run_aero_and_landing(
             print(msg, file=log)
             log.flush()
             loop_us = (time.perf_counter_ns() - t_loop) // 1000
+            pf = PROFILER.take()
             _log_predict()
             phase = 1
             t_last_log = now
@@ -586,15 +618,18 @@ def _run_aero_and_landing(
         nose = tuple(nose)
 
         # Aero glide: zero throttle, attitude-only control.
+        t_apply = time.perf_counter_ns()
         b.controls.apply(
             target_direction=nose,
             reference_frame=frame,
             up=(0.0, 0.0, 1.0),
             throttle=0.0,
         )
+        apply_us = (time.perf_counter_ns() - t_apply) // 1000
 
         alpha_deg = math.degrees(alpha_cmd)
         loop_us = (time.perf_counter_ns() - t_loop) // 1000
+        pf = PROFILER.take()
         _log_predict()
 
         now = time.monotonic()
@@ -609,6 +644,7 @@ def _run_aero_and_landing(
             log.flush()
             t_last_log = now
 
+    PROFILER.disable()
     timing.close()
     log.close()
 

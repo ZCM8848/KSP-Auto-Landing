@@ -1,16 +1,31 @@
 # InputField
 
 class InputField
-:   An input field. See [`Panel.add_input_field()`](./panel.md#UI.Panel.add_input_field "UI.Panel.add_input_field").
+:   An input field.
+    Added to a [`Canvas`](./canvas.md#UI.Canvas "UI.Canvas") or a [`Panel`](./panel.md#UI.Panel "UI.Panel").
 
     rect\_transform
-    :   The rect transform for the input field.
+    :   The rect transform for the UI object.
 
         Attribute:
         :   Read-only, cannot be set
 
         Return type:
         :   [`RectTransform`](./rect-transform.md#UI.RectTransform "UI.RectTransform")
+
+    layout\_element
+    :   How much space the UI object asks a layout for.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`LayoutElement`](./layout-element.md#UI.LayoutElement "UI.LayoutElement")
+
+        > **Note**
+        >
+        > Only has an effect when the object is in a panel that has a layout. A canvas is
+        > not inside a layout and does not have one.
 
     visible
     :   Whether the UI object is visible.
@@ -20,6 +35,13 @@ class InputField
 
         Return type:
         :   bool
+
+        > **Note**
+        >
+        > This is the object’s own setting, which is what it was last set to. An object is
+        > only drawn when everything it is inside is visible as well, so an interface can
+        > be built with its parts visible, inside a panel that is not, and shown all at
+        > once by making that panel visible.
 
     value
     :   The value of the input field.
@@ -44,6 +66,59 @@ class InputField
         > Use [`InputField.value`](#UI.InputField.value "UI.InputField.value") to get and set the value in the field.
         > This object can be used to alter the style of the input field’s text.
 
+    placeholder
+    :   The placeholder text component of the input field.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`Text`](./text.md#UI.Text "UI.Text")
+
+        > **Note**
+        >
+        > Set its [`Text.content`](./text.md#UI.Text.content "UI.Text.content") to the hint to show while the field is empty.
+        > The hint is hidden as soon as the field has a value.
+
+    content\_type
+    :   The content the field accepts from the user. Keystrokes that do not fit are
+        ignored as they are typed, so a numeric field only ever shows a number.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   [`InputContentType`](#UI.InputContentType "UI.InputContentType")
+
+        > **Note**
+        >
+        > The filter applies to typing alone. A value set by a client is shown as it is
+        > given.
+
+    character\_limit
+    :   The most characters the user can type into the field, or 0 for no limit.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   int
+
+    read\_only
+    :   Whether the user is stopped from editing the field. The value can still be
+        selected and copied, and a client can still set it.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   bool
+
+        > **Note**
+        >
+        > A read-only field is drawn as normal. Make the field not interactable instead
+        > to gray it out and stop the user selecting it.
+
     changed
     :   Whether the input field has been changed.
 
@@ -55,8 +130,70 @@ class InputField
 
         > **Note**
         >
-        > This property is set to true when the user modifies the value of the input field.
+        > This property is set to true when the user modifies the value of the input field,
+        > and not when a client sets it.
         > A client script should reset the property to false in order to detect subsequent changes.
+
+    interactable
+    :   Whether the control responds to the user.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   bool
+
+        > **Note**
+        >
+        > A control that is not interactable is drawn grayed out and ignores the user,
+        > but is still visible. Set its visibility to false to hide it instead.
+
+    color
+    :   The color the control is tinted with. White, the default, leaves the control drawn
+        as the skin has it.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   [`StdLib.ColorRGBA`](../stdlib.md#StdLib.ColorRGBA "StdLib.ColorRGBA")
+
+        > **Note**
+        >
+        > The tint multiplies the sprite the control is drawn with, in every state, so
+        > a control can show a state of its own, an engaged autopilot for instance, by
+        > color. It is applied to the part of the control that responds to the user:
+        > the body of a button, dropdown or input field, the box of a toggle, and the
+        > handle of a slider. A control’s label is tinted through the color of its
+        > text.
+
+    tooltip
+    :   A short piece of text shown beside the pointer while it rests on the
+        control. Empty, the default, shows nothing.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   str
 
     remove()
     :   Remove the UI object.
+
+class InputContentType
+:   What an input field lets the user type into it.
+
+    standard
+    :   Any text.
+
+    integer
+    :   A whole number: digits, with a leading minus sign.
+
+    decimal
+    :   A number: digits, with a decimal separator and a leading minus sign.
+
+    alphanumeric
+    :   Letters and digits.
+
+    password
+    :   Any text, drawn as asterisks so that it cannot be read off the screen.

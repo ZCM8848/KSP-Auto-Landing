@@ -61,3 +61,11 @@ class DragSpec:
 
     sea_level_radius: float
     """Radius at sea level (m), used to convert position to altitude."""
+
+    cd_area: float | None = None
+    """Zero-lift drag area ``C_d·A`` (m²), derived from the sampling mass as
+    ``mass / ballistic_coefficient``.  ``None`` when the sampling mass was not
+    known (e.g. a FAR coefficient with no vessel mass).  Consumers that need a
+    mass-independent drag area should use this instead of re-deriving it from
+    an arbitrary reference mass."""
+

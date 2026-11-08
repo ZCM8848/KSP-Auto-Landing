@@ -1,7 +1,7 @@
 # InfernalRobotics
 
 This service provides functionality to interact with
-[Infernal Robotics](https://forum.kerbalspaceprogram.com/index.php?/topic/184787-infernal-robotics-next/).
+[Infernal Robotics](https://forum.kerbalspaceprogram.com/topic/184787-infernal-robotics-next/).
 
 available
 :   Whether Infernal Robotics is installed.
@@ -51,7 +51,7 @@ static servo\_group\_with\_name(*vessel*, *name*)
         - **name** (*str*) – Name of servo group to find.
 
     Return type:
-    :   [`ServoGroup`](./servo-group.md#InfernalRobotics.ServoGroup "InfernalRobotics.ServoGroup")
+    :   [`ServoGroup`](./servo-group.md#InfernalRobotics.ServoGroup "InfernalRobotics.ServoGroup") or None
 
     Game Scenes:
     :   Flight
@@ -65,7 +65,7 @@ static servo\_with\_name(*vessel*, *name*)
         - **name** (*str*) – Name of the servo to find.
 
     Return type:
-    :   [`Servo`](./servo.md#InfernalRobotics.Servo "InfernalRobotics.Servo")
+    :   [`Servo`](./servo.md#InfernalRobotics.Servo "InfernalRobotics.Servo") or None
 
     Game Scenes:
     :   Flight

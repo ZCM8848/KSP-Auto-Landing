@@ -13,7 +13,7 @@ class Text
         :   tuple(float, float, float)
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     rotation
     :   Rotation of the text as a quaternion.
@@ -25,7 +25,19 @@ class Text
         :   tuple(float, float, float, float)
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
+
+    face\_camera
+    :   Whether the text turns to face the camera, in place of its [`Text.rotation`](#Drawing.Text.rotation "Drawing.Text.rotation").
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   bool
+
+        Game Scenes:
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     reference\_frame
     :   Reference frame for the positions of the object.
@@ -37,7 +49,7 @@ class Text
         :   [`SpaceCenter.ReferenceFrame`](../space-center/reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     visible
     :   Whether the object is visible.
@@ -49,13 +61,13 @@ class Text
         :   bool
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     remove()
     :   Remove the object.
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     content
     :   The text string
@@ -67,7 +79,7 @@ class Text
         :   str
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     font
     :   Name of the font
@@ -79,7 +91,7 @@ class Text
         :   str
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     static available\_fonts()
     :   A list of all available fonts.
@@ -88,7 +100,7 @@ class Text
         :   list(str)
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     size
     :   Font size.
@@ -100,7 +112,7 @@ class Text
         :   int
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     character\_size
     :   Character size.
@@ -112,7 +124,7 @@ class Text
         :   float
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     style
     :   Font style.
@@ -124,7 +136,7 @@ class Text
         :   [`UI.FontStyle`](../ui/text.md#UI.FontStyle "UI.FontStyle")
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     color
     :   Set the color
@@ -133,10 +145,10 @@ class Text
         :   Can be read or written
 
         Return type:
-        :   tuple(float, float, float)
+        :   [`StdLib.ColorRGB`](../stdlib.md#StdLib.ColorRGB "StdLib.ColorRGB")
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     material
     :   Material used to render the object.
@@ -149,7 +161,7 @@ class Text
         :   str
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     alignment
     :   Alignment.
@@ -161,7 +173,7 @@ class Text
         :   [`UI.TextAlignment`](../ui/text.md#UI.TextAlignment "UI.TextAlignment")
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     line\_spacing
     :   Line spacing.
@@ -173,7 +185,7 @@ class Text
         :   float
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph
 
     anchor
     :   Anchor.
@@ -185,4 +197,4 @@ class Text
         :   [`UI.TextAnchor`](../ui/text.md#UI.TextAnchor "UI.TextAnchor")
 
         Game Scenes:
-        :   Flight
+        :   Flight, Tracking Station, Editor Vab, Editor Sph

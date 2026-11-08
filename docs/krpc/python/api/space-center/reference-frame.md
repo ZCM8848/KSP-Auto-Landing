@@ -11,8 +11,8 @@ class ReferenceFrame
 
     > **Note**
     >
-    > This class does not contain any properties or methods. It is only
-    > used as a parameter to other functions.
+    > Apart from being created and removed, a reference frame is only used as a
+    > parameter to other functions.
 
     static create\_relative(*reference\_frame*[, *position=(0.0*, *0.0*, *0.0)*][, *rotation=(0.0*, *0.0*, *0.0*, *1.0)*][, *velocity=(0.0*, *0.0*, *0.0)*][, *angular\_velocity=(0.0*, *0.0*, *0.0)*])
     :   Create a relative reference frame. This is a custom reference frame
@@ -28,15 +28,22 @@ class ReferenceFrame
         Return type:
         :   [`ReferenceFrame`](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
 
+        > **Note**
+        >
+        > Each call returns a new frame, which is kept until [`ReferenceFrame.remove()`](#SpaceCenter.ReferenceFrame.remove "SpaceCenter.ReferenceFrame.remove") is
+        > called on it or the client that created it disconnects, so a script that
+        > creates one repeatedly, for example once per update, should remove each one
+        > when it is finished with it.
+
     static create\_hybrid(*position*[, *rotation=None*][, *velocity=None*][, *angular\_velocity=None*])
     :   Create a hybrid reference frame. This is a custom reference frame
         whose components inherited from other reference frames.
 
         Parameters:
         :   - **position** ([*ReferenceFrame*](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame providing the position of the origin.
-            - **rotation** ([*ReferenceFrame*](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame providing the rotation of the frame.
-            - **velocity** ([*ReferenceFrame*](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame providing the linear velocity of the frame.
-            - **angular\_velocity** ([*ReferenceFrame*](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame providing the angular velocity of the frame.
+            - **rotation** ([*ReferenceFrame*](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame") *or* *None*) – The reference frame providing the rotation of the frame.
+            - **velocity** ([*ReferenceFrame*](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame") *or* *None*) – The reference frame providing the linear velocity of the frame.
+            - **angular\_velocity** ([*ReferenceFrame*](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame") *or* *None*) – The reference frame providing the angular velocity of the frame.
 
         Return type:
         :   [`ReferenceFrame`](#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
@@ -46,3 +53,21 @@ class ReferenceFrame
         > The *position* reference frame is required but all other
         > reference frames are optional. If omitted, they are set to the
         > *position* reference frame.
+        >
+        > Each call returns a new frame, which is kept until [`ReferenceFrame.remove()`](#SpaceCenter.ReferenceFrame.remove "SpaceCenter.ReferenceFrame.remove") is
+        > called on it or the client that created it disconnects, so a script that
+        > creates one repeatedly, for example once per update, should remove each one
+        > when it is finished with it.
+
+    remove()
+    :   Remove the reference frame, releasing the memory the server holds for it.
+
+        > **Note**
+        >
+        > Only a frame created by [`ReferenceFrame.create_relative()`](#SpaceCenter.ReferenceFrame.create_relative "SpaceCenter.ReferenceFrame.create_relative") or
+        > [`ReferenceFrame.create_hybrid()`](#SpaceCenter.ReferenceFrame.create_hybrid "SpaceCenter.ReferenceFrame.create_hybrid") can be removed. Every other frame belongs to
+        > something in the game, and the server holds one of each.
+        >
+        > Any further use of this object throws an exception, as does use of a frame
+        > built on it, which cannot be evaluated without it. A frame belongs to the
+        > client that created it, and is removed when that client disconnects.

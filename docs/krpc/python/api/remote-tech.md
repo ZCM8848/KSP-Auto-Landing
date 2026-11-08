@@ -1,6 +1,6 @@
 # RemoteTech API
 
-Provides RPCs to interact with the [RemoteTech](https://forum.kerbalspaceprogram.com/index.php?/topic/139167-13-remotetech-v188-2017-09-03/) mod. Provides the following classes:
+Provides RPCs to interact with the [RemoteTech](https://forum.kerbalspaceprogram.com/topic/139167-111-remotetech-v199-2020-12-19/) mod. Provides the following classes:
 
 - [RemoteTech](./remote-tech/remote-tech.md)
 - [Comms](./remote-tech/comms.md)

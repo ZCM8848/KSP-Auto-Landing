@@ -507,37 +507,25 @@ with ConnectionManager() as km:
 
 Full example: `scripts/zem_boosterback.py`.
 
-### `recovery.guidance.gfold` — G-FOLD powered-descent planner
-
-A thin wrapper over the `gfold` SOCP solver, **+z = zenith** (consistent with
-the target frame and the gfold library; gravity `[0, 0, -g]`, thrust along +z).
-`GfoldParams` (frozen dataclass) centralizes the tunables; the fixed quantities
-(mass / fuel / thrust / Isp / gravity / initial state) are derived from the
-`FlightState` snapshot + surface gravity `g0`.
-
-::: recovery.guidance.gfold
-
 ### `recovery.guidance.tofnet` — TOF-Net TOF predictor
 
-Loads a pretrained ONNX model and uses its `(p_feasible, tf)` prediction to
-**replace the internal TOF search of `solve_optimal`**. Pure black box: 14 raw
-features in, `(p_feasible, tf)` out; normalization is baked into the ONNX
+Loads a pretrained ONNX model and predicts `(p_feasible, tf)` from a 14-dim
+physical feature vector. Pure black box: normalization is baked into the ONNX
 forward pass. `onnxruntime` is an optional dependency (lazy import, only needed
 when instantiating `TofPredictor`).
 
 ```python
-from recovery.guidance.gfold import GfoldParams, features_of, replan, solve_optimal
-from recovery.guidance.tofnet import TofPredictor
+from recovery.guidance.tofnet import TofFeatureParams, TofPredictor, features_of
 
 tofnet = TofPredictor()                          # loads the bundled assets/tofnet.onnx by default
-p, tf = tofnet.predict(features_of(s, params))   # microsecond inference
+p, tf = tofnet.predict(features_of(s, TofFeatureParams()))   # microsecond inference
 if p >= tofnet.threshold:
-    traj = replan(s, g0, params, tof=tf)         # fixed TOF, skip the search
-else:
-    traj = solve_optimal(s, g0, params)          # fallback: full TOF search
+    ...                                          # seed the trajectory optimiser with `tf`
 ```
 
 ::: recovery.guidance.tofnet.TofPredictor
+
+::: recovery.guidance.tofnet.features_of
 
 The **14-feature order is the training contract** (`FEATURES` in GFOLD-solver
 `common/config.py`): `x,y,z, vx,vy,vz, dry_mass, fuel, real_max_thrust,
@@ -549,6 +537,59 @@ standard gravity `G0=9.80665` (Isp conversion), **not** the surface gravity `g0`
 > gravity is not part of the feature vector). Retrain — or add gravity to the
 > features and retrain — for other bodies. `onnxruntime` is an optional extra
 > (`pip install -e .[tofnet]`).
+
+### `recovery.guidance.plan` — immutable plans and execution
+
+`Plan` is the pure-data hand-off between a trajectory optimiser and the control
+loop: node times, states, masses and thrust vectors plus the game time the plan
+starts at.  `PlanExecutor` turns a plan into `(throttle, nose)` commands by
+first-order interpolation and reconstructs throttle from the *current* available
+thrust, so a plan survives engine-set changes.  `plan_to_virtual_control`
+converts a plan back into the piecewise-constant control used by the
+high-fidelity predictor (the model-correction loop).
+
+::: recovery.guidance.plan
+
+### `recovery.guidance.scvx` — asynchronous SCvx MPC
+
+Builds the end-to-end descent OCP (unpowered coast + landing burn) from the
+sampled `BodySpec` / `DragSpec` and runs it as an asynchronous
+successive-convexification controller: a worker thread performs one SCP
+iteration at a time (~tens of ms) and publishes each iterate as a `Plan`; the
+control loop keeps executing the latest feasible plan.  `refresh()` re-seeds the
+horizon from a new measurement and warm-starts from the previous plan.  The
+`openscvx` dependency is imported lazily.
+
+`ScvxSolveService` is the multi-booster form: register one `DescentProblem` per
+booster, refresh by `booster_id`, and read per-booster plans/stats.  The service
+queues *boosters* (not stale measurements), keeps one latest refresh per
+booster, and serialises each `Problem` to a single worker at a time.  Workers
+default to one because the cvxpy host solve runs under the GIL.
+
+Two models are available: `build_descent_problem` (point mass, thrust vector)
+and `build_six_dof_problem` (quaternion attitude + body torque, with the KSP
+vessel body frame: +y nose).  The 6-DOF plan carries attitude/angular-velocity
+nodes so the executor can track the planned roll as well as the thrust
+direction.
+
+::: recovery.guidance.scvx
+
+### `recovery.guidance.terminal` — polynomial terminal guidance
+
+Cubic position/velocity terminal guidance for the last metres, where the OCP is
+ill-conditioned.  The coefficients (6, 4, 2) are the cubic boundary conditions;
+the time-to-go may be supplied or estimated from range and closing speed.
+
+::: recovery.guidance.terminal.PolynomialTerminalGuidance
+
+### `recovery.guidance.correction` — predictor-in-the-loop correction
+
+Re-flies a `Plan` through `ControlledPredictor` (which can include lift) and
+estimates the constant acceleration bias that explains the terminal mismatch.
+Feeding that bias back into the planner compensates unmodelled lift, attitude
+lag and atmosphere error instead of merely reacting to them.
+
+::: recovery.guidance.correction.TerminalCorrector
 
 ## Testing
 

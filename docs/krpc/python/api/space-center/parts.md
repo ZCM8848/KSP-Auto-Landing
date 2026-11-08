@@ -7,44 +7,42 @@ The following classes allow interaction with a vessels individual parts.
 - [Module](#module)
 - [Config Node](#config-node)
 - [Specific Types of Part](#specific-types-of-part)
-
-  - [Antenna](#antenna)
-  - [Cargo Bay](#cargo-bay)
-  - [Control Surface](#control-surface)
-  - [Decoupler](#decoupler)
-  - [Deployable State](#deployable-state)
-  - [Docking Port](#docking-port)
-  - [Engine](#engine)
-  - [Experiment](#experiment)
-  - [Fairing](#fairing)
-  - [Intake](#intake)
-  - [Leg](#leg)
-  - [Launch Clamp](#launch-clamp)
-  - [Light](#light)
-  - [Parachute](#parachute)
-  - [Radiator](#radiator)
-  - [Resource Converter](#resource-converter)
-  - [Resource Harvester](#resource-harvester)
-  - [Reaction Wheel](#reaction-wheel)
-  - [Resource Drain](#resource-drain)
-  - [Robotic Controller](#robotic-controller)
-  - [Robotic Hinge](#robotic-hinge)
-  - [Robotic Piston](#robotic-piston)
-  - [Robotic Rotation](#robotic-rotation)
-  - [Robotic Rotor](#robotic-rotor)
-  - [RCS](#rcs)
-  - [Sensor](#sensor)
-  - [Solar Panel](#solar-panel)
-  - [Thruster](#thruster)
-  - [Wheel](#wheel)
+    - [Antenna](#antenna)
+    - [Cargo Bay](#cargo-bay)
+    - [Control Surface](#control-surface)
+    - [Decoupler](#decoupler)
+    - [Deployable State](#deployable-state)
+    - [Docking Port](#docking-port)
+    - [Engine](#engine)
+    - [Experiment](#experiment)
+    - [Fairing](#fairing)
+    - [Intake](#intake)
+    - [Leg](#leg)
+    - [Launch Clamp](#launch-clamp)
+    - [Light](#light)
+    - [Parachute](#parachute)
+    - [Radiator](#radiator)
+    - [Resource Converter](#resource-converter)
+    - [Resource Harvester](#resource-harvester)
+    - [Reaction Wheel](#reaction-wheel)
+    - [Resource Drain](#resource-drain)
+    - [Robotic Controller](#robotic-controller)
+    - [Robotic Hinge](#robotic-hinge)
+    - [Robotic Piston](#robotic-piston)
+    - [Robotic Rotation](#robotic-rotation)
+    - [Robotic Rotor](#robotic-rotor)
+    - [RCS](#rcs)
+    - [Sensor](#sensor)
+    - [Solar Panel](#solar-panel)
+    - [Thruster](#thruster)
+    - [Wheel](#wheel)
 - [Trees of Parts](#trees-of-parts)
-
-  - [Traversing the Tree](#traversing-the-tree)
-  - [Attachment Modes](#attachment-modes)
+    - [Traversing the Tree](#traversing-the-tree)
+    - [Attachment Modes](#attachment-modes)
 - [Fuel Lines](#fuel-lines)
 - [Staging](#staging)
 
-## [Parts](#id21)
+## [Parts](#id22)
 
 class Parts
 :   Instances of this class are used to interact with the parts of a vessel.
@@ -74,12 +72,24 @@ class Parts
 
     controlling
     :   The part from which the vessel is controlled.
+        Returns `None` if the vessel has no control point, in which case it is
+        oriented by its root part.
 
         Attribute:
         :   Can be read or written
 
         Return type:
-        :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
+        :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part") or None
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > A vessel gets no control point when it is created by a decoupler or an undocking
+        > and none of its parts is a command module with crew aboard. A probe core does not
+        > give it one either. Assign this property to choose the control point, which is
+        > equivalent to “Control From Here” in game.
 
     with\_name(*name*)
     :   A list of parts whose [`Part.name`](#SpaceCenter.Part.name "SpaceCenter.Part.name") is *name*.
@@ -117,44 +127,6 @@ class Parts
 
         Return type:
         :   list([`Part`](#SpaceCenter.Part "SpaceCenter.Part"))
-
-    in\_stage(*stage*)
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Stage.parts`](./stage.md#SpaceCenter.Stage.parts "SpaceCenter.Stage.parts") from the object returned by [`Vessel.stage_at()`](./vessel.md#SpaceCenter.Vessel.stage_at "SpaceCenter.Vessel.stage_at") instead.
-
-        A list of all parts that are activated in the given *stage*.
-
-        Parameters:
-        :   **stage** (*int*)
-
-        Return type:
-        :   list([`Part`](#SpaceCenter.Part "SpaceCenter.Part"))
-
-        > **Note**
-        >
-        > Deprecated. Use [`Vessel.stage_at()`](./vessel.md#SpaceCenter.Vessel.stage_at "SpaceCenter.Vessel.stage_at") and
-        > [`Stage.parts`](./stage.md#SpaceCenter.Stage.parts "SpaceCenter.Stage.parts") instead. See the discussion on
-        > [Staging](#python-api-parts-staging).
-
-    in\_decouple\_stage(*stage*)
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Stage.parts`](./stage.md#SpaceCenter.Stage.parts "SpaceCenter.Stage.parts") from the object returned by [`Vessel.decouple_stage_at()`](./vessel.md#SpaceCenter.Vessel.decouple_stage_at "SpaceCenter.Vessel.decouple_stage_at") instead.
-
-        A list of all parts that are decoupled in the given *stage*.
-
-        Parameters:
-        :   **stage** (*int*)
-
-        Return type:
-        :   list([`Part`](#SpaceCenter.Part "SpaceCenter.Part"))
-
-        > **Note**
-        >
-        > Deprecated. Use [`Vessel.decouple_stage_at()`](./vessel.md#SpaceCenter.Vessel.decouple_stage_at "SpaceCenter.Vessel.decouple_stage_at") and
-        > [`Stage.parts`](./stage.md#SpaceCenter.Stage.parts "SpaceCenter.Stage.parts") instead. See the discussion on
-        > [Staging](#python-api-parts-staging).
 
     modules\_with\_name(*module\_name*)
     :   A list of modules (combined across all parts in the vessel) whose
@@ -420,7 +392,7 @@ class Parts
         Return type:
         :   list([`Wheel`](#SpaceCenter.Wheel "SpaceCenter.Wheel"))
 
-## [Part](#id22)
+## [Part](#id23)
 
 class Part
 :   Represents an individual part. Vessels are made up of multiple parts.
@@ -461,7 +433,7 @@ class Part
 
     tag
     :   The name tag for the part. Can be set to a custom string using the
-        in-game user interface.
+        in-game user interface. Throws an exception if no name tag part module is installed.
 
         Attribute:
         :   Can be read or written
@@ -471,9 +443,11 @@ class Part
 
         > **Note**
         >
-        > This string is shared with
-        > [kOS](https://forum.kerbalspaceprogram.com/index.php?/topic/61827-/)
-        > if it is installed.
+        > The name tag part module is provided by
+        > [KSPCommunityPartModules](https://github.com/KSPModdingLibs/KSPCommunityPartModules)
+        > 0.5 or later, or by
+        > [kOS](https://forum.kerbalspaceprogram.com/topic/165628-ksp-112x-kos-v1400-kos-scriptable-autopilot-system/),
+        > which shares this string.
 
     flag\_url
     :   The asset URL for the part’s flag.
@@ -493,18 +467,24 @@ class Part
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
         > **Note**
         >
         > The highlighting is removed when the client that enabled it disconnects.
 
     highlight\_color
-    :   The color used to highlight the part, as an RGB triple.
+    :   The color used to highlight the part.
 
         Attribute:
         :   Can be read or written
 
         Return type:
-        :   tuple(float, float, float)
+        :   [`StdLib.ColorRGB`](../stdlib.md#StdLib.ColorRGB "StdLib.ColorRGB")
+
+        Game Scenes:
+        :   Flight
 
     cost
     :   The cost of the part, in units of funds.
@@ -524,6 +504,9 @@ class Part
         Return type:
         :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel")
 
+        Game Scenes:
+        :   Flight
+
     parent
     :   The parts parent. Returns `None` if the part does not have a parent.
         This, in combination with [`Part.children`](#SpaceCenter.Part.children "SpaceCenter.Part.children"), can be used to traverse the vessels
@@ -533,7 +516,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
+        :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part") or None
 
         > **Note**
         >
@@ -649,6 +632,9 @@ class Part
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     dynamic\_pressure
     :   The dynamic pressure acting on the part, in Pascals.
 
@@ -657,6 +643,211 @@ class Part
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
+
+    static\_pressure
+    :   The static pressure acting on the part, in Pascals. Below the waterline this
+        includes the pressure of the water.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    displacement
+    :   The volume of water the part displaces when fully submerged, in \(m^3\).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+        > **Note**
+        >
+        > See [`Part.displaced_volume`](#SpaceCenter.Part.displaced_volume "SpaceCenter.Part.displaced_volume") for the volume it is displacing now.
+
+    buoyancy\_multiplier
+    :   The multiplier applied to the buoyant force on the part. One for most parts.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    buoyant\_force\_at(*density*, *gravity*)
+    :   The buoyant force on the part when fully submerged in a fluid of the given
+        density, in Newtons.
+
+        Parameters:
+        :   - **density** (*float*) – The density of the fluid, in \(kg/m^3\).
+            - **gravity** (*float*) – The acceleration due to gravity, in \(m/s^2\).
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+        > **Note**
+        >
+        > Applies [`buoyancy_scalar`](./space-center.md#SpaceCenter.buoyancy_scalar "SpaceCenter.buoyancy_scalar") and
+        > [`Part.buoyancy_multiplier`](#SpaceCenter.Part.buoyancy_multiplier "SpaceCenter.Part.buoyancy_multiplier"), so the result is what the game would do to the
+        > part rather than what
+        > [Archimedes’ principle](https://en.wikipedia.org/wiki/Archimedes%27_principle) alone gives.
+
+    splashed
+    :   Whether the part is in contact with water.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+        Game Scenes:
+        :   Flight
+
+    submerged\_portion
+    :   The fraction of the part below the waterline, between 0 and 1.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    displaced\_volume
+    :   The volume of water the part is displacing, in \(m^3\).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    depth
+    :   The depth of the part below the waterline, in meters, measured at
+        [`Part.center_of_displacement()`](#SpaceCenter.Part.center_of_displacement "SpaceCenter.Part.center_of_displacement"). Negative above the waterline. Returns zero
+        if the body the vessel is at has no ocean.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    min\_depth
+    :   The depth of the shallowest point of the part below the waterline, in meters.
+        Returns zero if the body the vessel is at has no ocean.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    max\_depth
+    :   The depth of the deepest point of the part below the waterline, in meters.
+        Returns zero if the body the vessel is at has no ocean.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The game ramps the buoyant force in over the first fraction of a meter of this
+        > depth.
+
+    submerged\_dynamic\_pressure
+    :   The dynamic pressure of the water acting on the part, in Pascals.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    submerged\_drag\_multiplier
+    :   The multiplier applied to the drag on the part while it is submerged.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The game sets this high on splashdown and eases it down as the part moves through
+        > the water. It climbs back once the part slows to a crawl, so a hull under way
+        > reads lower than one lying still.
+
+    submerged\_lift\_multiplier
+    :   The multiplier applied to the lift on the part while it is submerged.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    water\_angular\_drag\_multiplier
+    :   The multiplier applied to the angular drag on the part while it is submerged.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+        > **Note**
+        >
+        > Part of the part’s configuration rather than a live readout, so it reads the same
+        > in the editor and at a body with no ocean.
 
     impact\_tolerance
     :   The impact tolerance of the part, in meters per second.
@@ -676,6 +867,9 @@ class Part
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     skin\_temperature
     :   Temperature of the skin of the part, in Kelvin.
 
@@ -684,6 +878,9 @@ class Part
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     max\_temperature
     :   Maximum temperature that the part can survive, in Kelvin.
@@ -703,6 +900,20 @@ class Part
         Return type:
         :   float
 
+    max\_pressure
+    :   Maximum pressure that the part can survive, in Pascals.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        > **Note**
+        >
+        > With part pressure limits enabled in the difficulty settings, the part is destroyed
+        > when [`Part.static_pressure`](#SpaceCenter.Part.static_pressure "SpaceCenter.Part.static_pressure") plus [`Part.dynamic_pressure`](#SpaceCenter.Part.dynamic_pressure "SpaceCenter.Part.dynamic_pressure") exceeds this.
+
     thermal\_mass
     :   A measure of how much energy it takes to increase the internal temperature of the part,
         in Joules per Kelvin.
@@ -712,6 +923,9 @@ class Part
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     thermal\_skin\_mass
     :   A measure of how much energy it takes to increase the skin temperature of the part,
@@ -723,6 +937,9 @@ class Part
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     thermal\_resource\_mass
     :   A measure of how much energy it takes to increase the temperature of the resources
         contained in the part, in Joules per Kelvin.
@@ -732,6 +949,9 @@ class Part
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     thermal\_conduction\_flux
     :   The rate at which heat energy is conducting into or out of the part via contact with
@@ -745,6 +965,9 @@ class Part
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     thermal\_convection\_flux
     :   The rate at which heat energy is convecting into or out of the part from the
         surrounding atmosphere. Measured in energy per unit time, or power, in Watts.
@@ -757,6 +980,9 @@ class Part
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     thermal\_radiation\_flux
     :   The rate at which heat energy is radiating into or out of the part from the surrounding
         environment. Measured in energy per unit time, or power, in Watts.
@@ -768,6 +994,9 @@ class Part
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     thermal\_internal\_flux
     :   The rate at which heat energy is begin generated by the part.
@@ -782,6 +1011,9 @@ class Part
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     thermal\_skin\_to\_internal\_flux
     :   The rate at which heat energy is transferring between the part’s skin and its internals.
         Measured in energy per unit time, or power, in Watts.
@@ -793,6 +1025,9 @@ class Part
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     crew\_capacity
     :   The number of crew members that can occupy the part.
@@ -812,6 +1047,9 @@ class Part
         Return type:
         :   list([`CrewMember`](./vessel.md#SpaceCenter.CrewMember "SpaceCenter.CrewMember"))
 
+        Game Scenes:
+        :   Flight
+
     available\_seats
     :   How many open seats the part has.
 
@@ -820,6 +1058,9 @@ class Part
 
         Return type:
         :   int
+
+        Game Scenes:
+        :   Flight
 
     resources
     :   A [`Part.resources`](#SpaceCenter.Part.resources "SpaceCenter.Part.resources") object for the part.
@@ -858,6 +1099,9 @@ class Part
         Return type:
         :   list([`Part`](#SpaceCenter.Part "SpaceCenter.Part"))
 
+        Game Scenes:
+        :   Flight
+
         > **Note**
         >
         > See the discussion on [Fuel Lines](#python-api-parts-fuel-lines).
@@ -871,6 +1115,9 @@ class Part
 
         Return type:
         :   list([`Part`](#SpaceCenter.Part "SpaceCenter.Part"))
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -892,7 +1139,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Antenna`](#SpaceCenter.Antenna "SpaceCenter.Antenna")
+        :   [`Antenna`](#SpaceCenter.Antenna "SpaceCenter.Antenna") or None
 
         > **Note**
         >
@@ -906,7 +1153,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`CargoBay`](#SpaceCenter.CargoBay "SpaceCenter.CargoBay")
+        :   [`CargoBay`](#SpaceCenter.CargoBay "SpaceCenter.CargoBay") or None
 
     control\_surface
     :   A [`Part.control_surface`](#SpaceCenter.Part.control_surface "SpaceCenter.Part.control_surface") if the part is an aerodynamic control surface,
@@ -916,7 +1163,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`ControlSurface`](#SpaceCenter.ControlSurface "SpaceCenter.ControlSurface")
+        :   [`ControlSurface`](#SpaceCenter.ControlSurface "SpaceCenter.ControlSurface") or None
 
     decoupler
     :   A [`Part.decoupler`](#SpaceCenter.Part.decoupler "SpaceCenter.Part.decoupler") if the part is a decoupler, otherwise `None`.
@@ -925,7 +1172,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Decoupler`](#SpaceCenter.Decoupler "SpaceCenter.Decoupler")
+        :   [`Decoupler`](#SpaceCenter.Decoupler "SpaceCenter.Decoupler") or None
 
     docking\_port
     :   A [`Part.docking_port`](#SpaceCenter.Part.docking_port "SpaceCenter.Part.docking_port") if the part is a docking port, otherwise `None`.
@@ -934,7 +1181,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`DockingPort`](#SpaceCenter.DockingPort "SpaceCenter.DockingPort")
+        :   [`DockingPort`](#SpaceCenter.DockingPort "SpaceCenter.DockingPort") or None
 
     engine
     :   An [`Part.engine`](#SpaceCenter.Part.engine "SpaceCenter.Part.engine") if the part is an engine, otherwise `None`.
@@ -943,7 +1190,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Engine`](#SpaceCenter.Engine "SpaceCenter.Engine")
+        :   [`Engine`](#SpaceCenter.Engine "SpaceCenter.Engine") or None
 
     experiment
     :   An [`Part.experiment`](#SpaceCenter.Part.experiment "SpaceCenter.Part.experiment") if the part contains a
@@ -953,7 +1200,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Experiment`](#SpaceCenter.Experiment "SpaceCenter.Experiment")
+        :   [`Experiment`](#SpaceCenter.Experiment "SpaceCenter.Experiment") or None
 
         > **Note**
         >
@@ -967,7 +1214,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   list([`Experiment`](#SpaceCenter.Experiment "SpaceCenter.Experiment"))
+        :   list([`Experiment`](#SpaceCenter.Experiment "SpaceCenter.Experiment")) or None
 
     fairing
     :   A [`Part.fairing`](#SpaceCenter.Part.fairing "SpaceCenter.Part.fairing") if the part is a fairing, otherwise `None`.
@@ -976,7 +1223,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Fairing`](#SpaceCenter.Fairing "SpaceCenter.Fairing")
+        :   [`Fairing`](#SpaceCenter.Fairing "SpaceCenter.Fairing") or None
 
     intake
     :   An [`Part.intake`](#SpaceCenter.Part.intake "SpaceCenter.Part.intake") if the part is an intake, otherwise `None`.
@@ -985,7 +1232,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Intake`](#SpaceCenter.Intake "SpaceCenter.Intake")
+        :   [`Intake`](#SpaceCenter.Intake "SpaceCenter.Intake") or None
 
         > **Note**
         >
@@ -1000,7 +1247,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Leg`](#SpaceCenter.Leg "SpaceCenter.Leg")
+        :   [`Leg`](#SpaceCenter.Leg "SpaceCenter.Leg") or None
 
     launch\_clamp
     :   A [`Part.launch_clamp`](#SpaceCenter.Part.launch_clamp "SpaceCenter.Part.launch_clamp") if the part is a launch clamp, otherwise `None`.
@@ -1009,7 +1256,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`LaunchClamp`](#SpaceCenter.LaunchClamp "SpaceCenter.LaunchClamp")
+        :   [`LaunchClamp`](#SpaceCenter.LaunchClamp "SpaceCenter.LaunchClamp") or None
 
     light
     :   A [`Part.light`](#SpaceCenter.Part.light "SpaceCenter.Part.light") if the part is a light, otherwise `None`.
@@ -1018,7 +1265,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Light`](#SpaceCenter.Light "SpaceCenter.Light")
+        :   [`Light`](#SpaceCenter.Light "SpaceCenter.Light") or None
 
     parachute
     :   A [`Part.parachute`](#SpaceCenter.Part.parachute "SpaceCenter.Part.parachute") if the part is a parachute, otherwise `None`.
@@ -1027,7 +1274,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Parachute`](#SpaceCenter.Parachute "SpaceCenter.Parachute")
+        :   [`Parachute`](#SpaceCenter.Parachute "SpaceCenter.Parachute") or None
 
     radiator
     :   A [`Part.radiator`](#SpaceCenter.Part.radiator "SpaceCenter.Part.radiator") if the part is a radiator, otherwise `None`.
@@ -1036,7 +1283,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Radiator`](#SpaceCenter.Radiator "SpaceCenter.Radiator")
+        :   [`Radiator`](#SpaceCenter.Radiator "SpaceCenter.Radiator") or None
 
     resource\_drain
     :   A [`Part.resource_drain`](#SpaceCenter.Part.resource_drain "SpaceCenter.Part.resource_drain") if the part is a resource drain, otherwise `None`.
@@ -1045,7 +1292,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`ResourceDrain`](#SpaceCenter.ResourceDrain "SpaceCenter.ResourceDrain")
+        :   [`ResourceDrain`](#SpaceCenter.ResourceDrain "SpaceCenter.ResourceDrain") or None
 
     rcs
     :   A [`Part.rcs`](#SpaceCenter.Part.rcs "SpaceCenter.Part.rcs") if the part is an RCS block/thruster, otherwise `None`.
@@ -1054,7 +1301,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`RCS`](#SpaceCenter.RCS "SpaceCenter.RCS")
+        :   [`RCS`](#SpaceCenter.RCS "SpaceCenter.RCS") or None
 
     reaction\_wheel
     :   A [`Part.reaction_wheel`](#SpaceCenter.Part.reaction_wheel "SpaceCenter.Part.reaction_wheel") if the part is a reaction wheel, otherwise `None`.
@@ -1063,7 +1310,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`ReactionWheel`](#SpaceCenter.ReactionWheel "SpaceCenter.ReactionWheel")
+        :   [`ReactionWheel`](#SpaceCenter.ReactionWheel "SpaceCenter.ReactionWheel") or None
 
     resource\_converter
     :   A [`Part.resource_converter`](#SpaceCenter.Part.resource_converter "SpaceCenter.Part.resource_converter") if the part is a resource converter,
@@ -1073,7 +1320,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`ResourceConverter`](#SpaceCenter.ResourceConverter "SpaceCenter.ResourceConverter")
+        :   [`ResourceConverter`](#SpaceCenter.ResourceConverter "SpaceCenter.ResourceConverter") or None
 
     resource\_harvester
     :   A [`Part.resource_harvester`](#SpaceCenter.Part.resource_harvester "SpaceCenter.Part.resource_harvester") if the part is a resource harvester,
@@ -1083,7 +1330,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`ResourceHarvester`](#SpaceCenter.ResourceHarvester "SpaceCenter.ResourceHarvester")
+        :   [`ResourceHarvester`](#SpaceCenter.ResourceHarvester "SpaceCenter.ResourceHarvester") or None
 
     robotic\_controller
     :   A [`Part.robotic_controller`](#SpaceCenter.Part.robotic_controller "SpaceCenter.Part.robotic_controller") if the part is a robotic controller,
@@ -1093,7 +1340,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`RoboticController`](#SpaceCenter.RoboticController "SpaceCenter.RoboticController")
+        :   [`RoboticController`](#SpaceCenter.RoboticController "SpaceCenter.RoboticController") or None
 
     robotic\_hinge
     :   A [`Part.robotic_hinge`](#SpaceCenter.Part.robotic_hinge "SpaceCenter.Part.robotic_hinge") if the part is a robotic hinge, otherwise `None`.
@@ -1102,7 +1349,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`RoboticHinge`](#SpaceCenter.RoboticHinge "SpaceCenter.RoboticHinge")
+        :   [`RoboticHinge`](#SpaceCenter.RoboticHinge "SpaceCenter.RoboticHinge") or None
 
     robotic\_piston
     :   A [`Part.robotic_piston`](#SpaceCenter.Part.robotic_piston "SpaceCenter.Part.robotic_piston") if the part is a robotic piston, otherwise `None`.
@@ -1111,7 +1358,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`RoboticPiston`](#SpaceCenter.RoboticPiston "SpaceCenter.RoboticPiston")
+        :   [`RoboticPiston`](#SpaceCenter.RoboticPiston "SpaceCenter.RoboticPiston") or None
 
     robotic\_rotation
     :   A [`Part.robotic_rotation`](#SpaceCenter.Part.robotic_rotation "SpaceCenter.Part.robotic_rotation") if the part is a robotic rotation servo, otherwise `None`.
@@ -1120,7 +1367,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`RoboticRotation`](#SpaceCenter.RoboticRotation "SpaceCenter.RoboticRotation")
+        :   [`RoboticRotation`](#SpaceCenter.RoboticRotation "SpaceCenter.RoboticRotation") or None
 
     robotic\_rotor
     :   A [`Part.robotic_rotor`](#SpaceCenter.Part.robotic_rotor "SpaceCenter.Part.robotic_rotor") if the part is a robotic rotor, otherwise `None`.
@@ -1129,7 +1376,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`RoboticRotor`](#SpaceCenter.RoboticRotor "SpaceCenter.RoboticRotor")
+        :   [`RoboticRotor`](#SpaceCenter.RoboticRotor "SpaceCenter.RoboticRotor") or None
 
     sensor
     :   A [`Part.sensor`](#SpaceCenter.Part.sensor "SpaceCenter.Part.sensor") if the part is a sensor, otherwise `None`.
@@ -1138,7 +1385,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Sensor`](#SpaceCenter.Sensor "SpaceCenter.Sensor")
+        :   [`Sensor`](#SpaceCenter.Sensor "SpaceCenter.Sensor") or None
 
     solar\_panel
     :   A [`Part.solar_panel`](#SpaceCenter.Part.solar_panel "SpaceCenter.Part.solar_panel") if the part is a solar panel, otherwise `None`.
@@ -1147,7 +1394,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`SolarPanel`](#SpaceCenter.SolarPanel "SpaceCenter.SolarPanel")
+        :   [`SolarPanel`](#SpaceCenter.SolarPanel "SpaceCenter.SolarPanel") or None
 
     wheel
     :   A [`Part.wheel`](#SpaceCenter.Part.wheel "SpaceCenter.Part.wheel") if the part is a wheel, otherwise `None`.
@@ -1156,7 +1403,7 @@ class Part
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Wheel`](#SpaceCenter.Wheel "SpaceCenter.Wheel")
+        :   [`Wheel`](#SpaceCenter.Wheel "SpaceCenter.Wheel") or None
 
     position(*reference\_frame*)
     :   The position of the part in the given reference frame.
@@ -1170,6 +1417,9 @@ class Part
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
         > **Note**
         >
         > This is a fixed position in the part, defined by the parts model.
@@ -1178,7 +1428,7 @@ class Part
 
     center\_of\_mass(*reference\_frame*)
     :   The position of the parts center of mass in the given reference frame.
-        If the part is physicsless, this is equivalent to [`Part.position()`](#SpaceCenter.Part.position "SpaceCenter.Part.position").
+        If the part is physicsless in flight, this is equivalent to [`Part.position()`](#SpaceCenter.Part.position "SpaceCenter.Part.position").
 
         Parameters:
         :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the returned position vector is in.
@@ -1189,6 +1439,9 @@ class Part
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     bounding\_box(*reference\_frame*)
     :   The axis-aligned bounding box of the part in the given reference frame.
 
@@ -1196,16 +1449,20 @@ class Part
         :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the returned position vectors are in.
 
         Returns:
-        :   The positions of the minimum and maximum vertices of the box, as position vectors.
+        :   The positions of the minimum and maximum vertices of the box.
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`BoundingBox`](./vessel.md#SpaceCenter.BoundingBox "SpaceCenter.BoundingBox")
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
         > **Note**
         >
-        > This is computed from the collision mesh of the part.
-        > If the part is not collidable, the box has zero volume and is centered on
-        > the [`Part.position()`](#SpaceCenter.Part.position "SpaceCenter.Part.position") of the part.
+        > This is computed from the meshes that make up the parts model, and covers only
+        > this part - the models of any child parts are excluded.
+        > If the part has no visible model, the box has zero volume and is centered on
+        > the [`Part.center_of_mass()`](#SpaceCenter.Part.center_of_mass "SpaceCenter.Part.center_of_mass") of the part.
 
     direction(*reference\_frame*)
     :   The direction the part points in, in the given reference frame.
@@ -1219,6 +1476,9 @@ class Part
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     velocity(*reference\_frame*)
     :   The linear velocity of the part in the given reference frame.
 
@@ -1230,6 +1490,9 @@ class Part
 
         Return type:
         :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
 
     rotation(*reference\_frame*)
     :   The rotation of the part, in the given reference frame.
@@ -1243,6 +1506,9 @@ class Part
         Return type:
         :   tuple(float, float, float, float)
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     lift(*reference\_frame*)
     :   The aerodynamic [lift](https://en.wikipedia.org/wiki/Aerodynamic_force)
         currently acting on the part.
@@ -1255,6 +1521,9 @@ class Part
 
         Return type:
         :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -1273,13 +1542,73 @@ class Part
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
         > **Note**
         >
         > Not available when the Ferram Aerospace Research mod is installed.
 
+    center\_of\_buoyancy(*reference\_frame*)
+    :   The point the buoyant force on the part acts at, in the given reference frame.
+
+        Parameters:
+        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the returned position vector is in.
+
+        Returns:
+        :   The position as a vector.
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+        > **Note**
+        >
+        > A submerged part reports the point the game applied the force at, which it shifts
+        > towards the submerged part of the hull. Any other part reports its configured
+        > center of buoyancy.
+
+    center\_of\_displacement(*reference\_frame*)
+    :   The point the depth of the part is measured at, in the given reference frame.
+
+        Parameters:
+        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the returned position vector is in.
+
+        Returns:
+        :   The position as a vector.
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    buoyant\_force(*reference\_frame*)
+    :   The buoyant force currently acting on the part.
+
+        Parameters:
+        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the returned vector is in.
+
+        Returns:
+        :   A vector pointing in the direction that the force acts, with its magnitude equal to the strength of the force in Newtons.
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The buoyant force on its own. The water drag and lift the game applies alongside
+        > it are reported by [`Part.submerged_drag_multiplier`](#SpaceCenter.Part.submerged_drag_multiplier "SpaceCenter.Part.submerged_drag_multiplier") and
+        > [`Part.submerged_lift_multiplier`](#SpaceCenter.Part.submerged_lift_multiplier "SpaceCenter.Part.submerged_lift_multiplier").
+
     moment\_of\_inertia
     :   The moment of inertia of the part in \(kg.m^2\) around its center of mass
-        in the parts reference frame ([`Part.reference_frame`](#SpaceCenter.Part.reference_frame "SpaceCenter.Part.reference_frame")).
+        in the parts center of mass reference frame ([`Part.center_of_mass_reference_frame`](#SpaceCenter.Part.center_of_mass_reference_frame "SpaceCenter.Part.center_of_mass_reference_frame")).
 
         Attribute:
         :   Read-only, cannot be set
@@ -1287,9 +1616,12 @@ class Part
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     inertia\_tensor
-    :   The inertia tensor of the part in the parts reference frame
-        ([`Part.reference_frame`](#SpaceCenter.Part.reference_frame "SpaceCenter.Part.reference_frame")).
+    :   The inertia tensor of the part around its center of mass, in the parts center of
+        mass reference frame ([`Part.center_of_mass_reference_frame`](#SpaceCenter.Part.center_of_mass_reference_frame "SpaceCenter.Part.center_of_mass_reference_frame")).
         Returns the 3x3 matrix as a list of elements, in row-major order.
 
         Attribute:
@@ -1298,12 +1630,15 @@ class Part
         Return type:
         :   list(float)
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     reference\_frame
     :   The reference frame that is fixed relative to this part, and centered on a fixed
         position within the part, defined by the parts model.
 
         - The origin is at the position of the part, as returned by
-          [`Part.position()`](#SpaceCenter.Part.position "SpaceCenter.Part.position").
+            [`Part.position()`](#SpaceCenter.Part.position "SpaceCenter.Part.position").
         - The axes rotate with the part.
         - The x, y and z axis directions depend on the design of the part.
 
@@ -1312,6 +1647,9 @@ class Part
 
         Return type:
         :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
         > **Note**
         >
@@ -1328,7 +1666,7 @@ class Part
         center of mass.
 
         - The origin is at the center of mass of the part, as returned by
-          [`Part.center_of_mass()`](#SpaceCenter.Part.center_of_mass "SpaceCenter.Part.center_of_mass").
+            [`Part.center_of_mass()`](#SpaceCenter.Part.center_of_mass "SpaceCenter.Part.center_of_mass").
         - The axes rotate with the part.
         - The x, y and z axis directions depend on the design of the part.
 
@@ -1338,6 +1676,9 @@ class Part
         Return type:
         :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
         > **Note**
         >
         > For docking port parts, this reference frame is not necessarily equivalent to the
@@ -1345,7 +1686,11 @@ class Part
         > [`DockingPort.reference_frame`](#SpaceCenter.DockingPort.reference_frame "SpaceCenter.DockingPort.reference_frame").
 
     add\_force(*force*, *position*, *reference\_frame*)
-    :   Exert a constant force on the part, acting at the given position.
+    :   > **Warning**
+        >
+        > Deprecated. Use `Debug.AddForce` instead.
+
+        Exert a constant force on the part, acting at the given position.
 
         Parameters:
         :   - **force** (*tuple*) – A vector pointing in the direction that the force acts, with its magnitude equal to the strength of the force in Newtons.
@@ -1358,17 +1703,27 @@ class Part
         Return type:
         :   [`Force`](#SpaceCenter.Force "SpaceCenter.Force")
 
+        Game Scenes:
+        :   Flight
+
         > **Note**
         >
         > The force is removed when the client that added it disconnects.
 
     instantaneous\_force(*force*, *position*, *reference\_frame*)
-    :   Exert an instantaneous force on the part, acting at the given position.
+    :   > **Warning**
+        >
+        > Deprecated. Use `Debug.InstantaneousForce` instead.
+
+        Exert an instantaneous force on the part, acting at the given position.
 
         Parameters:
         :   - **force** (*tuple*) – A vector pointing in the direction that the force acts, with its magnitude equal to the strength of the force in Newtons.
             - **position** (*tuple*) – The position at which the force acts, as a vector.
             - **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the force and position are in.
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -1383,6 +1738,9 @@ class Part
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     auto\_strut\_mode
     :   Auto-strut mode.
 
@@ -1391,6 +1749,43 @@ class Part
 
         Return type:
         :   [`AutoStrutMode`](#SpaceCenter.AutoStrutMode "SpaceCenter.AutoStrutMode")
+
+    has\_real\_fuels\_tank
+    :   Whether the part is a fuel tank managed by
+        [RealFuels](https://forum.kerbalspaceprogram.com/topic/58236-18-real-fuels/).
+        The remaining properties in this section are only available when it is.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+    highly\_pressurized
+    :   Whether the tank is highly pressurized, which is what a pressure-fed engine needs to
+        draw from (see [`Engine.pressure_fed`](#SpaceCenter.Engine.pressure_fed "SpaceCenter.Engine.pressure_fed")). Throws an exception if the part is
+        not a RealFuels fuel tank (see [`Part.has_real_fuels_tank`](#SpaceCenter.Part.has_real_fuels_tank "SpaceCenter.Part.has_real_fuels_tank")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+    boiloff\_rate
+    :   The rate at which the tank’s cryogenic contents are boiling off, in kilograms per
+        second of in-game time, measured over the last update RealFuels computed it in.
+        The contents keep boiling off under time warp, where that update covers a much
+        longer span of in-game time than a physics frame does. The rate is zero for a
+        tank holding nothing cryogenic, for one still being fed by a launch clamp, whose
+        temperature RealFuels holds down instead, and in the editor. Throws an exception
+        if the part is not a RealFuels fuel tank (see [`Part.has_real_fuels_tank`](#SpaceCenter.Part.has_real_fuels_tank "SpaceCenter.Part.has_real_fuels_tank")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
 
 class AutoStrutMode
 :   The state of an auto-strut. [`Part.auto_strut_mode`](#SpaceCenter.Part.auto_strut_mode "SpaceCenter.Part.auto_strut_mode")
@@ -1417,7 +1812,7 @@ class AutoStrutMode
     :   ForceGrandparent
 
 class Force
-:   Obtained by calling [`Part.add_force()`](#SpaceCenter.Part.add_force "SpaceCenter.Part.add_force").
+:   Obtained by calling `Debug.AddForce`.
 
     part
     :   The part that this force is applied to.
@@ -1427,6 +1822,9 @@ class Force
 
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
+
+        Game Scenes:
+        :   Flight
 
     force\_vector
     :   The force vector, in Newtons.
@@ -1440,6 +1838,9 @@ class Force
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
     position
     :   The position at which the force acts, in reference frame [`Force.reference_frame`](#SpaceCenter.Force.reference_frame "SpaceCenter.Force.reference_frame").
 
@@ -1452,6 +1853,9 @@ class Force
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
     reference\_frame
     :   The reference frame of the force vector and position.
 
@@ -1461,10 +1865,20 @@ class Force
         Return type:
         :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
 
+        Game Scenes:
+        :   Flight
+
     remove()
     :   Remove the force.
 
-## [Module](#id23)
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > Any further use of this object throws an exception.
+
+## [Module](#id24)
 
 class Module
 :   This can be used to interact with a specific part module. This includes part modules in
@@ -1538,355 +1952,6 @@ class Module
 
         Return type:
         :   list([`PartAction`](#SpaceCenter.PartAction "SpaceCenter.PartAction"))
-
-    fields
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Module.field_list`](#SpaceCenter.Module.field_list "SpaceCenter.Module.field_list") instead, filtering by [`PartField.visible`](#SpaceCenter.PartField.visible "SpaceCenter.PartField.visible").
-
-        The modules field names and their associated values, as a dictionary.
-        These are the values visible in the right-click menu of the part.
-
-        Attribute:
-        :   Read-only, cannot be set
-
-        Return type:
-        :   dict(str, str)
-
-        > **Note**
-        >
-        > Throws an exception if there is more than one field with the same name.
-        > In that case, use [`Module.fields_by_id`](#SpaceCenter.Module.fields_by_id "SpaceCenter.Module.fields_by_id") to get the fields by identifier.
-
-    fields\_by\_id
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Module.field_list`](#SpaceCenter.Module.field_list "SpaceCenter.Module.field_list") instead, filtering by [`PartField.visible`](#SpaceCenter.PartField.visible "SpaceCenter.PartField.visible").
-
-        The modules field identifiers and their associated values, as a dictionary.
-        These are the values visible in the right-click menu of the part.
-
-        Attribute:
-        :   Read-only, cannot be set
-
-        Return type:
-        :   dict(str, str)
-
-    has\_field(*name*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.field_list`](#SpaceCenter.Module.field_list "SpaceCenter.Module.field_list") by [`PartField.gui_name`](#SpaceCenter.PartField.gui_name "SpaceCenter.PartField.gui_name") instead.
-
-        Returns `True` if the module has a field with the given name.
-
-        Parameters:
-        :   **name** (*str*) – Name of the field.
-
-        Return type:
-        :   bool
-
-    has\_field\_with\_id(*id*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.field_list`](#SpaceCenter.Module.field_list "SpaceCenter.Module.field_list") by [`PartField.name`](#SpaceCenter.PartField.name "SpaceCenter.PartField.name") instead.
-
-        Returns `True` if the module has a field with the given identifier.
-
-        Parameters:
-        :   **id** (*str*) – Identifier of the field.
-
-        Return type:
-        :   bool
-
-    get\_field(*name*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.field_list`](#SpaceCenter.Module.field_list "SpaceCenter.Module.field_list") by [`PartField.gui_name`](#SpaceCenter.PartField.gui_name "SpaceCenter.PartField.gui_name") and read [`PartField.value`](#SpaceCenter.PartField.value "SpaceCenter.PartField.value") instead.
-
-        Returns the value of a field with the given name.
-
-        Parameters:
-        :   **name** (*str*) – Name of the field.
-
-        Return type:
-        :   str
-
-    get\_field\_by\_id(*id*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.field_list`](#SpaceCenter.Module.field_list "SpaceCenter.Module.field_list") by [`PartField.name`](#SpaceCenter.PartField.name "SpaceCenter.PartField.name") and read [`PartField.value`](#SpaceCenter.PartField.value "SpaceCenter.PartField.value") instead.
-
-        Returns the value of a field with the given identifier.
-
-        Parameters:
-        :   **id** (*str*) – Identifier of the field.
-
-        Return type:
-        :   str
-
-    set\_field\_int(*name*, *value*)
-    :   > **Warning**
-        >
-        > Deprecated. Set [`PartField.int_value`](#SpaceCenter.PartField.int_value "SpaceCenter.PartField.int_value") instead.
-
-        Set the value of a field to the given integer number.
-
-        Parameters:
-        :   - **name** (*str*) – Name of the field.
-            - **value** (*int*) – Value to set.
-
-    set\_field\_int\_by\_id(*id*, *value*)
-    :   > **Warning**
-        >
-        > Deprecated. Set [`PartField.int_value`](#SpaceCenter.PartField.int_value "SpaceCenter.PartField.int_value") instead.
-
-        Set the value of a field to the given integer number.
-
-        Parameters:
-        :   - **id** (*str*) – Identifier of the field.
-            - **value** (*int*) – Value to set.
-
-    set\_field\_float(*name*, *value*)
-    :   > **Warning**
-        >
-        > Deprecated. Set [`PartField.float_value`](#SpaceCenter.PartField.float_value "SpaceCenter.PartField.float_value") instead.
-
-        Set the value of a field to the given floating point number.
-
-        Parameters:
-        :   - **name** (*str*) – Name of the field.
-            - **value** (*float*) – Value to set.
-
-    set\_field\_float\_by\_id(*id*, *value*)
-    :   > **Warning**
-        >
-        > Deprecated. Set [`PartField.float_value`](#SpaceCenter.PartField.float_value "SpaceCenter.PartField.float_value") instead.
-
-        Set the value of a field to the given floating point number.
-
-        Parameters:
-        :   - **id** (*str*) – Identifier of the field.
-            - **value** (*float*) – Value to set.
-
-    set\_field\_string(*name*, *value*)
-    :   > **Warning**
-        >
-        > Deprecated. Set [`PartField.value`](#SpaceCenter.PartField.value "SpaceCenter.PartField.value") instead.
-
-        Set the value of a field to the given string.
-
-        Parameters:
-        :   - **name** (*str*) – Name of the field.
-            - **value** (*str*) – Value to set.
-
-    set\_field\_string\_by\_id(*id*, *value*)
-    :   > **Warning**
-        >
-        > Deprecated. Set [`PartField.value`](#SpaceCenter.PartField.value "SpaceCenter.PartField.value") instead.
-
-        Set the value of a field to the given string.
-
-        Parameters:
-        :   - **id** (*str*) – Identifier of the field.
-            - **value** (*str*) – Value to set.
-
-    set\_field\_bool(*name*, *value*)
-    :   > **Warning**
-        >
-        > Deprecated. Set [`PartField.bool_value`](#SpaceCenter.PartField.bool_value "SpaceCenter.PartField.bool_value") instead.
-
-        Set the value of a field to true or false.
-
-        Parameters:
-        :   - **name** (*str*) – Name of the field.
-            - **value** (*bool*) – Value to set.
-
-    set\_field\_bool\_by\_id(*id*, *value*)
-    :   > **Warning**
-        >
-        > Deprecated. Set [`PartField.bool_value`](#SpaceCenter.PartField.bool_value "SpaceCenter.PartField.bool_value") instead.
-
-        Set the value of a field to true or false.
-
-        Parameters:
-        :   - **id** (*str*) – Identifier of the field.
-            - **value** (*bool*) – Value to set.
-
-    reset\_field(*name*)
-    :   > **Warning**
-        >
-        > Deprecated. Use [`PartField.reset()`](#SpaceCenter.PartField.reset "SpaceCenter.PartField.reset") instead.
-
-        Set the value of a field to its original value.
-
-        Parameters:
-        :   **name** (*str*) – Name of the field.
-
-    reset\_field\_by\_id(*id*)
-    :   > **Warning**
-        >
-        > Deprecated. Use [`PartField.reset()`](#SpaceCenter.PartField.reset "SpaceCenter.PartField.reset") instead.
-
-        Set the value of a field to its original value.
-
-        Parameters:
-        :   **id** (*str*) – Identifier of the field.
-
-        > **Note**
-        >
-        > The original value is the value the field had when the part was loaded.
-
-    events
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Module.event_list`](#SpaceCenter.Module.event_list "SpaceCenter.Module.event_list") instead, filtering by [`PartEvent.visible`](#SpaceCenter.PartEvent.visible "SpaceCenter.PartEvent.visible") and [`PartEvent.active`](#SpaceCenter.PartEvent.active "SpaceCenter.PartEvent.active").
-
-        A list of the names of all of the modules events. Events are the clickable buttons
-        visible in the right-click menu of the part.
-
-        Attribute:
-        :   Read-only, cannot be set
-
-        Return type:
-        :   list(str)
-
-    events\_by\_id
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Module.event_list`](#SpaceCenter.Module.event_list "SpaceCenter.Module.event_list") instead, filtering by [`PartEvent.visible`](#SpaceCenter.PartEvent.visible "SpaceCenter.PartEvent.visible") and [`PartEvent.active`](#SpaceCenter.PartEvent.active "SpaceCenter.PartEvent.active").
-
-        A list of the identifiers of all of the modules events. Events are the clickable buttons
-        visible in the right-click menu of the part.
-
-        Attribute:
-        :   Read-only, cannot be set
-
-        Return type:
-        :   list(str)
-
-    has\_event(*name*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.event_list`](#SpaceCenter.Module.event_list "SpaceCenter.Module.event_list") by [`PartEvent.gui_name`](#SpaceCenter.PartEvent.gui_name "SpaceCenter.PartEvent.gui_name") instead.
-
-        `True` if the module has an event with the given name.
-
-        Parameters:
-        :   **name** (*str*)
-
-        Return type:
-        :   bool
-
-    has\_event\_with\_id(*id*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.event_list`](#SpaceCenter.Module.event_list "SpaceCenter.Module.event_list") by [`PartEvent.name`](#SpaceCenter.PartEvent.name "SpaceCenter.PartEvent.name") instead.
-
-        `True` if the module has an event with the given identifier.
-
-        Parameters:
-        :   **id** (*str*)
-
-        Return type:
-        :   bool
-
-    trigger\_event(*name*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.event_list`](#SpaceCenter.Module.event_list "SpaceCenter.Module.event_list") by [`PartEvent.gui_name`](#SpaceCenter.PartEvent.gui_name "SpaceCenter.PartEvent.gui_name") and call [`PartEvent.trigger()`](#SpaceCenter.PartEvent.trigger "SpaceCenter.PartEvent.trigger") instead.
-
-        Trigger the named event. Equivalent to clicking the button in the right-click menu
-        of the part.
-
-        Parameters:
-        :   **name** (*str*)
-
-    trigger\_event\_by\_id(*id*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.event_list`](#SpaceCenter.Module.event_list "SpaceCenter.Module.event_list") by [`PartEvent.name`](#SpaceCenter.PartEvent.name "SpaceCenter.PartEvent.name") and call [`PartEvent.trigger()`](#SpaceCenter.PartEvent.trigger "SpaceCenter.PartEvent.trigger") instead.
-
-        Trigger the event with the given identifier.
-        Equivalent to clicking the button in the right-click menu of the part.
-
-        Parameters:
-        :   **id** (*str*)
-
-    actions
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Module.action_list`](#SpaceCenter.Module.action_list "SpaceCenter.Module.action_list") instead.
-
-        A list of all the names of the modules actions. These are the parts actions that can
-        be assigned to action groups in the in-game editor.
-
-        Attribute:
-        :   Read-only, cannot be set
-
-        Return type:
-        :   list(str)
-
-    actions\_by\_id
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Module.action_list`](#SpaceCenter.Module.action_list "SpaceCenter.Module.action_list") instead.
-
-        A list of all the identifiers of the modules actions. These are the parts actions
-        that can be assigned to action groups in the in-game editor.
-
-        Attribute:
-        :   Read-only, cannot be set
-
-        Return type:
-        :   list(str)
-
-    has\_action(*name*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.action_list`](#SpaceCenter.Module.action_list "SpaceCenter.Module.action_list") by [`PartAction.gui_name`](#SpaceCenter.PartAction.gui_name "SpaceCenter.PartAction.gui_name") instead.
-
-        `True` if the part has an action with the given name.
-
-        Parameters:
-        :   **name** (*str*)
-
-        Return type:
-        :   bool
-
-    has\_action\_with\_id(*id*)
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.action_list`](#SpaceCenter.Module.action_list "SpaceCenter.Module.action_list") by [`PartAction.name`](#SpaceCenter.PartAction.name "SpaceCenter.PartAction.name") instead.
-
-        `True` if the part has an action with the given identifier.
-
-        Parameters:
-        :   **id** (*str*)
-
-        Return type:
-        :   bool
-
-    set\_action(*name*[, *value=True*])
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.action_list`](#SpaceCenter.Module.action_list "SpaceCenter.Module.action_list") by [`PartAction.gui_name`](#SpaceCenter.PartAction.gui_name "SpaceCenter.PartAction.gui_name") and set [`PartAction.activated`](#SpaceCenter.PartAction.activated "SpaceCenter.PartAction.activated") instead.
-
-        Set the value of an action with the given name.
-
-        Parameters:
-        :   - **name** (*str*)
-            - **value** (*bool*)
-
-    set\_action\_by\_id(*id*[, *value=True*])
-    :   > **Warning**
-        >
-        > Deprecated. Filter [`Module.action_list`](#SpaceCenter.Module.action_list "SpaceCenter.Module.action_list") by [`PartAction.name`](#SpaceCenter.PartAction.name "SpaceCenter.PartAction.name") and set [`PartAction.activated`](#SpaceCenter.PartAction.activated "SpaceCenter.PartAction.activated") instead.
-
-        Set the value of an action with the given identifier.
-
-        Parameters:
-        :   - **id** (*str*)
-            - **value** (*bool*)
 
 class PartField
 :   A field of a part module. Obtained by calling [`Module.field_list`](#SpaceCenter.Module.field_list "SpaceCenter.Module.field_list").
@@ -2137,7 +2202,7 @@ class PartAction
         Return type:
         :   bool
 
-## [Config Node](#id24)
+## [Config Node](#id25)
 
 class ConfigNode
 :   Represents a configuration node, as found in a part’s configuration file. A node has a
@@ -2235,7 +2300,7 @@ class ConfigNode
         Return type:
         :   list([`ConfigNode`](#SpaceCenter.ConfigNode "SpaceCenter.ConfigNode"))
 
-## [Specific Types of Part](#id25)
+## [Specific Types of Part](#id26)
 
 The following classes provide functionality for specific types of part.
 
@@ -2269,7 +2334,7 @@ The following classes provide functionality for specific types of part.
 - [Thruster](#thruster)
 - [Wheel](#wheel)
 
-### [Antenna](#id60)
+### [Antenna](#id61)
 
 > **Note**
 >
@@ -2288,6 +2353,9 @@ class Antenna
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     state
     :   The current state of the antenna.
 
@@ -2296,6 +2364,9 @@ class Antenna
 
         Return type:
         :   [`DeployableState`](#SpaceCenter.DeployableState "SpaceCenter.DeployableState")
+
+        Game Scenes:
+        :   Flight
 
     deployable
     :   Whether the antenna is deployable.
@@ -2306,6 +2377,9 @@ class Antenna
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     deployed
     :   Whether the antenna is deployed.
 
@@ -2314,6 +2388,9 @@ class Antenna
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -2329,11 +2406,20 @@ class Antenna
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     transmit()
     :   Transmit data.
 
+        Game Scenes:
+        :   Flight
+
     cancel()
     :   Cancel current transmission of data.
+
+        Game Scenes:
+        :   Flight
 
     allow\_partial
     :   Whether partial data transmission is permitted.
@@ -2344,6 +2430,9 @@ class Antenna
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     power
     :   The power of the antenna.
 
@@ -2352,6 +2441,9 @@ class Antenna
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     combinable
     :   Whether the antenna can be combined with other antennae on the vessel
@@ -2363,6 +2455,9 @@ class Antenna
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     combinable\_exponent
     :   Exponent used to calculate the combined power of multiple antennae on a vessel.
 
@@ -2371,6 +2466,9 @@ class Antenna
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     packet\_interval
     :   Interval between sending packets in seconds.
@@ -2381,6 +2479,9 @@ class Antenna
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     packet\_size
     :   Amount of data sent per packet in Mits.
 
@@ -2389,6 +2490,9 @@ class Antenna
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     packet\_resource\_cost
     :   Units of electric charge consumed per packet sent.
@@ -2399,7 +2503,10 @@ class Antenna
         Return type:
         :   float
 
-### [Cargo Bay](#id61)
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+### [Cargo Bay](#id62)
 
 class CargoBay
 :   A cargo bay. Obtained by calling [`Part.cargo_bay`](#SpaceCenter.Part.cargo_bay "SpaceCenter.Part.cargo_bay").
@@ -2413,6 +2520,9 @@ class CargoBay
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     state
     :   The state of the cargo bay.
 
@@ -2421,6 +2531,9 @@ class CargoBay
 
         Return type:
         :   [`DeployableState`](#SpaceCenter.DeployableState "SpaceCenter.DeployableState")
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -2440,7 +2553,10 @@ class CargoBay
         Return type:
         :   bool
 
-### [Control Surface](#id62)
+        Game Scenes:
+        :   Flight
+
+### [Control Surface](#id63)
 
 class ControlSurface
 :   An aerodynamic control surface. Obtained by calling [`Part.control_surface`](#SpaceCenter.Part.control_surface "SpaceCenter.Part.control_surface").
@@ -2454,6 +2570,9 @@ class ControlSurface
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     pitch\_enabled
     :   Whether the control surface has pitch control enabled.
 
@@ -2462,6 +2581,9 @@ class ControlSurface
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     yaw\_enabled
     :   Whether the control surface has yaw control enabled.
@@ -2472,6 +2594,9 @@ class ControlSurface
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     roll\_enabled
     :   Whether the control surface has roll control enabled.
 
@@ -2480,6 +2605,9 @@ class ControlSurface
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     authority\_limiter
     :   The authority limiter for the control surface, which controls how far the
@@ -2491,6 +2619,9 @@ class ControlSurface
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     inverted
     :   Whether the control surface movement is inverted.
 
@@ -2500,14 +2631,64 @@ class ControlSurface
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     deployed
-    :   Whether the control surface has been fully deployed.
+    :   Whether the control surface has been fully deployed. Throws an exception if set
+        while [`ControlSurface.deflection_override`](#SpaceCenter.ControlSurface.deflection_override "SpaceCenter.ControlSurface.deflection_override") is enabled, which holds the surface deployed.
 
         Attribute:
         :   Can be read or written
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    deploy\_angle
+    :   The deploy angle of the control surface, in degrees.
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+        > **Note**
+        >
+        > Applied when [`ControlSurface.deployed`](#SpaceCenter.ControlSurface.deployed "SpaceCenter.ControlSurface.deployed") is true, and clamped to the range given by
+        > [`ControlSurface.min_deploy_angle`](#SpaceCenter.ControlSurface.min_deploy_angle "SpaceCenter.ControlSurface.min_deploy_angle") and [`ControlSurface.max_deploy_angle`](#SpaceCenter.ControlSurface.max_deploy_angle "SpaceCenter.ControlSurface.max_deploy_angle"). While
+        > [`ControlSurface.deflection_override`](#SpaceCenter.ControlSurface.deflection_override "SpaceCenter.ControlSurface.deflection_override") is enabled, [`ControlSurface.deflection`](#SpaceCenter.ControlSurface.deflection "SpaceCenter.ControlSurface.deflection") drives the
+        > angle. A value set here takes effect when the override is released.
+
+    min\_deploy\_angle
+    :   The minimum [`ControlSurface.deploy_angle`](#SpaceCenter.ControlSurface.deploy_angle "SpaceCenter.ControlSurface.deploy_angle") of the control surface, in degrees.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    max\_deploy\_angle
+    :   The maximum [`ControlSurface.deploy_angle`](#SpaceCenter.ControlSurface.deploy_angle "SpaceCenter.ControlSurface.deploy_angle") of the control surface, in degrees.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     deflection\_override
     :   Whether the control surface deflection is being set directly, bypassing the vessel’s
@@ -2522,6 +2703,9 @@ class ControlSurface
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     deflection
     :   The deflection command applied when [`ControlSurface.deflection_override`](#SpaceCenter.ControlSurface.deflection_override "SpaceCenter.ControlSurface.deflection_override") is enabled, as a
         value between -1 and 1, mapped onto the surface’s deploy angle range.
@@ -2532,6 +2716,9 @@ class ControlSurface
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     surface\_area
     :   Surface area of the control surface in \(m^2\).
 
@@ -2540,6 +2727,9 @@ class ControlSurface
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     available\_torque
     :   The available torque, in Newton meters, that can be produced by this control surface,
@@ -2550,9 +2740,12 @@ class ControlSurface
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](./vessel.md#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
-### [Decoupler](#id63)
+        Game Scenes:
+        :   Flight
+
+### [Decoupler](#id64)
 
 class Decoupler
 :   A decoupler. Obtained by calling [`Part.decoupler`](#SpaceCenter.Part.decoupler "SpaceCenter.Part.decoupler")
@@ -2566,12 +2759,18 @@ class Decoupler
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     decouple()
     :   Fires the decoupler. Returns the new vessel created when the decoupler fires.
         Throws an exception if the decoupler has already fired.
 
         Return type:
         :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel")
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -2588,6 +2787,9 @@ class Decoupler
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     staged
     :   Whether the decoupler is enabled in the staging sequence.
 
@@ -2596,6 +2798,9 @@ class Decoupler
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     impulse
     :   The impulse that the decoupler imparts when it is fired, in Newton seconds.
@@ -2606,6 +2811,9 @@ class Decoupler
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     is\_omni\_decoupler
     :   Whether the decoupler is an omni-decoupler (e.g. stack separator)
 
@@ -2615,6 +2823,9 @@ class Decoupler
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     attached\_part
     :   The part attached to this decoupler’s explosive node.
 
@@ -2622,9 +2833,12 @@ class Decoupler
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
+        :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part") or None
 
-### [Deployable State](#id64)
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+### [Deployable State](#id65)
 
 The deployment state shared by antennas, cargo bays, landing legs, radiators,
 resource harvesters, solar panels and wheels.
@@ -2654,7 +2868,7 @@ class DeployableState
     :   The part is broken. Cargo bays and resource harvesters never report
         this state, as the game does not track damage for them.
 
-### [Docking Port](#id65)
+### [Docking Port](#id66)
 
 class DockingPort
 :   A docking port. Obtained by calling [`Part.docking_port`](#SpaceCenter.Part.docking_port "SpaceCenter.Part.docking_port")
@@ -2668,6 +2882,9 @@ class DockingPort
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     state
     :   The current state of the docking port.
 
@@ -2677,6 +2894,9 @@ class DockingPort
         Return type:
         :   [`DockingPortState`](#SpaceCenter.DockingPortState "SpaceCenter.DockingPortState")
 
+        Game Scenes:
+        :   Flight
+
     docked\_part
     :   The part that this docking port is docked to. Returns `None` if this
         docking port is not docked to anything.
@@ -2685,7 +2905,10 @@ class DockingPort
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
+        :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part") or None
+
+        Game Scenes:
+        :   Flight
 
     undock()
     :   Undocks the docking port and returns the new [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel") that is created.
@@ -2694,6 +2917,9 @@ class DockingPort
 
         Return type:
         :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel")
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -2711,6 +2937,9 @@ class DockingPort
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     has\_shield
     :   Whether the docking port has a shield.
 
@@ -2719,6 +2948,9 @@ class DockingPort
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     shielded
     :   The state of the docking ports shield, if it has one.
@@ -2734,6 +2966,9 @@ class DockingPort
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     can\_rotate
     :   Whether the docking port can be commanded to rotate while docked.
 
@@ -2742,6 +2977,9 @@ class DockingPort
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     maximum\_rotation
     :   Maximum rotation angle in degrees.
@@ -2752,6 +2990,9 @@ class DockingPort
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     minimum\_rotation
     :   Minimum rotation angle in degrees.
 
@@ -2760,6 +3001,9 @@ class DockingPort
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     rotation\_target
     :   Rotation target angle in degrees.
@@ -2770,6 +3014,9 @@ class DockingPort
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     rotation\_locked
     :   Lock rotation. When locked, allows auto-strut to work across the joint.
 
@@ -2778,6 +3025,9 @@ class DockingPort
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     position(*reference\_frame*)
     :   The position of the docking port, in the given reference frame.
@@ -2791,6 +3041,9 @@ class DockingPort
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
     direction(*reference\_frame*)
     :   The direction that docking port points in, in the given reference frame.
 
@@ -2803,6 +3056,9 @@ class DockingPort
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
     rotation(*reference\_frame*)
     :   The rotation of the docking port, in the given reference frame.
 
@@ -2814,6 +3070,9 @@ class DockingPort
 
         Return type:
         :   tuple(float, float, float, float)
+
+        Game Scenes:
+        :   Flight
 
     reference\_frame
     :   The reference frame that is fixed relative to this docking port, and
@@ -2830,6 +3089,9 @@ class DockingPort
 
         Return type:
         :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -2869,7 +3131,7 @@ class DockingPortState
     moving
     :   The docking ports shield is currently opening/closing.
 
-### [Engine](#id66)
+### [Engine](#id67)
 
 class Engine
 :   An engine, including ones of various types.
@@ -2889,6 +3151,9 @@ class Engine
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     active
     :   Whether the engine is active. Setting this attribute may have no effect,
         depending on [`Engine.can_shutdown`](#SpaceCenter.Engine.can_shutdown "SpaceCenter.Engine.can_shutdown") and [`Engine.can_restart`](#SpaceCenter.Engine.can_restart "SpaceCenter.Engine.can_restart").
@@ -2899,6 +3164,9 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     thrust
     :   The current amount of thrust being produced by the engine, in Newtons.
 
@@ -2907,6 +3175,9 @@ class Engine
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     available\_thrust
     :   The amount of thrust, in Newtons, that would be produced by the engine
@@ -2921,6 +3192,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     available\_thrust\_at(*pressure*)
     :   The amount of thrust, in Newtons, that would be produced by the engine
         when activated and with its throttle set to 100%.
@@ -2933,6 +3207,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     max\_thrust
     :   The amount of thrust, in Newtons, that would be produced by the engine
         when activated and fueled, with its throttle and throttle limiter set to 100%.
@@ -2942,6 +3219,9 @@ class Engine
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     max\_thrust\_at(*pressure*)
     :   The amount of thrust, in Newtons, that would be produced by the engine
@@ -2953,6 +3233,9 @@ class Engine
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     max\_vacuum\_thrust
     :   The maximum amount of thrust that can be produced by the engine in a
@@ -2966,6 +3249,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     thrust\_limit
     :   The thrust limiter of the engine. A value between 0 and 1. Setting this
         attribute may have no effect, for example the thrust limit for a solid
@@ -2977,6 +3263,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     thrusters
     :   The components of the engine that generate thrust.
 
@@ -2985,6 +3274,9 @@ class Engine
 
         Return type:
         :   list([`Thruster`](#SpaceCenter.Thruster "SpaceCenter.Thruster"))
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -3003,6 +3295,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     specific\_impulse\_at(*pressure*)
     :   The specific impulse of the engine under the given pressure, in seconds. Returns zero
         if the engine is not active.
@@ -3013,6 +3308,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     vacuum\_specific\_impulse
     :   The vacuum specific impulse of the engine, in seconds.
 
@@ -3021,6 +3319,9 @@ class Engine
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     kerbin\_sea\_level\_specific\_impulse
     :   The specific impulse of the engine at sea level on Kerbin, in seconds.
@@ -3031,6 +3332,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     propellant\_names
     :   The names of the propellants that the engine consumes.
 
@@ -3039,6 +3343,9 @@ class Engine
 
         Return type:
         :   list(str)
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     propellant\_ratios
     :   The ratio of resources that the engine consumes. A dictionary mapping resource names
@@ -3049,6 +3356,9 @@ class Engine
 
         Return type:
         :   dict(str, float)
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -3064,6 +3374,9 @@ class Engine
         Return type:
         :   list([`Propellant`](#SpaceCenter.Propellant "SpaceCenter.Propellant"))
 
+        Game Scenes:
+        :   Flight
+
     has\_fuel
     :   Whether the engine has any fuel available.
 
@@ -3072,6 +3385,9 @@ class Engine
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     flameout
     :   Whether the engine has flamed out - it is active but has run out of
@@ -3085,6 +3401,9 @@ class Engine
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     throttle
     :   The current throttle setting for the engine. A value between 0 and 1.
@@ -3101,6 +3420,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     throttle\_locked
     :   Whether the [`Control.throttle`](./control.md#SpaceCenter.Control.throttle "SpaceCenter.Control.throttle") affects the engine. For example,
         this is `True` for liquid fueled rockets, and `False` for solid rocket
@@ -3112,6 +3434,9 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     independent\_throttle
     :   Whether the independent throttle is enabled for the engine.
 
@@ -3120,6 +3445,9 @@ class Engine
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     can\_restart
     :   Whether the engine can be restarted once shutdown. If the engine cannot be shutdown,
@@ -3132,6 +3460,9 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     can\_shutdown
     :   Whether the engine can be shutdown once activated. For example, this is
         `True` for liquid fueled rockets and `False` for solid rocket boosters.
@@ -3142,6 +3473,9 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     has\_modes
     :   Whether the engine has multiple modes of operation.
 
@@ -3151,6 +3485,9 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     mode
     :   The name of the current engine mode.
 
@@ -3159,6 +3496,9 @@ class Engine
 
         Return type:
         :   str
+
+        Game Scenes:
+        :   Flight
 
     modes
     :   The available modes for the engine.
@@ -3170,8 +3510,14 @@ class Engine
         Return type:
         :   dict(str, [`Engine`](#SpaceCenter.Engine "SpaceCenter.Engine"))
 
+        Game Scenes:
+        :   Flight
+
     toggle\_mode()
     :   Toggle the current engine mode.
+
+        Game Scenes:
+        :   Flight
 
     auto\_mode\_switch
     :   Whether the engine will automatically switch modes.
@@ -3182,6 +3528,9 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     gimballed
     :   Whether the engine is gimballed.
 
@@ -3190,6 +3539,9 @@ class Engine
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     gimbal\_range
     :   The range over which the gimbal can move, in degrees.
@@ -3201,6 +3553,9 @@ class Engine
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     gimbal\_locked
     :   Whether the engines gimbal is locked in place. Setting this attribute has
         no effect if the engine is not gimballed.
@@ -3211,6 +3566,9 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     gimbal\_limit
     :   The gimbal limiter of the engine. A value between 0 and 1.
         Returns 0 if the gimbal is locked.
@@ -3220,6 +3578,9 @@ class Engine
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     gimbal\_override
     :   Whether the gimbal is being controlled directly, bypassing the vessel’s normal
@@ -3234,6 +3595,9 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     gimbal\_actuation
     :   The gimbal actuation command applied when [`Engine.gimbal_override`](#SpaceCenter.Engine.gimbal_override "SpaceCenter.Engine.gimbal_override") is enabled, in
         the pitch, roll and yaw axes. Each component is a normalized control input between -1
@@ -3247,6 +3611,9 @@ class Engine
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
     available\_torque
     :   The available torque, in Newton meters, that can be produced by this engine,
         in the positive and negative pitch, roll and yaw axes of the vessel. These axes
@@ -3257,7 +3624,10 @@ class Engine
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](./vessel.md#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
+
+        Game Scenes:
+        :   Flight
 
     can\_reverse\_thrust
     :   Whether the engine has a recognized thrust reverser. This is `True` for
@@ -3272,12 +3642,15 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     thrust\_reversed
     :   Whether the engine’s thrust reverser is engaged, reversing the
         direction of thrust. While the reverser is still moving, this reports
         the state it is moving to, so a read immediately after a set returns
         the value that was set and setting the same value again has no effect.
-        Raises an exception if the engine does not have a thrust reverser
+        Throws an exception if the engine does not have a thrust reverser
         (see [`Engine.can_reverse_thrust`](#SpaceCenter.Engine.can_reverse_thrust "SpaceCenter.Engine.can_reverse_thrust")).
 
         Attribute:
@@ -3286,9 +3659,131 @@ class Engine
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     toggle\_thrust\_reversal()
-    :   Toggle the engine’s thrust reverser. Raises an exception if the engine
+    :   Toggle the engine’s thrust reverser. Throws an exception if the engine
         does not have a thrust reverser (see [`Engine.can_reverse_thrust`](#SpaceCenter.Engine.can_reverse_thrust "SpaceCenter.Engine.can_reverse_thrust")).
+
+        Game Scenes:
+        :   Flight
+
+    has\_real\_fuels
+    :   Whether the engine is managed by
+        [RealFuels](https://forum.kerbalspaceprogram.com/topic/58236-18-real-fuels/).
+        The remaining properties in this section are only available when it is.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    ignitions
+    :   The number of times the engine can still be ignited, or -1 if it can be ignited an
+        unlimited number of times. Throws an exception if the engine is not managed by
+        RealFuels (see [`Engine.has_real_fuels`](#SpaceCenter.Engine.has_real_fuels "SpaceCenter.Engine.has_real_fuels")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   int
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    ignition\_resources
+    :   The resources the engine consumes each time it ignites, keyed by resource name, with
+        the amount of each that is required. The engine uses up an ignition and fails to
+        light if they are not available. Throws an exception if the engine is not managed by
+        RealFuels (see [`Engine.has_real_fuels`](#SpaceCenter.Engine.has_real_fuels "SpaceCenter.Engine.has_real_fuels")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   dict(str, float)
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    has\_ullage
+    :   Whether the engine’s propellant is subject to ullage, so that it must be settled
+        before the engine will run reliably. Throws an exception if the engine is not
+        managed by RealFuels (see [`Engine.has_real_fuels`](#SpaceCenter.Engine.has_real_fuels "SpaceCenter.Engine.has_real_fuels")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    propellant\_stability
+    :   How settled the propellant feeding the engine is, from 0 (fully unsettled) to 1
+        (fully settled). Acceleration along the engine’s thrust axis settles it, and
+        coasting and rotation unsettle it. Throws an exception if the engine is not managed
+        by RealFuels (see [`Engine.has_real_fuels`](#SpaceCenter.Engine.has_real_fuels "SpaceCenter.Engine.has_real_fuels")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    propellant\_reliability
+    :   The probability that the propellant feeding the engine behaves normally, from 0 to 1.
+        This is [`Engine.propellant_stability`](#SpaceCenter.Engine.propellant_stability "SpaceCenter.Engine.propellant_stability") scaled by the game’s ullage difficulty
+        setting, and is the value RealFuels itself tests against when deciding whether the
+        engine runs. Throws an exception if the engine is not managed by RealFuels
+        (see [`Engine.has_real_fuels`](#SpaceCenter.Engine.has_real_fuels "SpaceCenter.Engine.has_real_fuels")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
+    pressure\_fed
+    :   Whether the engine is fed by tank pressure rather than by a pump, and so needs to
+        draw from a highly pressurized tank. Throws an exception if the engine is not
+        managed by RealFuels (see [`Engine.has_real_fuels`](#SpaceCenter.Engine.has_real_fuels "SpaceCenter.Engine.has_real_fuels")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+    has\_feed\_pressure
+    :   Whether the tanks feeding the engine supply the pressure it needs. Always
+        `True` for an engine that is not pressure fed. Throws an exception if the
+        engine is not managed by RealFuels (see [`Engine.has_real_fuels`](#SpaceCenter.Engine.has_real_fuels "SpaceCenter.Engine.has_real_fuels")).
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+        Game Scenes:
+        :   Flight
 
 class Propellant
 :   A propellant for an engine. Obtains by calling [`Engine.propellants`](#SpaceCenter.Engine.propellants "SpaceCenter.Engine.propellants").
@@ -3302,6 +3797,9 @@ class Propellant
         Return type:
         :   str
 
+        Game Scenes:
+        :   Flight
+
     current\_amount
     :   The current amount of propellant consumed in the current physics update.
 
@@ -3311,6 +3809,9 @@ class Propellant
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     current\_requirement
     :   The required amount of propellant for the current physics update.
 
@@ -3319,6 +3820,9 @@ class Propellant
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     total\_resource\_available
     :   The total amount of the underlying resource currently reachable given
@@ -3330,6 +3834,9 @@ class Propellant
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     total\_resource\_capacity
     :   The total vehicle capacity for the underlying propellant resource,
         restricted by resource flow rules.
@@ -3339,6 +3846,9 @@ class Propellant
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     ignore\_for\_isp
     :   If this propellant should be ignored when calculating required mass flow
@@ -3350,6 +3860,9 @@ class Propellant
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     ignore\_for\_thrust\_curve
     :   If this propellant should be ignored for thrust curve calculations.
 
@@ -3358,6 +3871,9 @@ class Propellant
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     draw\_stack\_gauge
     :   If this propellant has a stack gauge or not.
@@ -3368,6 +3884,9 @@ class Propellant
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     is\_deprived
     :   If this propellant is deprived.
 
@@ -3376,6 +3895,9 @@ class Propellant
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     ratio
     :   The propellant ratio.
@@ -3386,7 +3908,10 @@ class Propellant
         Return type:
         :   float
 
-### [Experiment](#id67)
+        Game Scenes:
+        :   Flight
+
+### [Experiment](#id68)
 
 class Experiment
 :   Obtained by calling [`Part.experiment`](#SpaceCenter.Part.experiment "SpaceCenter.Part.experiment").
@@ -3400,6 +3925,9 @@ class Experiment
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     name
     :   Internal name of the experiment, as used in
         [part cfg files](https://wiki.kerbalspaceprogram.com/wiki/CFG_File_Documentation).
@@ -3410,6 +3938,9 @@ class Experiment
         Return type:
         :   str
 
+        Game Scenes:
+        :   Flight
+
     title
     :   Title of the experiment, as shown on the in-game UI.
 
@@ -3419,17 +3950,32 @@ class Experiment
         Return type:
         :   str
 
+        Game Scenes:
+        :   Flight
+
     run()
     :   Run the experiment.
+
+        Game Scenes:
+        :   Flight
 
     transmit()
     :   Transmit all experimental data contained by this part.
 
+        Game Scenes:
+        :   Flight
+
     dump()
     :   Dump the experimental data contained by the experiment.
 
+        Game Scenes:
+        :   Flight
+
     reset()
     :   Reset the experiment.
+
+        Game Scenes:
+        :   Flight
 
     deployed
     :   Whether the experiment has been deployed.
@@ -3440,6 +3986,9 @@ class Experiment
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     rerunnable
     :   Whether the experiment can be re-run.
 
@@ -3448,6 +3997,9 @@ class Experiment
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     inoperable
     :   Whether the experiment is inoperable.
@@ -3458,6 +4010,9 @@ class Experiment
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     has\_data
     :   Whether the experiment contains data.
 
@@ -3466,6 +4021,9 @@ class Experiment
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     data
     :   The data contained in this experiment.
@@ -3476,6 +4034,9 @@ class Experiment
         Return type:
         :   list([`ScienceData`](#SpaceCenter.ScienceData "SpaceCenter.ScienceData"))
 
+        Game Scenes:
+        :   Flight
+
     biome
     :   The name of the biome the experiment is currently in.
 
@@ -3484,6 +4045,9 @@ class Experiment
 
         Return type:
         :   str
+
+        Game Scenes:
+        :   Flight
 
     available
     :   Determines if the experiment is available given the current conditions.
@@ -3494,6 +4058,9 @@ class Experiment
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     science\_subject
     :   Containing information on the corresponding specific science result for the current
         conditions. Returns `None` if the experiment is unavailable.
@@ -3502,16 +4069,16 @@ class Experiment
         :   Read-only, cannot be set
 
         Return type:
-        :   [`ScienceSubject`](#SpaceCenter.ScienceSubject "SpaceCenter.ScienceSubject")
+        :   [`ScienceSubject`](#SpaceCenter.ScienceSubject "SpaceCenter.ScienceSubject") or None
 
-class ScienceData
+        Game Scenes:
+        :   Flight
+
+class ScienceData(*data\_amount*, *science\_value*, *transmit\_value*)
 :   Obtained by calling [`Experiment.data`](#SpaceCenter.Experiment.data "SpaceCenter.Experiment.data").
 
     data\_amount
     :   Data amount.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   float
@@ -3519,29 +4086,26 @@ class ScienceData
     science\_value
     :   Science value.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   float
 
     transmit\_value
     :   Transmit value.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   float
 
-class ScienceSubject
+class ScienceSubject(*id*, *title*, *is\_complete*, *science*, *science\_cap*, *data\_scale*, *subject\_value*, *scientific\_value*)
 :   Obtained by calling [`Experiment.science_subject`](#SpaceCenter.Experiment.science_subject "SpaceCenter.Experiment.science_subject").
 
-    title
-    :   Title of science subject, displayed in science archives
+    id
+    :   The identifier of the subject, e.g. `crewReport@KerbinSrfLandedLaunchPad`.
 
-        Attribute:
-        :   Read-only, cannot be set
+        Return type:
+        :   str
+
+    title
+    :   The title of the subject, as shown in the science archives.
 
         Return type:
         :   str
@@ -3554,9 +4118,6 @@ class ScienceSubject
         has produced data, and how valuable it is, use [`Experiment.has_data`](#SpaceCenter.Experiment.has_data "SpaceCenter.Experiment.has_data") and
         [`ScienceData.transmit_value`](#SpaceCenter.ScienceData.transmit_value "SpaceCenter.ScienceData.transmit_value").
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   bool
 
@@ -3564,17 +4125,11 @@ class ScienceSubject
     :   Amount of science already earned from this subject, not updated until after
         transmission/recovery.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   float
 
     science\_cap
     :   Total science allowable for this subject.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   float
@@ -3582,17 +4137,11 @@ class ScienceSubject
     data\_scale
     :   Multiply science value by this to determine data amount in mits.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   float
 
     subject\_value
     :   Multiplier for specific Celestial Body/Experiment Situation combination.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   float
@@ -3601,13 +4150,10 @@ class ScienceSubject
     :   Diminishing value multiplier for decreasing the science value returned from repeated
         experiments.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   float
 
-### [Fairing](#id68)
+### [Fairing](#id69)
 
 class Fairing
 :   A fairing. Obtained by calling [`Part.fairing`](#SpaceCenter.Part.fairing "SpaceCenter.Part.fairing").
@@ -3622,8 +4168,14 @@ class Fairing
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     jettison()
     :   Jettison the fairing. Has no effect if it has already been jettisoned.
+
+        Game Scenes:
+        :   Flight
 
     jettisoned
     :   Whether the fairing has been jettisoned.
@@ -3634,7 +4186,10 @@ class Fairing
         Return type:
         :   bool
 
-### [Intake](#id69)
+        Game Scenes:
+        :   Flight
+
+### [Intake](#id70)
 
 class Intake
 :   An air intake. Obtained by calling [`Part.intake`](#SpaceCenter.Part.intake "SpaceCenter.Part.intake").
@@ -3648,6 +4203,9 @@ class Intake
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     open
     :   Whether the intake is open.
 
@@ -3656,6 +4214,9 @@ class Intake
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     speed
     :   Speed of the flow into the intake, in \(m/s\).
@@ -3666,6 +4227,9 @@ class Intake
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     flow
     :   The rate of flow into the intake, in units of resource per second.
 
@@ -3674,6 +4238,9 @@ class Intake
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     area
     :   The area of the intake’s opening, in square meters.
@@ -3684,7 +4251,10 @@ class Intake
         Return type:
         :   float
 
-### [Leg](#id70)
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+### [Leg](#id71)
 
 class Leg
 :   A landing leg. Obtained by calling [`Part.leg`](#SpaceCenter.Part.leg "SpaceCenter.Part.leg").
@@ -3698,6 +4268,9 @@ class Leg
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     state
     :   The current state of the landing leg.
 
@@ -3706,6 +4279,9 @@ class Leg
 
         Return type:
         :   [`DeployableState`](#SpaceCenter.DeployableState "SpaceCenter.DeployableState")
+
+        Game Scenes:
+        :   Flight
 
     deployable
     :   Whether the leg is deployable.
@@ -3716,6 +4292,9 @@ class Leg
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     deployed
     :   Whether the landing leg is deployed.
 
@@ -3724,6 +4303,9 @@ class Leg
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -3739,7 +4321,10 @@ class Leg
         Return type:
         :   bool
 
-### [Launch Clamp](#id71)
+        Game Scenes:
+        :   Flight
+
+### [Launch Clamp](#id72)
 
 class LaunchClamp
 :   A launch clamp. Obtained by calling [`Part.launch_clamp`](#SpaceCenter.Part.launch_clamp "SpaceCenter.Part.launch_clamp").
@@ -3753,10 +4338,16 @@ class LaunchClamp
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     release()
     :   Releases the docking clamp. Has no effect if the clamp has already been released.
 
-### [Light](#id72)
+        Game Scenes:
+        :   Flight
+
+### [Light](#id73)
 
 class Light
 :   A light. Obtained by calling [`Part.light`](#SpaceCenter.Part.light "SpaceCenter.Part.light").
@@ -3770,6 +4361,9 @@ class Light
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     active
     :   Whether the light is switched on.
 
@@ -3779,14 +4373,20 @@ class Light
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     color
-    :   The color of the light, as an RGB triple.
+    :   The color of the light.
 
         Attribute:
         :   Can be read or written
 
         Return type:
-        :   tuple(float, float, float)
+        :   [`StdLib.ColorRGB`](../stdlib.md#StdLib.ColorRGB "StdLib.ColorRGB")
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     blink
     :   Whether blinking is enabled.
@@ -3797,6 +4397,9 @@ class Light
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     blink\_rate
     :   The blink rate of the light.
 
@@ -3805,6 +4408,9 @@ class Light
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     power\_usage
     :   The current power usage, in units of charge per second.
@@ -3815,7 +4421,10 @@ class Light
         Return type:
         :   float
 
-### [Parachute](#id73)
+        Game Scenes:
+        :   Flight
+
+### [Parachute](#id74)
 
 class Parachute
 :   A parachute. Obtained by calling [`Part.parachute`](#SpaceCenter.Part.parachute "SpaceCenter.Part.parachute").
@@ -3829,9 +4438,15 @@ class Parachute
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     deploy()
     :   Deploys the parachute. This has no effect if the parachute has already
         been deployed.
+
+        Game Scenes:
+        :   Flight
 
     deployed
     :   Whether the parachute has been deployed.
@@ -3842,9 +4457,15 @@ class Parachute
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     arm()
     :   Deploys the parachute. This has no effect if the parachute has already
         been armed or deployed.
+
+        Game Scenes:
+        :   Flight
 
     armed
     :   Whether the parachute has been armed or deployed.
@@ -3855,8 +4476,14 @@ class Parachute
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     cut()
     :   Cuts the parachute.
+
+        Game Scenes:
+        :   Flight
 
     state
     :   The current state of the parachute.
@@ -3866,6 +4493,9 @@ class Parachute
 
         Return type:
         :   [`ParachuteState`](#SpaceCenter.ParachuteState "SpaceCenter.ParachuteState")
+
+        Game Scenes:
+        :   Flight
 
     deploy\_altitude
     :   The altitude at which the parachute will full deploy, in meters.
@@ -3877,6 +4507,9 @@ class Parachute
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     deploy\_min\_pressure
     :   The minimum pressure at which the parachute will semi-deploy, in atmospheres.
         Only applicable to stock parachutes.
@@ -3886,6 +4519,9 @@ class Parachute
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     safe\_state
     :   Whether it is currently safe to deploy the parachute, given the vessel’s
@@ -3899,6 +4535,9 @@ class Parachute
 
         Return type:
         :   [`ParachuteSafeState`](#SpaceCenter.ParachuteSafeState "SpaceCenter.ParachuteSafeState")
+
+        Game Scenes:
+        :   Flight
 
 class ParachuteState
 :   The state of a parachute. See [`Parachute.state`](#SpaceCenter.Parachute.state "SpaceCenter.Parachute.state").
@@ -3935,7 +4574,7 @@ class ParachuteSafeState
     :   The safety state is not available, because the vessel is not in an
         atmosphere or the parachute has already been deployed or cut.
 
-### [Radiator](#id74)
+### [Radiator](#id75)
 
 class Radiator
 :   A radiator. Obtained by calling [`Part.radiator`](#SpaceCenter.Part.radiator "SpaceCenter.Part.radiator").
@@ -3949,6 +4588,9 @@ class Radiator
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     deployable
     :   Whether the radiator is deployable.
 
@@ -3957,6 +4599,9 @@ class Radiator
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     deployed
     :   For a deployable radiator, `True` if the radiator is extended.
@@ -3968,6 +4613,9 @@ class Radiator
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     state
     :   The current state of the radiator.
 
@@ -3977,11 +4625,14 @@ class Radiator
         Return type:
         :   [`DeployableState`](#SpaceCenter.DeployableState "SpaceCenter.DeployableState")
 
+        Game Scenes:
+        :   Flight
+
         > **Note**
         >
         > A fixed radiator is always [`DeployableState.deployed`](#SpaceCenter.DeployableState.deployed "SpaceCenter.DeployableState.deployed").
 
-### [Resource Converter](#id75)
+### [Resource Converter](#id76)
 
 class ResourceConverter
 :   A resource converter. Obtained by calling [`Part.resource_converter`](#SpaceCenter.Part.resource_converter "SpaceCenter.Part.resource_converter").
@@ -3995,6 +4646,9 @@ class ResourceConverter
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     count
     :   The number of converters in the part.
 
@@ -4003,6 +4657,9 @@ class ResourceConverter
 
         Return type:
         :   int
+
+        Game Scenes:
+        :   Flight
 
     name(*index*)
     :   The name of the specified converter.
@@ -4013,6 +4670,9 @@ class ResourceConverter
         Return type:
         :   str
 
+        Game Scenes:
+        :   Flight
+
     active(*index*)
     :   True if the specified converter is active.
 
@@ -4022,17 +4682,26 @@ class ResourceConverter
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     start(*index*)
     :   Start the specified converter.
 
         Parameters:
         :   **index** (*int*) – Index of the converter.
 
+        Game Scenes:
+        :   Flight
+
     stop(*index*)
     :   Stop the specified converter.
 
         Parameters:
         :   **index** (*int*) – Index of the converter.
+
+        Game Scenes:
+        :   Flight
 
     state(*index*)
     :   The state of the specified converter.
@@ -4042,6 +4711,9 @@ class ResourceConverter
 
         Return type:
         :   [`ResourceConverterState`](#SpaceCenter.ResourceConverterState "SpaceCenter.ResourceConverterState")
+
+        Game Scenes:
+        :   Flight
 
     status\_info(*index*)
     :   Status information for the specified converter.
@@ -4053,6 +4725,9 @@ class ResourceConverter
         Return type:
         :   str
 
+        Game Scenes:
+        :   Flight
+
     inputs(*index*)
     :   List of the names of resources consumed by the specified converter.
 
@@ -4061,6 +4736,9 @@ class ResourceConverter
 
         Return type:
         :   list(str)
+
+        Game Scenes:
+        :   Flight
 
     outputs(*index*)
     :   List of the names of resources produced by the specified converter.
@@ -4071,6 +4749,9 @@ class ResourceConverter
         Return type:
         :   list(str)
 
+        Game Scenes:
+        :   Flight
+
     optimum\_core\_temperature
     :   The core temperature at which the converter will operate with peak efficiency, in Kelvin.
 
@@ -4079,6 +4760,9 @@ class ResourceConverter
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     core\_temperature
     :   The core temperature of the converter, in Kelvin.
@@ -4089,6 +4773,9 @@ class ResourceConverter
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     thermal\_efficiency
     :   The thermal efficiency of the converter, as a percentage of its maximum.
 
@@ -4097,6 +4784,9 @@ class ResourceConverter
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
 class ResourceConverterState
 :   The state of a resource converter. See [`ResourceConverter.state()`](#SpaceCenter.ResourceConverter.state "SpaceCenter.ResourceConverter.state").
@@ -4120,7 +4810,7 @@ class ResourceConverterState
     :   Unknown state. Possible with modified resource converters.
         In this case, check [`ResourceConverter.status_info()`](#SpaceCenter.ResourceConverter.status_info "SpaceCenter.ResourceConverter.status_info") for more information.
 
-### [Resource Harvester](#id76)
+### [Resource Harvester](#id77)
 
 class ResourceHarvester
 :   A resource harvester (drill). Obtained by calling [`Part.resource_harvester`](#SpaceCenter.Part.resource_harvester "SpaceCenter.Part.resource_harvester").
@@ -4134,6 +4824,9 @@ class ResourceHarvester
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     state
     :   The deployment state of the harvester. Whether it is drilling is
         reported separately by [`ResourceHarvester.active`](#SpaceCenter.ResourceHarvester.active "SpaceCenter.ResourceHarvester.active").
@@ -4143,6 +4836,9 @@ class ResourceHarvester
 
         Return type:
         :   [`DeployableState`](#SpaceCenter.DeployableState "SpaceCenter.DeployableState")
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -4158,6 +4854,9 @@ class ResourceHarvester
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     active
     :   Whether the harvester is actively drilling.
 
@@ -4166,6 +4865,9 @@ class ResourceHarvester
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -4184,6 +4886,9 @@ class ResourceHarvester
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     thermal\_efficiency
     :   The thermal efficiency of the drill, as a percentage of its maximum.
 
@@ -4192,6 +4897,9 @@ class ResourceHarvester
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     core\_temperature
     :   The core temperature of the drill, in Kelvin.
@@ -4202,6 +4910,9 @@ class ResourceHarvester
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     optimum\_core\_temperature
     :   The core temperature at which the drill will operate with peak efficiency, in Kelvin.
 
@@ -4211,7 +4922,10 @@ class ResourceHarvester
         Return type:
         :   float
 
-### [Reaction Wheel](#id77)
+        Game Scenes:
+        :   Flight
+
+### [Reaction Wheel](#id78)
 
 class ReactionWheel
 :   A reaction wheel. Obtained by calling [`Part.reaction_wheel`](#SpaceCenter.Part.reaction_wheel "SpaceCenter.Part.reaction_wheel").
@@ -4225,6 +4939,9 @@ class ReactionWheel
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     active
     :   Whether the reaction wheel is active.
 
@@ -4234,6 +4951,9 @@ class ReactionWheel
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     broken
     :   Whether the reaction wheel is broken.
 
@@ -4242,6 +4962,9 @@ class ReactionWheel
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     available\_torque
     :   The available torque, in Newton meters, that can be produced by this reaction wheel,
@@ -4253,7 +4976,10 @@ class ReactionWheel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](./vessel.md#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
+
+        Game Scenes:
+        :   Flight
 
     max\_torque
     :   The maximum torque, in Newton meters, that can be produced by this reaction wheel,
@@ -4264,7 +4990,10 @@ class ReactionWheel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](./vessel.md#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     authority\_limiter
     :   The authority limiter for the reaction wheel, as a percentage of maximum torque.
@@ -4276,7 +5005,10 @@ class ReactionWheel
         Return type:
         :   float
 
-### [Resource Drain](#id78)
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
+### [Resource Drain](#id79)
 
 class ResourceDrain
 :   A resource drain. Obtained by calling [`Part.resource_drain`](#SpaceCenter.Part.resource_drain "SpaceCenter.Part.resource_drain").
@@ -4290,6 +5022,9 @@ class ResourceDrain
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     available\_resources
     :   List of available resources.
 
@@ -4299,12 +5034,18 @@ class ResourceDrain
         Return type:
         :   list([`Resource`](./resources.md#SpaceCenter.Resource "SpaceCenter.Resource"))
 
+        Game Scenes:
+        :   Flight
+
     set\_resource(*resource*, *enabled*)
     :   Whether the given resource should be drained.
 
         Parameters:
         :   - **resource** ([*Resource*](./resources.md#SpaceCenter.Resource "SpaceCenter.Resource"))
             - **enabled** (*bool*)
+
+        Game Scenes:
+        :   Flight
 
     check\_resource(*resource*)
     :   Whether the provided resource is enabled for draining.
@@ -4315,6 +5056,9 @@ class ResourceDrain
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     drain\_mode
     :   The drain mode.
 
@@ -4323,6 +5067,9 @@ class ResourceDrain
 
         Return type:
         :   [`DrainMode`](#SpaceCenter.DrainMode "SpaceCenter.DrainMode")
+
+        Game Scenes:
+        :   Flight
 
     min\_rate
     :   Minimum possible drain rate
@@ -4333,6 +5080,9 @@ class ResourceDrain
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     max\_rate
     :   Maximum possible drain rate.
 
@@ -4341,6 +5091,9 @@ class ResourceDrain
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     rate
     :   Current drain rate.
@@ -4351,11 +5104,20 @@ class ResourceDrain
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     start()
     :   Activates resource draining for all enabled parts.
 
+        Game Scenes:
+        :   Flight
+
     stop()
     :   Turns off resource draining.
+
+        Game Scenes:
+        :   Flight
 
 class DrainMode
 :   Resource drain mode.
@@ -4367,7 +5129,7 @@ class DrainMode
     vessel
     :   Drains from all available parts.
 
-### [Robotic Controller](#id79)
+### [Robotic Controller](#id80)
 
 class RoboticController
 :   A robotic controller. Obtained by calling [`Part.robotic_controller`](#SpaceCenter.Part.robotic_controller "SpaceCenter.Part.robotic_controller").
@@ -4381,6 +5143,9 @@ class RoboticController
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     enabled
     :   Whether the controller is enabled.
 
@@ -4389,6 +5154,9 @@ class RoboticController
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     playing
     :   Whether the controller’s sequence is currently playing.
@@ -4399,6 +5167,9 @@ class RoboticController
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     position
     :   The current position along the sequence, in seconds.
 
@@ -4407,6 +5178,9 @@ class RoboticController
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     length
     :   The length of the sequence, in seconds.
@@ -4417,6 +5191,9 @@ class RoboticController
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     play\_speed
     :   The speed at which the sequence is played back, as a multiple of normal speed.
 
@@ -4426,11 +5203,20 @@ class RoboticController
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     play()
     :   Start playing the controller’s sequence.
 
+        Game Scenes:
+        :   Flight
+
     stop()
     :   Stop playing the controller’s sequence.
+
+        Game Scenes:
+        :   Flight
 
     has\_part(*part*)
     :   Whether the controller has a part.
@@ -4441,11 +5227,17 @@ class RoboticController
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     axes()
     :   The axes for the controller.
 
         Return type:
-        :   list(list(str))
+        :   list([`RoboticAxis`](#SpaceCenter.RoboticAxis "SpaceCenter.RoboticAxis"))
+
+        Game Scenes:
+        :   Flight
 
     add\_axis(*module*, *field\_name*)
     :   Add an axis to the controller.
@@ -4459,6 +5251,9 @@ class RoboticController
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     add\_key\_frame(*module*, *field\_name*, *time*, *value*)
     :   Add key frame value for controller axis.
@@ -4475,6 +5270,9 @@ class RoboticController
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     clear\_axis(*module*, *field\_name*)
     :   Clear axis.
 
@@ -4488,7 +5286,29 @@ class RoboticController
         Return type:
         :   bool
 
-### [Robotic Hinge](#id80)
+        Game Scenes:
+        :   Flight
+
+class RoboticAxis(*module*, *field\_name*)
+:   An axis of a robotic controller.
+
+    > **Note**
+    >
+    > See [`RoboticController.axes()`](#SpaceCenter.RoboticController.axes "SpaceCenter.RoboticController.axes").
+
+    module
+    :   The part module the axis belongs to.
+
+        Return type:
+        :   [`Module`](#SpaceCenter.Module "SpaceCenter.Module")
+
+    field\_name
+    :   The name of the field the axis controls.
+
+        Return type:
+        :   str
+
+### [Robotic Hinge](#id81)
 
 class RoboticHinge
 :   A robotic hinge. Obtained by calling [`Part.robotic_hinge`](#SpaceCenter.Part.robotic_hinge "SpaceCenter.Part.robotic_hinge").
@@ -4502,6 +5322,9 @@ class RoboticHinge
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     target\_angle
     :   Target angle.
 
@@ -4510,6 +5333,9 @@ class RoboticHinge
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     current\_angle
     :   Current angle.
@@ -4520,6 +5346,9 @@ class RoboticHinge
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     min\_angle
     :   The minimum angle the hinge can move to, in degrees.
 
@@ -4528,6 +5357,9 @@ class RoboticHinge
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     max\_angle
     :   The maximum angle the hinge can move to, in degrees.
@@ -4538,6 +5370,9 @@ class RoboticHinge
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     rate
     :   Target movement rate in degrees per second.
 
@@ -4546,6 +5381,9 @@ class RoboticHinge
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     damping
     :   Damping percentage.
@@ -4556,6 +5394,9 @@ class RoboticHinge
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     locked
     :   Lock movement.
 
@@ -4564,6 +5405,9 @@ class RoboticHinge
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     motor\_engaged
     :   Whether the motor is engaged.
@@ -4574,6 +5418,9 @@ class RoboticHinge
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     is\_moving
     :   Whether the servo is currently moving.
 
@@ -4583,10 +5430,16 @@ class RoboticHinge
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     move\_home()
     :   Move hinge to its built position.
 
-### [Robotic Piston](#id81)
+        Game Scenes:
+        :   Flight
+
+### [Robotic Piston](#id82)
 
 class RoboticPiston
 :   A robotic piston part. Obtained by calling [`Part.robotic_piston`](#SpaceCenter.Part.robotic_piston "SpaceCenter.Part.robotic_piston").
@@ -4600,6 +5453,9 @@ class RoboticPiston
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     target\_extension
     :   Target extension of the piston.
 
@@ -4608,6 +5464,9 @@ class RoboticPiston
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     current\_extension
     :   Current extension of the piston.
@@ -4618,6 +5477,9 @@ class RoboticPiston
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     min\_extension
     :   The minimum extension of the piston, in meters.
 
@@ -4626,6 +5488,9 @@ class RoboticPiston
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     max\_extension
     :   The maximum extension of the piston, in meters.
@@ -4636,6 +5501,9 @@ class RoboticPiston
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     rate
     :   Target movement rate in meters per second.
 
@@ -4644,6 +5512,9 @@ class RoboticPiston
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     damping
     :   Damping percentage.
@@ -4654,6 +5525,9 @@ class RoboticPiston
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     locked
     :   Lock movement.
 
@@ -4662,6 +5536,9 @@ class RoboticPiston
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     motor\_engaged
     :   Whether the motor is engaged.
@@ -4672,6 +5549,9 @@ class RoboticPiston
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     is\_moving
     :   Whether the servo is currently moving.
 
@@ -4681,10 +5561,16 @@ class RoboticPiston
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     move\_home()
     :   Move piston to its built position.
 
-### [Robotic Rotation](#id82)
+        Game Scenes:
+        :   Flight
+
+### [Robotic Rotation](#id83)
 
 class RoboticRotation
 :   A robotic rotation servo. Obtained by calling [`Part.robotic_rotation`](#SpaceCenter.Part.robotic_rotation "SpaceCenter.Part.robotic_rotation").
@@ -4698,6 +5584,9 @@ class RoboticRotation
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     target\_angle
     :   Target angle.
 
@@ -4706,6 +5595,9 @@ class RoboticRotation
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     current\_angle
     :   Current angle.
@@ -4716,6 +5608,9 @@ class RoboticRotation
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     min\_angle
     :   The minimum angle the servo can rotate to, in degrees.
 
@@ -4725,6 +5620,9 @@ class RoboticRotation
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     max\_angle
     :   The maximum angle the servo can rotate to, in degrees.
 
@@ -4733,6 +5631,9 @@ class RoboticRotation
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     allow\_full\_rotation
     :   Whether the servo is allowed to rotate freely through a full revolution,
@@ -4744,6 +5645,9 @@ class RoboticRotation
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     rate
     :   Target movement rate in degrees per second.
 
@@ -4752,6 +5656,9 @@ class RoboticRotation
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     damping
     :   Damping percentage.
@@ -4762,6 +5669,9 @@ class RoboticRotation
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     locked
     :   Lock Movement
 
@@ -4770,6 +5680,9 @@ class RoboticRotation
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     motor\_engaged
     :   Whether the motor is engaged.
@@ -4780,6 +5693,9 @@ class RoboticRotation
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     is\_moving
     :   Whether the servo is currently moving.
 
@@ -4789,10 +5705,16 @@ class RoboticRotation
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     move\_home()
     :   Move rotation servo to its built position.
 
-### [Robotic Rotor](#id83)
+        Game Scenes:
+        :   Flight
+
+### [Robotic Rotor](#id84)
 
 class RoboticRotor
 :   A robotic rotor. Obtained by calling [`Part.robotic_rotor`](#SpaceCenter.Part.robotic_rotor "SpaceCenter.Part.robotic_rotor").
@@ -4806,6 +5728,9 @@ class RoboticRotor
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     target\_rpm
     :   Target RPM.
 
@@ -4814,6 +5739,9 @@ class RoboticRotor
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     current\_rpm
     :   Current RPM.
@@ -4824,6 +5752,9 @@ class RoboticRotor
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     inverted
     :   Whether the rotor direction is inverted.
 
@@ -4832,6 +5763,9 @@ class RoboticRotor
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     torque\_limit
     :   Torque limit percentage.
@@ -4842,6 +5776,9 @@ class RoboticRotor
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     max\_torque
     :   The maximum torque the rotor can generate, in kilonewtons.
 
@@ -4850,6 +5787,9 @@ class RoboticRotor
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight
 
     brake\_percentage
     :   The percentage of braking force applied to the rotor.
@@ -4860,6 +5800,9 @@ class RoboticRotor
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     locked
     :   Lock movement.
 
@@ -4868,6 +5811,9 @@ class RoboticRotor
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     motor\_engaged
     :   Whether the motor is engaged.
@@ -4878,6 +5824,9 @@ class RoboticRotor
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     is\_moving
     :   Whether the rotor is currently moving.
 
@@ -4887,7 +5836,10 @@ class RoboticRotor
         Return type:
         :   bool
 
-### [RCS](#id84)
+        Game Scenes:
+        :   Flight
+
+### [RCS](#id85)
 
 class RCS
 :   An RCS block or thruster. Obtained by calling [`Part.rcs`](#SpaceCenter.Part.rcs "SpaceCenter.Part.rcs").
@@ -4900,6 +5852,9 @@ class RCS
 
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     active
     :   Whether the RCS thrusters are active.
@@ -4914,6 +5869,9 @@ class RCS
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     enabled
     :   Whether the RCS thrusters are enabled.
 
@@ -4922,6 +5880,9 @@ class RCS
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     pitch\_enabled
     :   Whether the RCS thruster will fire when pitch control input is given.
@@ -4932,6 +5893,9 @@ class RCS
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     yaw\_enabled
     :   Whether the RCS thruster will fire when yaw control input is given.
 
@@ -4940,6 +5904,9 @@ class RCS
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     roll\_enabled
     :   Whether the RCS thruster will fire when roll control input is given.
@@ -4950,6 +5917,9 @@ class RCS
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     forward\_enabled
     :   Whether the RCS thruster will fire when pitch control input is given.
 
@@ -4958,6 +5928,9 @@ class RCS
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     up\_enabled
     :   Whether the RCS thruster will fire when yaw control input is given.
@@ -4968,6 +5941,9 @@ class RCS
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     right\_enabled
     :   Whether the RCS thruster will fire when roll control input is given.
 
@@ -4977,18 +5953,25 @@ class RCS
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     input\_override
     :   Whether the RCS control is being set directly, bypassing the vessel’s
         normal flight controls. When enabled, the rotation and translation demand is set by
         [`RCS.rotation_override`](#SpaceCenter.RCS.rotation_override "SpaceCenter.RCS.rotation_override") and [`RCS.translation_override`](#SpaceCenter.RCS.translation_override "SpaceCenter.RCS.translation_override") instead of the
         normal control inputs. The override is automatically released if the
         controlling client disconnects or the vessel changes.
+        Precision mode leaves an overridden block at full thrust.
 
         Attribute:
         :   Can be read or written
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     rotation\_override
     :   The rotation demand applied when [`RCS.input_override`](#SpaceCenter.RCS.input_override "SpaceCenter.RCS.input_override") is enabled, in the pitch,
@@ -4999,6 +5982,9 @@ class RCS
 
         Return type:
         :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
 
     translation\_override
     :   The translation demand applied when [`RCS.input_override`](#SpaceCenter.RCS.input_override "SpaceCenter.RCS.input_override") is enabled, in the
@@ -5011,6 +5997,9 @@ class RCS
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
     available\_torque
     :   The available torque, in Newton meters, that can be produced by this RCS,
         in the positive and negative pitch, roll and yaw axes of the vessel. These axes
@@ -5021,7 +6010,16 @@ class RCS
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](./vessel.md#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > Precision mode weakens the block, and the available torque follows it. A block
+        > driven by [`RCS.input_override`](#SpaceCenter.RCS.input_override "SpaceCenter.RCS.input_override") is exempt, so [`RCS.override_wrench()`](#SpaceCenter.RCS.override_wrench "SpaceCenter.RCS.override_wrench")
+        > can report the larger torque an override reaches.
 
     available\_force
     :   The available force, in Newtons, that can be produced by this RCS,
@@ -5033,7 +6031,65 @@ class RCS
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](./vessel.md#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > Precision mode weakens the block, and the available force follows it. A block
+        > driven by [`RCS.input_override`](#SpaceCenter.RCS.input_override "SpaceCenter.RCS.input_override") is exempt, so [`RCS.override_wrench()`](#SpaceCenter.RCS.override_wrench "SpaceCenter.RCS.override_wrench")
+        > can report the larger force an override reaches.
+
+    force
+    :   The force being applied by the RCS thrusters, in Newtons. The vector is in the
+        vessel’s reference frame ([`Vessel.reference_frame`](./vessel.md#SpaceCenter.Vessel.reference_frame "SpaceCenter.Vessel.reference_frame")).
+        Returns zero if the RCS is inactive.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
+    torque
+    :   The torque being applied by the RCS thrusters about the vessel’s center of mass,
+        in Newton meters. The vector is in the vessel’s reference frame
+        ([`Vessel.reference_frame`](./vessel.md#SpaceCenter.Vessel.reference_frame "SpaceCenter.Vessel.reference_frame")). Returns zero if the RCS is inactive.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
+
+    override\_wrench(*rotation*, *translation*)
+    :   The force and torque the given demands would produce, in Newtons and Newton meters.
+
+        Parameters:
+        :   - **rotation** (*tuple*) – A rotation demand, as set by [`RCS.rotation_override`](#SpaceCenter.RCS.rotation_override "SpaceCenter.RCS.rotation_override").
+            - **translation** (*tuple*) – A translation demand, as set by [`RCS.translation_override`](#SpaceCenter.RCS.translation_override "SpaceCenter.RCS.translation_override").
+
+        Returns:
+        :   The force, and the torque about the vessel’s center of mass, in the vessel’s reference frame ([`Vessel.reference_frame`](./vessel.md#SpaceCenter.Vessel.reference_frame "SpaceCenter.Vessel.reference_frame")), or zero if the RCS is inactive.
+
+        Return type:
+        :   [`Wrench`](./flight.md#SpaceCenter.Wrench "SpaceCenter.Wrench")
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The demands do not have to be applied. The prediction leaves out full thrust, which
+        > [`RCS.force`](#SpaceCenter.RCS.force "SpaceCenter.RCS.force") and [`RCS.torque`](#SpaceCenter.RCS.torque "SpaceCenter.RCS.torque") include.
 
     available\_thrust
     :   The amount of thrust, in Newtons, that would be produced by the thruster when activated.
@@ -5047,6 +6103,9 @@ class RCS
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     max\_thrust
     :   The maximum amount of thrust that can be produced by the RCS thrusters when active,
         in Newtons, with the [`RCS.thrust_limit`](#SpaceCenter.RCS.thrust_limit "SpaceCenter.RCS.thrust_limit") set to 100%.
@@ -5058,6 +6117,9 @@ class RCS
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     max\_vacuum\_thrust
     :   The maximum amount of thrust that can be produced by the RCS thrusters when active
         in a vacuum, in Newtons.
@@ -5068,6 +6130,9 @@ class RCS
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     thrust\_limit
     :   The thrust limiter of the thruster. A value between 0 and 1.
 
@@ -5077,6 +6142,9 @@ class RCS
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     thrusters
     :   A list of thrusters, one of each nozzel in the RCS part.
 
@@ -5085,6 +6153,9 @@ class RCS
 
         Return type:
         :   list([`Thruster`](#SpaceCenter.Thruster "SpaceCenter.Thruster"))
+
+        Game Scenes:
+        :   Flight
 
     specific\_impulse
     :   The current specific impulse of the RCS, in seconds. Returns zero
@@ -5096,6 +6167,9 @@ class RCS
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     vacuum\_specific\_impulse
     :   The vacuum specific impulse of the RCS, in seconds.
 
@@ -5104,6 +6178,9 @@ class RCS
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     kerbin\_sea\_level\_specific\_impulse
     :   The specific impulse of the RCS at sea level on Kerbin, in seconds.
@@ -5114,6 +6191,9 @@ class RCS
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     propellants
     :   The names of resources that the RCS consumes.
 
@@ -5122,6 +6202,9 @@ class RCS
 
         Return type:
         :   list(str)
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     propellant\_ratios
     :   The ratios of resources that the RCS consumes. A dictionary mapping resource names
@@ -5133,6 +6216,9 @@ class RCS
         Return type:
         :   dict(str, float)
 
+        Game Scenes:
+        :   Flight
+
     has\_fuel
     :   Whether the RCS has fuel available.
 
@@ -5142,7 +6228,10 @@ class RCS
         Return type:
         :   bool
 
-### [Sensor](#id85)
+        Game Scenes:
+        :   Flight
+
+### [Sensor](#id86)
 
 class Sensor
 :   A sensor, such as a thermometer. Obtained by calling [`Part.sensor`](#SpaceCenter.Part.sensor "SpaceCenter.Part.sensor").
@@ -5156,6 +6245,9 @@ class Sensor
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     active
     :   Whether the sensor is active.
 
@@ -5165,6 +6257,9 @@ class Sensor
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     value
     :   The current value of the sensor.
 
@@ -5173,6 +6268,9 @@ class Sensor
 
         Return type:
         :   str
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -5185,7 +6283,7 @@ class Sensor
         > [`Flight.g_force`](./flight.md#SpaceCenter.Flight.g_force "SpaceCenter.Flight.g_force") (accelerometers) or
         > [`Flight.static_pressure`](./flight.md#SpaceCenter.Flight.static_pressure "SpaceCenter.Flight.static_pressure") (barometers).
 
-### [Solar Panel](#id86)
+### [Solar Panel](#id87)
 
 class SolarPanel
 :   A solar panel. Obtained by calling [`Part.solar_panel`](#SpaceCenter.Part.solar_panel "SpaceCenter.Part.solar_panel").
@@ -5199,6 +6297,9 @@ class SolarPanel
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     deployable
     :   Whether the solar panel is deployable.
 
@@ -5207,6 +6308,9 @@ class SolarPanel
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     deployed
     :   Whether the solar panel is extended.
@@ -5217,6 +6321,9 @@ class SolarPanel
         Return type:
         :   bool
 
+        Game Scenes:
+        :   Flight
+
     state
     :   The current state of the solar panel.
 
@@ -5225,6 +6332,9 @@ class SolarPanel
 
         Return type:
         :   [`DeployableState`](#SpaceCenter.DeployableState "SpaceCenter.DeployableState")
+
+        Game Scenes:
+        :   Flight
 
     energy\_flow
     :   The current amount of energy being generated by the solar panel, in
@@ -5236,6 +6346,9 @@ class SolarPanel
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight
+
     sun\_exposure
     :   The current amount of sunlight that is incident on the solar panel,
         as a percentage. A value between 0 and 1.
@@ -5246,7 +6359,10 @@ class SolarPanel
         Return type:
         :   float
 
-### [Thruster](#id87)
+        Game Scenes:
+        :   Flight
+
+### [Thruster](#id88)
 
 class Thruster
 :   The component of an [`Engine`](#SpaceCenter.Engine "SpaceCenter.Engine") or [`RCS`](#SpaceCenter.RCS "SpaceCenter.RCS") part that generates thrust.
@@ -5267,6 +6383,21 @@ class Thruster
         Return type:
         :   [`Part`](#SpaceCenter.Part "SpaceCenter.Part")
 
+        Game Scenes:
+        :   Flight
+
+    thrust
+    :   The thrust being produced by the thruster, in Newtons.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   float
+
+        Game Scenes:
+        :   Flight
+
     thrust\_position(*reference\_frame*)
     :   The position at which the thruster generates thrust, in the given reference frame.
         For gimballed engines, this takes into account the current rotation of the gimbal.
@@ -5279,6 +6410,9 @@ class Thruster
 
         Return type:
         :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
 
     thrust\_direction(*reference\_frame*)
     :   The direction of the force generated by the thruster, in the given reference frame.
@@ -5294,15 +6428,18 @@ class Thruster
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
     thrust\_reference\_frame
     :   A reference frame that is fixed relative to the thruster and orientated with
         its thrust direction ([`Thruster.thrust_direction()`](#SpaceCenter.Thruster.thrust_direction "SpaceCenter.Thruster.thrust_direction")).
         For gimballed engines, this takes into account the current rotation of the gimbal.
 
         - The origin is at the position of thrust for this thruster
-          ([`Thruster.thrust_position()`](#SpaceCenter.Thruster.thrust_position "SpaceCenter.Thruster.thrust_position")).
+            ([`Thruster.thrust_position()`](#SpaceCenter.Thruster.thrust_position "SpaceCenter.Thruster.thrust_position")).
         - The axes rotate with the thrust direction.
-          This is the direction in which the thruster expels propellant, including any gimballing.
+            This is the direction in which the thruster expels propellant, including any gimballing.
         - The y-axis points along the thrust direction.
         - The x-axis and z-axis are perpendicular to the thrust direction.
 
@@ -5312,6 +6449,9 @@ class Thruster
         Return type:
         :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
 
+        Game Scenes:
+        :   Flight
+
     gimballed
     :   Whether the thruster is gimballed.
 
@@ -5320,6 +6460,9 @@ class Thruster
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight
 
     gimbal\_position(*reference\_frame*)
     :   Position around which the gimbal pivots.
@@ -5333,6 +6476,9 @@ class Thruster
         Return type:
         :   tuple(float, float, float)
 
+        Game Scenes:
+        :   Flight
+
     gimbal\_angle
     :   The current gimbal angle in the pitch, roll and yaw axes, in degrees.
 
@@ -5341,6 +6487,9 @@ class Thruster
 
         Return type:
         :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
 
     initial\_thrust\_position(*reference\_frame*)
     :   The position at which the thruster generates thrust, when the engine is in its
@@ -5354,6 +6503,9 @@ class Thruster
 
         Return type:
         :   tuple(float, float, float)
+
+        Game Scenes:
+        :   Flight
 
         > **Note**
         >
@@ -5374,7 +6526,10 @@ class Thruster
         Return type:
         :   tuple(float, float, float)
 
-### [Wheel](#id88)
+        Game Scenes:
+        :   Flight
+
+### [Wheel](#id89)
 
 class Wheel
 :   A wheel. Includes landing gear and rover wheels.
@@ -5713,12 +6868,12 @@ class MotorState
     not\_enough\_resources
     :   The motor does not have enough resources to run.
 
-## [Trees of Parts](#id55)
+## [Trees of Parts](#id56)
 
 Vessels in KSP are comprised of a number of parts, connected to one another in a
 *tree* structure. An example vessel is shown in Figure 1, and the corresponding
 tree of parts in Figure 2. The craft file for this example can also be
-[`downloaded here`](../../../_downloads/3b8b44e0a3864a7a185cede88f37e7a9/PartsTree.craft).
+[`downloaded here`](../../../_downloads/6ccebbadf7bf4826270606c3200d307e/PartsTree.craft).
 
 ![../../../_images/parts.png](../../../_images/parts.png)
 
@@ -5728,7 +6883,7 @@ tree of parts in Figure 2. The craft file for this example can also be
 
 **Figure 2** – Tree of parts for the vessel in Figure 1. Arrows point from the parent part to the child part.
 
-### [Traversing the Tree](#id56)
+### [Traversing the Tree](#id57)
 
 The tree of parts can be traversed using the attributes [`Parts.root`](#SpaceCenter.Parts.root "SpaceCenter.Parts.root"),
 [`Part.parent`](#SpaceCenter.Part.parent "SpaceCenter.Part.parent") and [`Part.children`](#SpaceCenter.Part.children "SpaceCenter.Part.children").
@@ -5788,7 +6943,7 @@ Command Pod Mk1
  Mk16 Parachute
 ```
 
-### [Attachment Modes](#id57)
+### [Attachment Modes](#id58)
 
 Parts can be attached to other parts either *radially* (on the side of the
 parent part) or *axially* (on the end of the parent part, to form a stack).
@@ -5851,7 +7006,7 @@ Command Pod Mk1 - axial
  Mk16 Parachute - axial
 ```
 
-## [Fuel Lines](#id58)
+## [Fuel Lines](#id59)
 
 ![../../../_images/parts-fuel-lines.png](../../../_images/parts-fuel-lines.png)
 
@@ -5881,16 +7036,12 @@ part). When [`Part.fuel_lines_from`](#SpaceCenter.Part.fuel_lines_from "SpaceCen
 fuel tank part 9, it will return a list containing fuel tank parts 11 and 17
 (the parts colored green).
 
-## [Staging](#id59)
+## [Staging](#id60)
 
 For vessel-level summaries (delta-v, thrust, fuel, and resources grouped per
 stage), use the [Stage](./stage.md#python-api-stage) class via
 [`Vessel.stages`](./vessel.md#SpaceCenter.Vessel.stages "SpaceCenter.Vessel.stages") and
-[`Vessel.decouple_stages`](./vessel.md#SpaceCenter.Vessel.decouple_stages "SpaceCenter.Vessel.decouple_stages"). Legacy helpers
-[`Parts.in_stage()`](#SpaceCenter.Parts.in_stage "SpaceCenter.Parts.in_stage"),
-[`Parts.in_decouple_stage()`](#SpaceCenter.Parts.in_decouple_stage "SpaceCenter.Parts.in_decouple_stage"), and
-[`Vessel.resources_in_decouple_stage()`](./vessel.md#SpaceCenter.Vessel.resources_in_decouple_stage "SpaceCenter.Vessel.resources_in_decouple_stage") remain available but
-are deprecated.
+[`Vessel.decouple_stages`](./vessel.md#SpaceCenter.Vessel.decouple_stages "SpaceCenter.Vessel.decouple_stages").
 
 ![../../../_images/parts-staging.png](../../../_images/parts-staging.png)
 

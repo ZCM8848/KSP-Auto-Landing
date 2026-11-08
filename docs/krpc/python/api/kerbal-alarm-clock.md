@@ -1,6 +1,6 @@
 # Kerbal Alarm Clock API
 
-Provides RPCs to interact with the [Kerbal Alarm Clock](https://forum.kerbalspaceprogram.com/index.php?/topic/22809-13x-kerbal-alarm-clock-v3850-may-30/) mod. Provides the
+Provides RPCs to interact with the [Kerbal Alarm Clock](https://forum.kerbalspaceprogram.com/topic/22809-112x-kerbal-alarm-clock-v31300-april-10/) mod. Provides the
 following classes:
 
 - [KerbalAlarmClock](./kerbal-alarm-clock/kerbal-alarm-clock.md)

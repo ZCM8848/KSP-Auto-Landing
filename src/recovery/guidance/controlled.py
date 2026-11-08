@@ -89,11 +89,11 @@ class Trajectory:
 
     @property
     def final_position(self) -> np.ndarray:
-        return self.positions[-1]
+        return np.array(self.positions[-1], dtype=float)
 
     @property
     def final_velocity(self) -> np.ndarray:
-        return self.velocities[-1]
+        return np.array(self.velocities[-1], dtype=float)
 
     @property
     def final_mass(self) -> float:

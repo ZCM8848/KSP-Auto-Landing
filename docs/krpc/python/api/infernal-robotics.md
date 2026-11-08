@@ -1,6 +1,6 @@
 # InfernalRobotics API
 
-Provides RPCs to interact with [Infernal Robotics Next](https://forum.kerbalspaceprogram.com/index.php?/topic/170898-wip-infernal-robotics-next/). Provides the following classes:
+Provides RPCs to interact with [Infernal Robotics Next](https://forum.kerbalspaceprogram.com/topic/170898-wip-infernal-robotics-next/). Provides the following classes:
 
 - [InfernalRobotics](./infernal-robotics/infernal-robotics.md)
 - [ServoGroup](./infernal-robotics/servo-group.md)
@@ -15,6 +15,7 @@ servos to the right for 1 second.
 ```py
 import sys
 import time
+
 import krpc
 
 conn = krpc.connect(name="InfernalRobotics Example")

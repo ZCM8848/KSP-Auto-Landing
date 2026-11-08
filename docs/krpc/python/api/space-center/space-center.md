@@ -47,7 +47,7 @@ active\_vessel
     :   Can be read or written
 
     Return type:
-    :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel")
+    :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel") or None
 
 vessels
 :   A list of all the vessels in the game.
@@ -84,7 +84,7 @@ target\_body
     :   Can be read or written
 
     Return type:
-    :   [`CelestialBody`](./celestial-body.md#SpaceCenter.CelestialBody "SpaceCenter.CelestialBody")
+    :   [`CelestialBody`](./celestial-body.md#SpaceCenter.CelestialBody "SpaceCenter.CelestialBody") or None
 
     Game Scenes:
     :   Flight
@@ -96,7 +96,7 @@ target\_vessel
     :   Can be read or written
 
     Return type:
-    :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel")
+    :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel") or None
 
     Game Scenes:
     :   Flight
@@ -108,7 +108,7 @@ target\_docking\_port
     :   Can be read or written
 
     Return type:
-    :   [`DockingPort`](./parts.md#SpaceCenter.DockingPort "SpaceCenter.DockingPort")
+    :   [`DockingPort`](./parts.md#SpaceCenter.DockingPort "SpaceCenter.DockingPort") or None
 
     Game Scenes:
     :   Flight
@@ -129,18 +129,28 @@ static launchable\_vessels(*craft\_directory*)
     Return type:
     :   list(str)
 
-static launch\_vessel(*craft\_directory*, *name*, *launch\_site*, *crew*[, *recover=True*][, *flag\_url=''*])
+static launch\_vessel(*craft\_directory*, *name*, *launch\_site*[, *crew=None*][, *recover=True*][, *flag\_url=''*])
 :   Launch a vessel.
 
     Parameters:
     :   - **craft\_directory** (*str*) – Name of the directory in the current saves “Ships” directory, that contains the craft file. For example `"VAB"` or `"SPH"`.
         - **name** (*str*) – Name of the vessel to launch. This is the name of the “.craft” file in the save directory, without the “.craft” file extension.
         - **launch\_site** (*str*) – Name of the launch site. For example `"LaunchPad"` or `"Runway"`.
-        - **crew** (*list*) – A list of names of Kerbals to place in the craft. Pass an empty list to use default crew assignments.
+        - **crew** (*list* *or* *None*) – The Kerbals to place in the craft, by name. Controls how the craft is crewed, as described in the remarks.
         - **recover** (*bool*) – If true and there is a vessel on the launch site, recover it before launching.
         - **flag\_url** (*str*) – If not `None`, the asset URL of the mission flag to use for the launch.
 
     > **Note**
+    >
+    > The *crew* parameter controls how the craft is crewed:
+    >
+    > -   If `None`, the craft’s default crew assignments are used.
+    > -   If an empty list, the craft is launched with no crew.
+    > -   Otherwise, the named Kerbals are placed in the craft in the order
+    >     given: the first name takes the first seat, the second name the next seat, and so on,
+    >     scanning the craft’s parts in order. No other Kerbals are hired to fill remaining seats.
+    >     Throws an exception, without launching, if a name does not match an available Kerbal
+    >     or the craft has too few seats for the requested crew.
     >
     > Throws an exception if any of the games pre-flight checks fail.
 
@@ -169,6 +179,18 @@ static launch\_vessel\_from\_sph(*name*[, *recover=True*])
     > This is equivalent to calling [`launch_vessel()`](#SpaceCenter.launch_vessel "SpaceCenter.launch_vessel") with the craft directory
     > set to “SPH” and the launch site set to “Runway”.
     > Throws an exception if any of the games pre-flight checks fail.
+
+editor
+:   The editor, for inspecting the vessel that is being constructed.
+
+    Attribute:
+    :   Read-only, cannot be set
+
+    Return type:
+    :   [`Editor`](./editor.md#SpaceCenter.Editor "SpaceCenter.Editor")
+
+    Game Scenes:
+    :   Editor Vab, Editor Sph
 
 static save(*name*)
 :   Save the game with a given name.
@@ -199,6 +221,22 @@ static quickload()
     > **Note**
     >
     > This is the same as calling [`load()`](#SpaceCenter.load "SpaceCenter.load") with the name “quicksave”.
+
+can\_save
+:   Whether the game can be saved.
+
+    Attribute:
+    :   Read-only, cannot be set
+
+    Return type:
+    :   bool
+
+    > **Note**
+    >
+    > The game cannot be saved in some flight states, e.g. while under acceleration
+    > or moving over the surface. Setting
+    > [`KRPC.game_scene`](../krpc/krpc.md#KRPC.game_scene "KRPC.game_scene") to leave flight saves the
+    > game only when this is true.
 
 static can\_revert\_to\_launch()
 :   Whether the current flight can be reverted to launch.
@@ -273,6 +311,20 @@ g
     Return type:
     :   float
 
+buoyancy\_scalar
+:   The multiplier the game applies to every buoyant force.
+
+    Attribute:
+    :   Read-only, cannot be set
+
+    Return type:
+    :   float
+
+    > **Note**
+    >
+    > Stock KSP sets it to 1.2. A buoyant force is a fifth larger than
+    > [Archimedes’ principle](https://en.wikipedia.org/wiki/Archimedes%27_principle) alone gives.
+
 warp\_rate
 :   The current warp rate. This is the rate at which time is passing for
     either on-rails or physical time warp. For example, a value of 10 means
@@ -286,7 +338,7 @@ warp\_rate
     :   float
 
     Game Scenes:
-    :   Flight
+    :   Space Center, Flight, Tracking Station
 
 warp\_factor
 :   The current warp factor. This is the index of the rate at which time
@@ -302,7 +354,7 @@ warp\_factor
     :   float
 
     Game Scenes:
-    :   Flight
+    :   Space Center, Flight, Tracking Station
 
 rails\_warp\_factor
 :   The time warp rate, using regular “on-rails” time warp. A value between
@@ -320,7 +372,11 @@ rails\_warp\_factor
     :   int
 
     Game Scenes:
-    :   Flight
+    :   Space Center, Flight, Tracking Station
+
+    > **Note**
+    >
+    > Outside the flight scene, every factor can be set.
 
 physics\_warp\_factor
 :   The physical time warp rate. A value between 0 and 3 inclusive. 0 means
@@ -349,7 +405,11 @@ static can\_rails\_warp\_at([*factor=1*])
     :   bool
 
     Game Scenes:
-    :   Flight
+    :   Space Center, Flight, Tracking Station
+
+    > **Note**
+    >
+    > Outside the flight scene, every valid factor can be used.
 
 maximum\_rails\_warp\_factor
 :   The current maximum regular “on-rails” warp factor that can be set.
@@ -364,9 +424,13 @@ maximum\_rails\_warp\_factor
     :   int
 
     Game Scenes:
-    :   Flight
+    :   Space Center, Flight, Tracking Station
 
-static warp\_to(*ut*[, *max\_rails\_rate=100000.0*][, *max\_physics\_rate=2.0*])
+    > **Note**
+    >
+    > Outside the flight scene, this is the highest factor.
+
+static warp\_to(*ut*[, *max\_rails\_rate=1e+05*][, *max\_physics\_rate=2.0*])
 :   Uses time acceleration to warp forward to a time in the future, specified
     by universal time *ut*. This call blocks until the desired
     time is reached. Uses regular “on-rails” or physical time warp as appropriate.
@@ -384,7 +448,12 @@ static warp\_to(*ut*[, *max\_rails\_rate=100000.0*][, *max\_physics\_rate=2.0*])
     :   When the time warp is complete.
 
     Game Scenes:
-    :   Flight
+    :   Space Center, Flight, Tracking Station
+
+    > **Note**
+    >
+    > Outside the flight scene, only regular “on-rails” time warp is used.
+    > Throws an exception if the game scene changes during the time warp.
 
 static transform\_position(*position*, *from*, *to*)
 :   Converts a position from one reference frame to another.
@@ -473,13 +542,22 @@ static raycast\_part(*position*, *direction*, *reference\_frame*)
     :   The part that was hit or `None` if there was no hit.
 
     Return type:
-    :   [`Part`](./parts.md#SpaceCenter.Part "SpaceCenter.Part")
+    :   [`Part`](./parts.md#SpaceCenter.Part "SpaceCenter.Part") or None
 
     Game Scenes:
     :   Flight
 
 far\_available
-:   Whether [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/index.php?/topic/19321-130-ferram-aerospace-research-v0159-liebe-82117/) is installed.
+:   Whether [Ferram Aerospace Research](https://forum.kerbalspaceprogram.com/topic/19321-131-ferram-aerospace-research-v01591-liepmann-4218/) is installed.
+
+    Attribute:
+    :   Read-only, cannot be set
+
+    Return type:
+    :   bool
+
+real\_fuels\_available
+:   Whether [RealFuels](https://forum.kerbalspaceprogram.com/topic/58236-18-real-fuels/) is installed.
 
     Attribute:
     :   Read-only, cannot be set
@@ -502,14 +580,7 @@ static get\_kerbal(*name*)
     :   **name** (*str*)
 
     Return type:
-    :   [`CrewMember`](./vessel.md#SpaceCenter.CrewMember "SpaceCenter.CrewMember")
-
-static load\_space\_center()
-:   > **Warning**
-    >
-    > Deprecated. Set [`KRPC.game_scene`](../krpc/krpc.md#KRPC.game_scene "KRPC.game_scene") instead.
-
-    Switch to the space center view.
+    :   [`CrewMember`](./vessel.md#SpaceCenter.CrewMember "SpaceCenter.CrewMember") or None
 
 map\_filter
 :   The visible objects in map mode.
@@ -551,7 +622,7 @@ warp\_mode
     :   [`WarpMode`](#SpaceCenter.WarpMode "SpaceCenter.WarpMode")
 
     Game Scenes:
-    :   Flight
+    :   Space Center, Flight, Tracking Station
 
 camera
 :   An object that can be used to control the camera.
@@ -707,15 +778,12 @@ class MapFilterType
     deployed\_science\_controller
     :   Deployed Science Controllers.
 
-class LaunchSite
+class LaunchSite(*name*, *body*, *editor\_facility*)
 :   A place where craft can be launched from.
     More of these can be added with mods like Kerbal Konstructs.
 
     name
     :   The name of the launch site.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   str
@@ -723,17 +791,11 @@ class LaunchSite
     body
     :   The celestial body the launch site is on.
 
-        Attribute:
-        :   Read-only, cannot be set
-
         Return type:
         :   [`CelestialBody`](./celestial-body.md#SpaceCenter.CelestialBody "SpaceCenter.CelestialBody")
 
     editor\_facility
     :   Which editor is normally used for this launch site.
-
-        Attribute:
-        :   Read-only, cannot be set
 
         Return type:
         :   [`EditorFacility`](#SpaceCenter.EditorFacility "SpaceCenter.EditorFacility")

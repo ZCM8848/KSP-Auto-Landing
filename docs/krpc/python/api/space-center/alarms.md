@@ -31,7 +31,7 @@ class AlarmManager
         :   **name** (*str*) – The title of the alarm to return.
 
         Return type:
-        :   [`Alarm`](#SpaceCenter.Alarm "SpaceCenter.Alarm")
+        :   [`Alarm`](#SpaceCenter.Alarm "SpaceCenter.Alarm") or None
 
     static add\_alarm(*time*[, *title='Alarm'*][, *description=''*])
     :   Create an alarm.
@@ -194,6 +194,11 @@ class Alarm
         Return type:
         :   float
 
+        > **Note**
+        >
+        > For a maneuver alarm that includes the burn time, setting this sets the margin
+        > before the start of the burn, and the value read back includes half the burn time.
+
     vessel
     :   Vessel the alarm references. `None` if it does not reference a vessel.
 
@@ -201,7 +206,7 @@ class Alarm
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel")
+        :   [`Vessel`](./vessel.md#SpaceCenter.Vessel "SpaceCenter.Vessel") or None
 
     node
     :   Maneuver node the alarm references. Only valid for alarms of type
@@ -305,6 +310,10 @@ class Alarm
 
     remove()
     :   Removes the alarm.
+
+        > **Note**
+        >
+        > Any further use of this object throws an exception.
 
 class AlarmType
 :   The type of an alarm. See [`Alarm.type`](#SpaceCenter.Alarm.type "SpaceCenter.Alarm.type").

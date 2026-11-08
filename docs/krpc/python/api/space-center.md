@@ -3,6 +3,7 @@
 - [SpaceCenter](./space-center/space-center.md)
 - [Vessel](./space-center/vessel.md)
 - [Stage](./space-center/stage.md)
+- [Editor](./space-center/editor.md)
 - [CelestialBody](./space-center/celestial-body.md)
 - [Flight](./space-center/flight.md)
 - [Orbit](./space-center/orbit.md)

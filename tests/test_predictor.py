@@ -271,6 +271,27 @@ def test_sample_drag_spec_no_far_estimation() -> None:
     assert acc[2] > 0.0
 
 
+def test_sample_drag_spec_far_zero_beta_falls_back() -> None:
+    """FAR reporting beta=0 (vessel at rest) falls back to the force estimate."""
+    mock_body = MagicMock()
+    mock_body.equatorial_radius = float(R)
+    mock_body.atmosphere_depth = 70000.0
+    mock_body.position.return_value = (0.0, 0.0, -float(R))
+    mock_body.density_at.return_value = 1.0
+    far_proxy = MagicMock()
+    far_proxy.far_available = True
+    mock_flight = MagicMock()
+    mock_flight.ballistic_coefficient = 0.0
+    mock_flight.simulate_aerodynamic_force_at.return_value = (0.0, 0.0, 500.0)
+
+    spec = sample_drag_spec(body=mock_body, flight=mock_flight,
+                            target_frame=MagicMock(), space_center=far_proxy,
+                            mass=30000.0, altitude_samples=32)
+    assert spec.ballistic_coefficient == pytest.approx(2.7e6, rel=1e-9)
+    # The resulting model must not divide by zero (the old FAR path returned 0).
+    LiftDragModel.from_drag_spec(spec, mass_ref=30000.0)
+
+
 def test_sample_drag_spec_uses_local_sea_level_radius() -> None:
     """sample_drag_spec accepts lat/lon and computes a location-aware sea-level radius."""
     mock_body = MagicMock()

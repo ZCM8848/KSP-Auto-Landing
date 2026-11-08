@@ -9,8 +9,12 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-from recovery.guidance.gfold import GfoldParams, features_of
-from recovery.guidance.tofnet import FEATURES, TofPredictor
+from recovery.guidance.tofnet import (
+    FEATURES,
+    TofFeatureParams,
+    TofPredictor,
+    features_of,
+)
 from recovery.types import FlightState, Quaternion, Situation, Vector3
 
 
@@ -39,6 +43,7 @@ def _state(**overrides: object) -> FlightState:
         packed=False,
         landed=False,
         atmosphere_density=0.0,
+        atmosphere_depth=0.0,
         frame=None,
     )
     data.update(overrides)
@@ -53,7 +58,7 @@ def test_features_of_order_and_values() -> None:
         available_thrust=400000.0,
         specific_impulse=300.0,
     )
-    params = GfoldParams(
+    params = TofFeatureParams(
         min_throttle=0.3,
         max_throttle=0.9,
         glide_slope_angle_deg=45.0,
@@ -78,7 +83,7 @@ def test_features_of_order_and_values() -> None:
 def test_features_of_thrust_fallback() -> None:
     """available_thrust == 0 falls back to max_thrust."""
     state = _state(available_thrust=0.0, max_thrust=450000.0)
-    f = features_of(state, GfoldParams())
+    f = features_of(state, TofFeatureParams())
     assert f[8] == 450000.0
 
 

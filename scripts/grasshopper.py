@@ -1,0 +1,658 @@
+"""Grasshopper hop: vertical ascent to 10 km, engine cutoff, 6-DOF SCvx landing.
+
+Mission profile
+---------------
+1. Ignite on the pad and follow a vertical velocity profile to ``ASCENT_ALT``
+   (default 10 km).  The throttle is held inside the engine's allowed
+   ``[MIN_THROTTLE, 1]`` band.
+2. Cut the engine at the top, coast for ``COAST_S`` seconds (attitude held
+   vertical, RCS active).
+3. Solve a 6-DOF OpenSCvx powered-descent problem from the post-coast state to
+   the launch-pad centre, with thrust bounded to ``[40 %, 100 %]``, and track
+   the published plan at 50 Hz.  The asynchronous ``ScvxSolveService`` keeps
+   refining the remaining horizon; the control loop never blocks on it.
+4. Cut the engine at touchdown and report the landing error.
+
+The target frame is the landing-site frame built by ``recovery``: origin at
+the pad surface, ``+z`` local up.  ``target_height`` is the vessel CoM height
+when it is sitting on its legs (measured before liftoff), so the plan's final
+position is the actual touchdown CoM position.
+
+Run with the KRPC environment::
+
+    D:\\miniforge3\\envs\\KRPC\\python.exe scripts/grasshopper.py
+"""
+
+from __future__ import annotations
+
+import math
+import sys
+import time
+from dataclasses import replace
+
+import numpy as np
+
+from recovery import ConnectionManager, FramePacer
+from recovery.control import LocalAttitudeController
+from recovery.data.targets import LAUNCHPAD_JNSQ
+from recovery.guidance import (
+    AttitudeModel,
+    EngineModel,
+    ScvxConfig,
+    ScvxSolveService,
+    build_six_dof_problem,
+)
+from recovery.specs import BodySpec, DragSpec
+from recovery.types import FlightState, Situation, Vector3
+
+# ---------------------------------------------------------------------------
+# Mission tuning
+# ---------------------------------------------------------------------------
+
+VESSEL = "VTVL"
+BOOSTER_ID = "vtvl"
+TARGET = LAUNCHPAD_JNSQ
+
+ASCENT_ALT = 10_000.0     # cutoff altitude above the pad surface (m)
+VZ_MAX = 150.0            # maximum ascent vertical speed (m/s)
+A_BRAKE = 4.0             # ascent profile deceleration near cutoff (m/s²)
+ASCENT_KP = 0.25          # vertical-speed loop gain (1/s)
+
+COAST_S = 4.0             # engine-off coast before the SCvx solve (s)
+DESCENT_VZ = -200.0       # start the SCvx descent at this vertical speed (m/s)
+MIN_THROTTLE = 0.40       # engine lower throttle limit
+LOOP_HZ = 50.0            # control-loop rate
+SCVX_N = 18               # transcription nodes
+SCVX_ITERS = 40           # SCP iterations per refresh
+SCVX_TF_HINT = 45.0       # initial time-of-flight seed (s)
+TERMINAL_ALT = 2000.0     # switch to the terminal hoverslam below this height (m)
+TERM_KP = 0.8             # terminal horizontal position gain (1/s²)
+TERM_KD = 1.8             # terminal horizontal velocity gain (1/s)
+TERM_MAX_HACC = 4.0       # terminal horizontal acceleration limit (m/s²)
+
+# Plan-tracking feedback (thrust-acceleration correction, m/s²).
+KP_POS = 0.20
+KD_VEL = 1.00
+MAX_FEEDBACK = 2.0
+
+G0 = 9.80665
+LOG_PATH = "grasshopper_flight.csv"
+
+
+def _clamp(value: float, low: float, high: float) -> float:
+    return min(max(value, low), high)
+
+
+def _unit(vector: np.ndarray) -> np.ndarray:
+    norm = float(np.linalg.norm(vector))
+    if norm < 1e-9:
+        return np.array([0.0, 0.0, 1.0])
+    return vector / norm
+
+
+def _vec3(vector: np.ndarray | tuple[float, float, float]) -> Vector3:
+    return Vector3(float(vector[0]), float(vector[1]), float(vector[2]))
+
+
+def _engine_model_from_part(vessel: object, state: FlightState) -> EngineModel:
+    """Engine capability before ignition (when ``FlightState`` reports zeros)."""
+    engines = list(vessel.parts.engines)  # type: ignore[attr-defined]
+    active = [engine for engine in engines if bool(engine.active)]
+    engine = active[0] if active else engines[0]
+    return EngineModel(
+        available_thrust=float(engine.max_thrust),
+        isp=float(engine.specific_impulse),
+        dry_mass=float(state.dry_mass),
+    )
+
+
+def _ascent_command(
+    state: FlightState,
+    target_z: float,
+    up: np.ndarray,
+) -> tuple[float, tuple[float, float, float]]:
+    """Vertical profile plus a gentle lateral station-keeping term.
+
+    Holding x/y near the pad during the 10 km climb removes most of the wind
+    drift before the terminal phase; without it the booster can be hundreds of
+    metres downwind by cutoff.
+    """
+    h = target_z - float(state.position.z)
+    vz = float(state.velocity.z)
+    if h <= 0.0:
+        return 0.0, (float(up[0]), float(up[1]), float(up[2]))
+    brake_height = VZ_MAX * VZ_MAX / (2.0 * A_BRAKE)
+    vz_des = min(VZ_MAX, math.sqrt(2.0 * A_BRAKE * h))
+    feedforward = -A_BRAKE if h < brake_height else 0.0
+    a_cmd = feedforward + ASCENT_KP * (vz_des - vz)
+    vertical_acc = G0 + a_cmd
+
+    position = np.asarray(state.position, dtype=float)
+    velocity = np.asarray(state.velocity, dtype=float)
+    horizontal_acc = -0.15 * position[:2] - 0.8 * velocity[:2]
+    horizontal_norm = float(np.linalg.norm(horizontal_acc))
+    if horizontal_norm > 1.5:
+        horizontal_acc *= 1.5 / horizontal_norm
+
+    acceleration = (
+        np.array([horizontal_acc[0], horizontal_acc[1], 0.0], dtype=float)
+        + vertical_acc * up
+    )
+    magnitude = float(np.linalg.norm(acceleration))
+    thrust = max(float(state.available_thrust), float(state.max_thrust))
+    if thrust <= 0.0 or magnitude <= 1e-9:
+        return 0.0, (float(up[0]), float(up[1]), float(up[2]))
+    direction = acceleration / magnitude
+    throttle = float(state.mass) * magnitude / thrust
+    return _clamp(throttle, MIN_THROTTLE, 1.0), (
+        float(direction[0]),
+        float(direction[1]),
+        float(direction[2]),
+    )
+
+
+def _synthetic_descent_state(
+    state: FlightState,
+    *,
+    mass: float,
+    altitude: float,
+    vertical_speed: float,
+    ut: float,
+) -> FlightState:
+    """A 10 km state used only to size/compile the OCP before launch."""
+    return replace(
+        state,
+        ut=ut,
+        met=float(state.met),
+        position=Vector3(0.0, 0.0, altitude),
+        velocity=Vector3(0.0, 0.0, vertical_speed),
+        altitude=altitude,
+        surface_altitude=altitude,
+        mass=mass,
+        thrust=0.0,
+        throttle=0.0,
+        available_thrust=float(state.available_thrust),
+        max_thrust=float(state.max_thrust),
+        max_vacuum_thrust=float(state.max_vacuum_thrust),
+        specific_impulse=float(state.specific_impulse),
+        max_acceleration=float(state.available_thrust) / max(mass, 1e-3),
+        situation=Situation.FLYING,
+        landed=False,
+    )
+
+
+def _plan_thrust(
+    plan: object,
+    state: FlightState,
+    elapsed: float,
+) -> tuple[float, tuple[float, float, float], np.ndarray]:
+    """Blend open-loop plan thrust with position/velocity feedback.
+
+    Returns ``(throttle, unit_direction, desired_position)``.
+    """
+    desired_p, desired_v, _ = plan.state_at(elapsed)  # type: ignore[attr-defined]
+    feedforward = np.asarray(plan.thrust_at(elapsed), dtype=float)  # type: ignore[attr-defined]
+    error_p = np.asarray(desired_p, dtype=float) - np.asarray(state.position, dtype=float)
+    error_v = np.asarray(desired_v, dtype=float) - np.asarray(state.velocity, dtype=float)
+    feedback = KP_POS * error_p + KD_VEL * error_v
+    feedback_norm = float(np.linalg.norm(feedback))
+    if feedback_norm > MAX_FEEDBACK:
+        feedback *= MAX_FEEDBACK / feedback_norm
+
+    acceleration = feedforward / max(float(state.mass), 1e-3) + feedback
+    direction = _unit(acceleration)
+    thrust_capability = max(float(state.available_thrust), float(state.max_thrust))
+    if thrust_capability <= 0.0:
+        return 0.0, tuple(direction), np.asarray(desired_p, dtype=float)
+
+    # A true coast command stays a coast.  A positive command is pushed into
+    # the engine's admissible band; the OCP is allowed to choose zero thrust
+    # (engine cutoff is legal), but it must not ask the engine for 1–39 %.
+    planned_magnitude = float(np.linalg.norm(feedforward))
+    magnitude = float(state.mass) * float(np.linalg.norm(acceleration))
+    if planned_magnitude <= 1e-6 and magnitude < MIN_THROTTLE * thrust_capability:
+        return 0.0, tuple(direction), np.asarray(desired_p, dtype=float)
+    magnitude = _clamp(magnitude, MIN_THROTTLE * thrust_capability, thrust_capability)
+    return magnitude / thrust_capability, tuple(direction), np.asarray(desired_p, dtype=float)
+
+
+def _terminal_command(
+    state: FlightState,
+    body_spec: BodySpec,
+    drag_spec: DragSpec,
+    target_height: float,
+) -> tuple[float, tuple[float, float, float], np.ndarray]:
+    """Terminal hoverslam: zero vertical speed at the pad, correct lateral drift.
+
+    This is used only for the last ``TERMINAL_ALT`` metres.  It is a
+    predictor-free feedback law: the vertical term asks for the constant
+    deceleration that nulls ``vz`` at the target, and the horizontal term
+    damps the measured lateral position/velocity.  The SCvx plan owns the
+    high-altitude descent; this law removes the accumulated wind/model error
+    at touchdown.
+    """
+    position = np.asarray(state.position, dtype=float)
+    velocity = np.asarray(state.velocity, dtype=float)
+    center = np.asarray(body_spec.body_center, dtype=float)  # type: ignore[attr-defined]
+    up = -center / max(float(np.linalg.norm(center)), 1e-9)
+    radius = float(np.linalg.norm(position - center))
+    g_local = float(body_spec.mu) / max(radius * radius, 1.0)  # type: ignore[attr-defined]
+    height = float(position[2]) - float(target_height)
+    vz = float(velocity[2])
+
+    # Atmospheric drag along the velocity (positive upward for a descent).
+    sea_radius = float(drag_spec.sea_level_radius)  # type: ignore[attr-defined]
+    altitude = radius - sea_radius
+    alts = np.asarray(drag_spec.density_alts, dtype=float)  # type: ignore[attr-defined]
+    vals = np.asarray(drag_spec.density_vals, dtype=float)  # type: ignore[attr-defined]
+    if altitude <= 0.0 or altitude >= alts[-1]:
+        density = float(vals[0]) if altitude <= 0.0 else 0.0
+    else:
+        density = float(np.interp(altitude, alts, vals))
+    drag_force = 0.5 * density * float(drag_spec.cd_area or 0.0) * vz * abs(vz)  # type: ignore[attr-defined]
+    drag_acc = drag_force / max(float(state.mass), 1e-6)
+
+    if height <= 0.05:
+        vertical_acc = g_local
+    else:
+        required_decel = (vz * vz) / (2.0 * height)
+        vertical_acc = g_local + required_decel - drag_acc
+
+    # Lateral policy near the ground:
+    #   > 200 m : full position/velocity PD
+    #   200..20 : velocity damping only (small tilt, no position chasing)
+    #   < 20 m  : vertical attitude; the legs must take any residual drift
+    if height > 200.0:
+        horizontal_acc = -TERM_KP * position[:2] - TERM_KD * velocity[:2]
+    elif height > 20.0:
+        horizontal_acc = -2.0 * velocity[:2]
+    else:
+        horizontal_acc = np.zeros(2, dtype=float)
+    horizontal_norm = float(np.linalg.norm(horizontal_acc))
+    if horizontal_norm > TERM_MAX_HACC:
+        horizontal_acc *= TERM_MAX_HACC / horizontal_norm
+
+    thrust_capability = max(float(state.available_thrust), float(state.max_thrust))
+    if thrust_capability <= 0.0:
+        return 0.0, (0.0, 0.0, 1.0), np.array([0.0, 0.0, target_height])
+    accel_limit = thrust_capability / max(float(state.mass), 1e-6)
+    vertical_acc = min(vertical_acc, accel_limit)
+    remaining = max(accel_limit * accel_limit - vertical_acc * vertical_acc, 0.0) ** 0.5
+    if horizontal_norm > remaining and horizontal_norm > 1e-9:
+        horizontal_acc *= remaining / horizontal_norm
+    horizontal_3d = np.array(
+        [horizontal_acc[0], horizontal_acc[1], 0.0], dtype=float
+    )
+    acceleration = horizontal_3d + vertical_acc * up
+    magnitude = float(np.linalg.norm(acceleration))
+    if magnitude < 1e-9:
+        return 0.0, (0.0, 0.0, 1.0), np.array([0.0, 0.0, target_height])
+    throttle = float(state.mass) * magnitude / thrust_capability
+    throttle = _clamp(throttle, MIN_THROTTLE, 1.0)
+    direction = acceleration / magnitude
+    return throttle, (float(direction[0]), float(direction[1]), float(direction[2])), np.array(
+        [0.0, 0.0, target_height]
+    )
+
+
+def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+    with ConnectionManager(address="127.0.0.1") as manager:
+        booster = manager.add_booster(BOOSTER_ID, VESSEL)
+        manager.register_target(BOOSTER_ID, lon=TARGET.lon, lat=TARGET.lat)
+        manager.start()
+
+        state: FlightState | None = None
+        deadline = time.monotonic() + 10.0
+        while state is None and time.monotonic() < deadline:
+            state = booster.snapshot()
+            time.sleep(0.02)
+        if state is None:
+            raise RuntimeError("no telemetry snapshot from KSP")
+
+        target_height = float(state.position.z)
+        body_spec, drag_spec = booster.sample_predictor_specs(mass=float(booster.raw.mass))
+        up_vector = -np.asarray(body_spec.body_center, dtype=float) / max(
+            float(np.linalg.norm(np.asarray(body_spec.body_center, dtype=float))), 1e-9
+        )
+        print(
+            f"Vessel {VESSEL!r}: mass={state.mass:.0f} kg dry={state.dry_mass:.0f} kg "
+            f"target_height={target_height:.3f} m"
+        )
+        print(
+            f"Body: r={body_spec.body_radius:.0f} m mu={body_spec.mu:.3e} "
+            f"CdA={drag_spec.cd_area:.3f} m² beta={drag_spec.ballistic_coefficient:.1f}"
+        )
+
+        booster.physics_range = 200_000.0
+        booster.controls.sas = False
+        booster.controls.rcs = True
+        booster.controls.legs = True
+        booster.controls.throttle = 0.0
+        time.sleep(0.3)
+        state = booster.snapshot()
+        if state is None:
+            raise RuntimeError("no telemetry snapshot after RCS enable")
+
+        # The SCvx attitude model must include RCS torque, so build it after
+        # RCS has been enabled.  The engine's gimbal authority is not reported
+        # while the engine is off; RCS + reaction wheels are the conservative
+        # envelope used to compile the problem.
+        engine_model = _engine_model_from_part(booster.raw, state)
+        attitude_model = AttitudeModel.from_state(state)
+        print(
+            f"Engine: Tmax={engine_model.available_thrust:.0f} N "
+            f"Isp={engine_model.isp:.1f} s; "
+            f"torque={attitude_model.max_torque} N·m"
+        )
+
+        # Size and compile the 6-DOF OCP while still on the pad.  The actual
+        # initial state is injected at the post-coast refresh; the synthetic
+        # state only needs to make the bounds large enough for the real hop.
+        synthetic = _synthetic_descent_state(
+            state,
+            mass=float(state.mass),
+            altitude=9_700.0,
+            vertical_speed=DESCENT_VZ,
+            ut=float(state.ut) + 60.0,
+        )
+        config = ScvxConfig(
+            n=SCVX_N,
+            min_throttle=0.0,
+            max_iters_per_refresh=SCVX_ITERS,
+            horizon_factor=2.0,
+            horizon_min=1.0,
+            multishot_plan=True,
+        )
+        problem = build_six_dof_problem(
+            body_spec,
+            drag_spec,
+            state=synthetic,
+            target_height=target_height,
+            engine=engine_model,
+            attitude=attitude_model,
+            config=config,
+        )
+        service = ScvxSolveService(workers=1)
+        service.register(BOOSTER_ID, problem, config=config)
+        print("Compiling 6-DOF SCvx problem (about 10 s)...")
+        service.initialize()
+        service.start()
+
+        # Safety net: the user can always quickload this save.
+        booster.client.space_center.quicksave()
+        print("Saved quicksave.  Igniting...")
+
+        # Ignite at zero throttle, then let the ascent controller take over.
+        booster.controls.activate_next_stage()
+        time.sleep(0.2)
+        # Staging can reset the RCS/SAS state; the write-through cache would
+        # otherwise keep suppressing a re-write because it believes RCS is
+        # already on.  Bypass it so the attitude loop has its full torque
+        # authority for the whole flight.
+        booster.controls.raw.rcs = True
+        booster.controls.raw.sas = False
+        check = booster.snapshot()
+        if check is not None:
+            print(f"Post-stage RCS torque: {check.available_rcs_torque}")
+
+        attitude = LocalAttitudeController()
+        pacer = FramePacer(hz=LOOP_HZ)
+        log = open(LOG_PATH, "w", encoding="utf-8", newline="")
+        log.write(
+            "wall,ut,phase,z,vz,speed,mass,throttle,plan_elapsed,plan_duration,"
+            "plan_iters,plan_converged,plan_age,err_x,err_y,err_z,"
+            "desired_x,desired_y,desired_z,solver_error\n"
+        )
+        log.flush()
+
+        phase = "ascent"
+        coast_ut = 0.0
+        latest_plan: object | None = None
+        last_plan_time = time.monotonic()
+        last_plan_id: int | None = None
+        last_log = time.monotonic()
+        started = time.monotonic()
+        touchdown_z = target_height
+
+        def log_row(
+            *,
+            s: FlightState,
+            throttle: float,
+            plan_elapsed: float,
+            desired_p: np.ndarray | None,
+            solver_error: str | None,
+        ) -> None:
+            now = time.monotonic()
+            plan = latest_plan
+            plan_duration = float(plan.duration) if plan is not None else float("nan")  # type: ignore[attr-defined]
+            plan_iters = int(plan.iterations) if plan is not None else 0  # type: ignore[attr-defined]
+            plan_converged = bool(plan.converged) if plan is not None else False  # type: ignore[attr-defined]
+            plan_age = max(0.0, now - last_plan_time) if plan is not None else float("nan")
+            if desired_p is None:
+                err = np.asarray(s.position, dtype=float) - np.array(
+                    [0.0, 0.0, touchdown_z], dtype=float
+                )
+                des = np.array([float("nan")] * 3)
+            else:
+                des = desired_p
+                err = np.asarray(s.position, dtype=float) - des
+            log.write(
+                f"{now - started:.3f},{s.ut:.3f},{phase},"
+                f"{s.position.z:.3f},{s.velocity.z:.3f},"
+                f"{math.hypot(s.velocity.x, s.velocity.y, s.velocity.z):.3f},"
+                f"{s.mass:.2f},{throttle:.4f},{plan_elapsed:.3f},{plan_duration:.3f},"
+                f"{plan_iters},{int(plan_converged)},{plan_age:.3f},"
+                f"{err[0]:.3f},{err[1]:.3f},{err[2]:.3f},"
+                f"{des[0]:.3f},{des[1]:.3f},{des[2]:.3f},"
+                f"{'' if solver_error is None else solver_error}\n"
+            )
+            log.flush()
+
+        try:
+            while True:
+                pacer.tick()
+                s = booster.snapshot()
+                if s is None:
+                    continue
+                now = time.monotonic()
+
+                if phase == "ascent":
+                    throttle, nose = _ascent_command(
+                        s, ASCENT_ALT, up_vector
+                    )
+                    sticks = attitude.step(s, nose)
+                    booster.controls.apply(
+                        throttle=throttle,
+                        pitch=sticks.pitch,
+                        yaw=sticks.yaw,
+                        roll=sticks.roll,
+                    )
+                    log_row(s=s, throttle=throttle, plan_elapsed=0.0,
+                            desired_p=None, solver_error=None)
+                    if now - last_log >= 1.0:
+                        print(
+                            f"[ascent] t={now - started:5.1f}s z={s.position.z:8.1f} "
+                            f"vz={s.velocity.z:6.1f} thr={throttle:.3f} "
+                            f"mass={s.mass:7.0f}"
+                        )
+                        last_log = now
+                    if s.position.z >= ASCENT_ALT:
+                        booster.controls.throttle = 0.0
+                        phase = "coast"
+                        coast_ut = float(s.ut)
+                        print(
+                            f"Engine cutoff at z={s.position.z:.1f} m "
+                            f"vz={s.velocity.z:.1f} m/s; coasting {COAST_S:.1f}s"
+                        )
+                    continue
+
+                if phase == "coast":
+                    sticks = attitude.step(s, (0.0, 0.0, 1.0))
+                    booster.controls.apply(
+                        throttle=0.0,
+                        pitch=sticks.pitch,
+                        yaw=sticks.yaw,
+                        roll=sticks.roll,
+                    )
+                    log_row(s=s, throttle=0.0, plan_elapsed=0.0,
+                            desired_p=None, solver_error=None)
+                    if now - last_log >= 1.0:
+                        print(
+                            f"[coast ] t={now - started:5.1f}s z={s.position.z:8.1f} "
+                            f"vz={s.velocity.z:6.1f} mass={s.mass:7.0f}"
+                        )
+                        last_log = now
+                    if (
+                        float(s.ut) - coast_ut >= COAST_S
+                        and s.velocity.z <= DESCENT_VZ
+                    ):
+                        # Start MPC from the actual post-coast measurement.
+                        service.refresh(
+                            BOOSTER_ID,
+                            s,
+                            engine=EngineModel.from_state(s),
+                            tf_hint=SCVX_TF_HINT,
+                            attitude=AttitudeModel.from_state(s),
+                        )
+                        phase = "descent"
+                        print(
+                            f"SCvx descent seeded at z={s.position.z:.1f} m "
+                            f"vz={s.velocity.z:.1f} m/s mass={s.mass:.0f} kg"
+                        )
+                    continue
+
+                # ---- powered descent -------------------------------------
+                if s.position.z <= target_height + TERMINAL_ALT:
+                    if s.position.z <= target_height + 50.0:
+                        # Bypass the write-through cache: staging may have
+                        # changed the real control state behind our back.
+                        booster.controls.raw.legs = True
+                        booster.controls.raw.rcs = True
+                    throttle, nose, desired_p = _terminal_command(
+                        s, body_spec, drag_spec, target_height
+                    )
+                    elapsed = 0.0
+                    terminal_mode = True
+                else:
+                    terminal_mode = False
+                    latest_plan = service.latest_plan(BOOSTER_ID)
+                    plan_stats = service.stats(BOOSTER_ID)
+                    plan_ready = latest_plan is not None and (
+                        last_plan_id is not None or plan_stats.converged
+                    )
+                    if not plan_ready:
+                        sticks = attitude.step(s, (0.0, 0.0, 1.0))
+                        booster.controls.apply(
+                            throttle=MIN_THROTTLE,
+                            pitch=sticks.pitch,
+                            yaw=sticks.yaw,
+                            roll=sticks.roll,
+                        )
+                        log_row(s=s, throttle=MIN_THROTTLE, plan_elapsed=0.0,
+                                desired_p=None, solver_error=service.last_error(BOOSTER_ID))
+                        continue
+
+                    if id(latest_plan) != last_plan_id:
+                        last_plan_id = id(latest_plan)
+                        last_plan_time = time.monotonic()
+
+                    # Use the current game clock for plan phase; a telemetry frame
+                    # is up to one interval old, and the plan is a game-time plan.
+                    current_ut = booster.current_ut()
+                    elapsed = max(0.0, float(current_ut) - float(latest_plan.t0_ut))  # type: ignore[attr-defined]
+                    elapsed = min(elapsed, float(latest_plan.duration))  # type: ignore[attr-defined]
+                    throttle, nose, desired_p = _plan_thrust(latest_plan, s, elapsed)
+
+                sticks = attitude.step(s, nose)
+                booster.controls.apply(
+                    throttle=throttle,
+                    pitch=sticks.pitch,
+                    yaw=sticks.yaw,
+                    roll=sticks.roll,
+                )
+                log_row(
+                    s=s,
+                    throttle=throttle,
+                    plan_elapsed=elapsed,
+                    desired_p=desired_p,
+                    solver_error=service.last_error(BOOSTER_ID),
+                )
+                if now - last_log >= 1.0:
+                    stats = service.stats(BOOSTER_ID)
+                    plan_text = (
+                        "terminal"
+                        if terminal_mode
+                        else f"{elapsed:5.1f}/{latest_plan.duration:5.1f}s"  # type: ignore[union-attr]
+                    )
+                    print(
+                        f"[descent] t={now - started:5.1f}s z={s.position.z:8.1f} "
+                        f"vz={s.velocity.z:7.2f} thr={throttle:.3f} "
+                        f"{plan_text} iters={stats.iterations} conv={stats.converged} "
+                        f"err={service.last_error(BOOSTER_ID)}"
+                    )
+                    last_log = now
+
+                # Touchdown: cut the engine when the CoM reaches its
+                # on-the-legs height, or when KSP reports a landed situation.
+                # Keep the RCS/attitude loop alive for a short settle window:
+                # cutting the sticks at the instant of contact lets a small
+                # residual tilt/rate topple the booster.
+                if s.landed or (
+                    s.position.z <= target_height + 0.12
+                    and s.velocity.z > -1.2
+                ):
+                    booster.controls.throttle = 0.0
+                    booster.controls.apply(pitch=0.0, yaw=0.0, roll=0.0)
+                    print(
+                        f"Touchdown: z={s.position.z:.3f} m "
+                        f"(target {target_height:.3f}), "
+                        f"vz={s.velocity.z:.3f} m/s, "
+                        f"xy=({s.position.x:.3f}, {s.position.y:.3f}) m"
+                    )
+                    settle_start = time.monotonic()
+                    settle_ut = float(s.ut)
+                    while time.monotonic() - settle_start < 2.5:
+                        pacer.tick()
+                        settled = booster.snapshot()
+                        if settled is None:
+                            break
+                        s = settled
+                        if not s.loaded or s.mass <= 0.0:
+                            break
+                        if float(s.ut) - settle_ut > 2.0:
+                            break
+                        # Do not drive attitude on the ground: a stick command
+                        # with the legs planted produces a toppling torque.
+                        booster.controls.apply(
+                            throttle=0.0, pitch=0.0, yaw=0.0, roll=0.0
+                        )
+                    booster.controls.cut_thrust()
+                    tilt = math.degrees(
+                        math.acos(min(max(float(s.direction.z), -1.0), 1.0))
+                    )
+                    print(
+                        f"Settled: z={s.position.z:.3f} m, "
+                        f"vz={s.velocity.z:.3f} m/s, tilt={tilt:.2f} deg"
+                    )
+                    break
+        finally:
+            booster.controls.cut_thrust()
+            service.stop()
+            log.close()
+
+        final = booster.snapshot()
+        if final is not None:
+            xy_error = math.hypot(float(final.position.x), float(final.position.y))
+            z_error = float(final.position.z) - target_height
+            print(
+                f"Landing error: xy={xy_error:.3f} m, z={z_error:.3f} m, "
+                f"mass={final.mass:.1f} kg, situation={final.situation.name}"
+            )
+        print(f"Flight log: {LOG_PATH}")
+
+
+if __name__ == "__main__":
+    main()

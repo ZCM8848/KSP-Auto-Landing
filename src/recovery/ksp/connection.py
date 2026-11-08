@@ -7,6 +7,7 @@ from typing import Any
 
 import krpc
 
+from ..perf import PROFILER
 from ..types import FlightState
 from .control import VesselControls
 from .exceptions import (
@@ -169,9 +170,13 @@ class KspConnection:
         """Return the latest frozen telemetry snapshot, or ``None`` when
         the telemetry thread has not yet produced its first frame.
         """
-        if self._telemetry is None:
+        # Bind once: ``close()`` may null ``_telemetry`` between the check
+        # and the read, which would raise ``AttributeError`` on ``None.get``.
+        telemetry = self._telemetry
+        if telemetry is None:
             return None
-        return self._telemetry.get()
+        with PROFILER.section("io.snapshot"):
+            return telemetry.get()
 
     def frame(self, name: str = "target") -> Any:
         """Return a kRPC reference frame handle.

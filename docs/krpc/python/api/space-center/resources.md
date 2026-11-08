@@ -3,8 +3,8 @@
 class Resources
 :   Represents the collection of resources stored in a vessel, stage or part.
     Created by calling [`Vessel.resources`](./vessel.md#SpaceCenter.Vessel.resources "SpaceCenter.Vessel.resources"),
-    [`Vessel.resources_in_decouple_stage()`](./vessel.md#SpaceCenter.Vessel.resources_in_decouple_stage "SpaceCenter.Vessel.resources_in_decouple_stage") or
-    [`Part.resources`](./parts.md#SpaceCenter.Part.resources "SpaceCenter.Part.resources").
+    [`Stage.resources()`](./stage.md#SpaceCenter.Stage.resources "SpaceCenter.Stage.resources"), [`EditorVessel.resources`](./editor.md#SpaceCenter.EditorVessel.resources "SpaceCenter.EditorVessel.resources")
+    or [`Part.resources`](./parts.md#SpaceCenter.Part.resources "SpaceCenter.Part.resources").
 
     all
     :   All the individual resources that can be stored.
@@ -16,7 +16,7 @@ class Resources
         :   list([`Resource`](#SpaceCenter.Resource "SpaceCenter.Resource"))
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
     with\_resource(*name*)
     :   All the individual resources with the given name that can be stored.
@@ -28,7 +28,7 @@ class Resources
         :   list([`Resource`](#SpaceCenter.Resource "SpaceCenter.Resource"))
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
     names
     :   A list of resource names that can be stored.
@@ -40,7 +40,7 @@ class Resources
         :   list(str)
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
     has\_resource(*name*)
     :   Check whether the named resource can be stored.
@@ -52,7 +52,7 @@ class Resources
         :   bool
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
     amount(*name*)
     :   Returns the amount of a resource that is currently stored.
@@ -64,7 +64,7 @@ class Resources
         :   float
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
     max(*name*)
     :   Returns the amount of a resource that can be stored.
@@ -76,7 +76,7 @@ class Resources
         :   float
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
     static density(*name*)
     :   Returns the density of a resource, in \(kg/l\).
@@ -88,7 +88,7 @@ class Resources
         :   float
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
     static flow\_mode(*name*)
     :   Returns the flow mode of a resource.
@@ -100,7 +100,7 @@ class Resources
         :   [`ResourceFlowMode`](#SpaceCenter.ResourceFlowMode "SpaceCenter.ResourceFlowMode")
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
     enabled
     :   Whether use of all the resources are enabled.
@@ -112,7 +112,7 @@ class Resources
         :   bool
 
         Game Scenes:
-        :   Flight
+        :   Flight, Editor Vab, Editor Sph
 
         > **Note**
         >
@@ -132,6 +132,9 @@ class Resource
         Return type:
         :   str
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     part
     :   The part containing the resource.
 
@@ -140,6 +143,9 @@ class Resource
 
         Return type:
         :   [`Part`](./parts.md#SpaceCenter.Part "SpaceCenter.Part")
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     amount
     :   The amount of the resource that is currently stored in the part.
@@ -150,6 +156,9 @@ class Resource
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     max
     :   The total amount of the resource that can be stored in the part.
 
@@ -158,6 +167,9 @@ class Resource
 
         Return type:
         :   float
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
     density
     :   The density of the resource, in \(kg/l\).
@@ -168,6 +180,9 @@ class Resource
         Return type:
         :   float
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     flow\_mode
     :   The flow mode of the resource.
 
@@ -177,6 +192,9 @@ class Resource
         Return type:
         :   [`ResourceFlowMode`](#SpaceCenter.ResourceFlowMode "SpaceCenter.ResourceFlowMode")
 
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
+
     enabled
     :   Whether use of this resource is enabled.
 
@@ -185,6 +203,9 @@ class Resource
 
         Return type:
         :   bool
+
+        Game Scenes:
+        :   Flight, Editor Vab, Editor Sph
 
 class ResourceTransfer
 :   Transfer resources between parts.
@@ -208,8 +229,26 @@ class ResourceTransfer
 
         > **Note**
         >
-        > The transfer is canceled if the client that started it disconnects;
-        > a canceled transfer is marked as complete.
+        > Use [`ResourceTransfer.cancel()`](#SpaceCenter.ResourceTransfer.cancel "SpaceCenter.ResourceTransfer.cancel") to stop the transfer before it finishes; a canceled
+        > transfer is marked as complete. Use [`ResourceTransfer.remove()`](#SpaceCenter.ResourceTransfer.remove "SpaceCenter.ResourceTransfer.remove") to release the memory
+        > the server holds for a transfer that is done with. A transfer is stopped and
+        > removed if the client that started it disconnects, or if the flight it runs in
+        > is left.
+
+    cancel()
+    :   Cancel the transfer. No more of the resource is moved and
+        [`ResourceTransfer.complete`](#SpaceCenter.ResourceTransfer.complete "SpaceCenter.ResourceTransfer.complete") becomes true.
+
+    remove()
+    :   Remove the transfer, releasing the memory the server holds for it. The
+        transfer is canceled if it has not finished.
+
+        > **Note**
+        >
+        > Any further use of this object throws an exception. A transfer that is left is
+        > held until the parts it runs between are gone, the flight it runs in is left,
+        > or the client that started it disconnects, whichever comes first; the first of
+        > those may be the rest of the flight away.
 
     amount
     :   The amount of the resource that has been transferred.
@@ -222,7 +261,7 @@ class ResourceTransfer
 
     complete
     :   Whether the transfer has completed. Also becomes true if the transfer is
-        canceled because the client that started it disconnected.
+        canceled by calling [`ResourceTransfer.cancel()`](#SpaceCenter.ResourceTransfer.cancel "SpaceCenter.ResourceTransfer.cancel").
 
         Attribute:
         :   Read-only, cannot be set

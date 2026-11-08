@@ -1,4 +1,4 @@
-# LiDAR
+# LIDAR
 
 LaserDist service.
 
@@ -18,4 +18,4 @@ static laser(*part*)
     :   **part** ([*SpaceCenter.Part*](../space-center/parts.md#SpaceCenter.Part "SpaceCenter.Part"))
 
     Return type:
-    :   [`Laser`](./laser.md#LiDAR.Laser "LiDAR.Laser")
+    :   [`Laser`](./laser.md#LIDAR.Laser "LIDAR.Laser")

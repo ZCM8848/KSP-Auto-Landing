@@ -58,6 +58,43 @@ class AutoPilot
         Game Scenes:
         :   Flight
 
+    update\_mode
+    :   When the auto-pilot’s control loop runs within a server update, relative to the
+        calls the update executes. Defaults to
+        [`AutoPilotUpdateMode.after_calls`](#SpaceCenter.AutoPilotUpdateMode.after_calls "SpaceCenter.AutoPilotUpdateMode.after_calls").
+
+        Attribute:
+        :   Can be read or written
+
+        Return type:
+        :   [`AutoPilotUpdateMode`](#SpaceCenter.AutoPilotUpdateMode "SpaceCenter.AutoPilotUpdateMode")
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The loop runs once per physics tick; this chooses where in the tick that is.
+        > Together with `KRPC.HoldTick` it lets a program place the loop exactly within
+        > its own read, compute and write. When no server is running the loop runs at the
+        > point the game takes control inputs at, whatever the mode, so a vessel is never left
+        > without control input.
+
+    update()
+    :   Run one tick of the auto-pilot’s control loop now. Does nothing if it has already run
+        on this physics tick. Throws an exception if the auto-pilot is not engaged.
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > For [`AutoPilotUpdateMode.manual`](#SpaceCenter.AutoPilotUpdateMode.manual "SpaceCenter.AutoPilotUpdateMode.manual"), where the loop runs only when this is
+        > called. In the other modes this runs it early; either way it runs once per tick. On a
+        > tick it is not called for, the vessel keeps the control output of the last tick it did
+        > run on, and after a tenth of a second of that the auto-pilot stops contributing any
+        > control input at all.
+
     show\_info\_ui
     :   Whether an in-game window showing the auto-pilot’s state (engagement, attitude error,
         target, angular rate, inner-loop PID gains and oscillation suppression) is displayed for
@@ -76,7 +113,7 @@ class AutoPilot
     reset()
     :   Disengages the auto-pilot and resets all configuration parameters to their defaults.
         Also resets the target pitch, heading and roll, and clears all internal controller
-        state, including the oscillation detector’s structural level — which otherwise
+        state, including the oscillation detector’s structural level, which otherwise
         persists across engagements so that a craft known to be flexible re-latches quickly.
 
         Game Scenes:
@@ -99,6 +136,11 @@ class AutoPilot
         > An error will be thrown if this property is set to a reference frame that rotates with
         > the vessel being controlled, as it is impossible to rotate the vessel in such a
         > reference frame.
+        >
+        > The target and the [`AutoPilot.up_reference`](#SpaceCenter.AutoPilot.up_reference "SpaceCenter.AutoPilot.up_reference") are held as vectors in this frame, so
+        > changing it re-interprets them in the new frame rather than converting them: the
+        > orientation the vessel is held in, and what a given [`AutoPilot.target_roll`](#SpaceCenter.AutoPilot.target_roll "SpaceCenter.AutoPilot.target_roll") means,
+        > both change. Set the frame first, then the target.
 
     target\_pitch
     :   The target pitch, in degrees, between -90° and +90°.
@@ -115,7 +157,7 @@ class AutoPilot
         > **Note**
         >
         > A convenience for aiming the nose by angle. Heading (and hence roll) is ill-defined when
-        > the nose is near vertical (pitch → ±90°); near the vertical prefer
+        > the nose is near vertical (a pitch near -90° or +90°). Near the vertical prefer
         > [`AutoPilot.target_direction`](#SpaceCenter.AutoPilot.target_direction "SpaceCenter.AutoPilot.target_direction") or [`AutoPilot.set_direction_and_up()`](#SpaceCenter.AutoPilot.set_direction_and_up "SpaceCenter.AutoPilot.set_direction_and_up"). The setter preserves the
         > current roll relative to [`AutoPilot.up_reference`](#SpaceCenter.AutoPilot.up_reference "SpaceCenter.AutoPilot.up_reference").
 
@@ -134,7 +176,8 @@ class AutoPilot
         > **Note**
         >
         > A convenience for aiming the nose by angle, ill-defined when the nose is near vertical
-        > (pitch → ±90°) — see [`AutoPilot.target_pitch`](#SpaceCenter.AutoPilot.target_pitch "SpaceCenter.AutoPilot.target_pitch"). The setter preserves the current roll
+        > (a pitch near -90° or +90°). See [`AutoPilot.target_pitch`](#SpaceCenter.AutoPilot.target_pitch "SpaceCenter.AutoPilot.target_pitch"). The setter preserves the
+        > current roll
         > relative to [`AutoPilot.up_reference`](#SpaceCenter.AutoPilot.up_reference "SpaceCenter.AutoPilot.up_reference").
 
     target\_roll
@@ -153,13 +196,13 @@ class AutoPilot
 
         > **Note**
         >
-        > When left unset (`NaN`) the auto-pilot suppresses roll rotation — it drives the roll
-        > rate to zero rather than holding a specific roll angle. Setting a value re-rolls the
+        > When left unset (`NaN`) the auto-pilot suppresses roll rotation, driving the roll
+        > rate to zero instead of holding a specific roll angle. Setting a value re-rolls the
         > current target to that angle relative to the up reference while keeping the nose direction.
-        > With the default reference (the frame’s up) this reproduces the historical roll away from
-        > the vertical, and is ill-defined only when the nose points along the reference (near
-        > straight up or down). To hold a well-defined roll through the vertical — for example a
-        > gravity turn — set the up reference off the flight path (see
+        > With the default reference (the frame’s up) this is the roll away from the vertical, and
+        > is ill-defined only when the nose points along the reference (near straight up or down).
+        > To hold a well-defined roll through the vertical, such as through a gravity turn, set
+        > the up reference off the flight path (see
         > [`AutoPilot.set_direction_and_up()`](#SpaceCenter.AutoPilot.set_direction_and_up "SpaceCenter.AutoPilot.set_direction_and_up") / [`AutoPilot.up_reference`](#SpaceCenter.AutoPilot.up_reference "SpaceCenter.AutoPilot.up_reference")).
 
     up\_reference
@@ -185,6 +228,11 @@ class AutoPilot
         > effect of [`AutoPilot.set_direction_and_up()`](#SpaceCenter.AutoPilot.set_direction_and_up "SpaceCenter.AutoPilot.set_direction_and_up"). Setting the target rotation, target direction,
         > or the scalar pitch/heading leaves it unchanged. Choosing a reference off the flight path
         > keeps roll well-defined through the vertical.
+        >
+        > Because roll is measured against this reference, changing it changes the angle that
+        > [`AutoPilot.target_roll`](#SpaceCenter.AutoPilot.target_roll "SpaceCenter.AutoPilot.target_roll") and [`AutoPilot.current_target_roll`](#SpaceCenter.AutoPilot.current_target_roll "SpaceCenter.AutoPilot.current_target_roll") report, even though the
+        > vessel is still being held in exactly the same orientation. Set the reference first and
+        > the roll afterwards, or set both at once with [`AutoPilot.set_direction_and_up()`](#SpaceCenter.AutoPilot.set_direction_and_up "SpaceCenter.AutoPilot.set_direction_and_up").
 
     target\_pitch\_and\_heading(*pitch*, *heading*)
     :   Set target pitch and heading angles.
@@ -199,7 +247,8 @@ class AutoPilot
         > **Note**
         >
         > A convenience for aiming the nose by angle; heading is ill-defined when the nose is near
-        > vertical (pitch → ±90°), so near the vertical prefer [`AutoPilot.target_direction`](#SpaceCenter.AutoPilot.target_direction "SpaceCenter.AutoPilot.target_direction") or
+        > vertical (a pitch near -90° or +90°), so near the vertical prefer
+        > [`AutoPilot.target_direction`](#SpaceCenter.AutoPilot.target_direction "SpaceCenter.AutoPilot.target_direction") or
         > [`AutoPilot.set_direction_and_up()`](#SpaceCenter.AutoPilot.set_direction_and_up "SpaceCenter.AutoPilot.set_direction_and_up"). Preserves the current roll relative to
         > [`AutoPilot.up_reference`](#SpaceCenter.AutoPilot.up_reference "SpaceCenter.AutoPilot.up_reference").
 
@@ -215,6 +264,13 @@ class AutoPilot
 
         Game Scenes:
         :   Flight
+
+        > **Note**
+        >
+        > The setter re-aims the nose and nothing else: it preserves the current
+        > [`AutoPilot.target_roll`](#SpaceCenter.AutoPilot.target_roll "SpaceCenter.AutoPilot.target_roll") relative to [`AutoPilot.up_reference`](#SpaceCenter.AutoPilot.up_reference "SpaceCenter.AutoPilot.up_reference"), and leaves roll
+        > suppressed if no target roll is set. Point the nose repeatedly and a commanded roll is
+        > held throughout.
 
     target\_rotation
     :   The target rotation quaternion. Setting this also sets the target roll.
@@ -238,7 +294,7 @@ class AutoPilot
 
         Parameters:
         :   - **direction** (*tuple*) – The direction to point the nose in.
-            - **up** (*tuple*) – The reference direction the roof is rolled towards. Need not be normalized or perpendicular to *direction* — its component perpendicular to the nose is used. Stored as the [`AutoPilot.up_reference`](#SpaceCenter.AutoPilot.up_reference "SpaceCenter.AutoPilot.up_reference").
+            - **up** (*tuple*) – The reference direction the roof is rolled towards. Need not be normalized or perpendicular to *direction*, as its component perpendicular to the nose is used. Stored as the [`AutoPilot.up_reference`](#SpaceCenter.AutoPilot.up_reference "SpaceCenter.AutoPilot.up_reference").
             - **roll** (*float*) – An additional roll about the nose, in degrees (positive banks right). Defaults to 0.
 
         Game Scenes:
@@ -246,7 +302,7 @@ class AutoPilot
 
         > **Note**
         >
-        > This is the way to hold a well-defined orientation through a maneuver — for example a
+        > This is the way to hold a well-defined orientation through a maneuver such as a
         > gravity turn: pass a fixed *up* (say north) and the roll stays defined the
         > whole way, with no singularity at the vertical. It is well-defined for every nose direction
         > except *up* parallel to *direction* (asking the roof to
@@ -259,7 +315,7 @@ class AutoPilot
     :   The current target pitch the auto-pilot is tracking, in degrees. When
         [`AutoPilot.target_smoothing_time`](#SpaceCenter.AutoPilot.target_smoothing_time "SpaceCenter.AutoPilot.target_smoothing_time") is non-zero this lags the commanded
         [`AutoPilot.target_pitch`](#SpaceCenter.AutoPilot.target_pitch "SpaceCenter.AutoPilot.target_pitch") while a change is slewed in; otherwise the two are equal.
-        A convenience scalar, ill-defined near the vertical — see [`AutoPilot.target_pitch`](#SpaceCenter.AutoPilot.target_pitch "SpaceCenter.AutoPilot.target_pitch").
+        A convenience scalar, ill-defined near the vertical. See [`AutoPilot.target_pitch`](#SpaceCenter.AutoPilot.target_pitch "SpaceCenter.AutoPilot.target_pitch").
 
         Attribute:
         :   Read-only, cannot be set
@@ -274,7 +330,7 @@ class AutoPilot
     :   The current target heading the auto-pilot is tracking, in degrees. When
         [`AutoPilot.target_smoothing_time`](#SpaceCenter.AutoPilot.target_smoothing_time "SpaceCenter.AutoPilot.target_smoothing_time") is non-zero this lags the commanded
         [`AutoPilot.target_heading`](#SpaceCenter.AutoPilot.target_heading "SpaceCenter.AutoPilot.target_heading") while a change is slewed in; otherwise the two are equal.
-        A convenience scalar, ill-defined near the vertical — see [`AutoPilot.target_heading`](#SpaceCenter.AutoPilot.target_heading "SpaceCenter.AutoPilot.target_heading").
+        A convenience scalar, ill-defined near the vertical. See [`AutoPilot.target_heading`](#SpaceCenter.AutoPilot.target_heading "SpaceCenter.AutoPilot.target_heading").
 
         Attribute:
         :   Read-only, cannot be set
@@ -419,8 +475,8 @@ class AutoPilot
 
         > **Note**
         >
-        > The pitch component of [`AutoPilot.attitude_error`](#SpaceCenter.AutoPilot.attitude_error "SpaceCenter.AutoPilot.attitude_error") — the pitch part of the direction error
-        > resolved in the roll-invariant frame, well-defined near the vertical.
+        > The pitch component of [`AutoPilot.attitude_error`](#SpaceCenter.AutoPilot.attitude_error "SpaceCenter.AutoPilot.attitude_error"), the pitch part of the direction
+        > error resolved in the roll-invariant frame, well-defined near the vertical.
 
     heading\_error
     :   The error, in degrees, between the vessels current and target heading.
@@ -437,9 +493,9 @@ class AutoPilot
 
         > **Note**
         >
-        > The yaw component of [`AutoPilot.attitude_error`](#SpaceCenter.AutoPilot.attitude_error "SpaceCenter.AutoPilot.attitude_error") — the yaw part of the direction error
-        > resolved in the roll-invariant frame, well-defined near the vertical (unlike the absolute
-        > heading, which is undefined at the pole).
+        > The yaw component of [`AutoPilot.attitude_error`](#SpaceCenter.AutoPilot.attitude_error "SpaceCenter.AutoPilot.attitude_error"), the yaw part of the direction error
+        > resolved in the roll-invariant frame, well-defined near the vertical, where the absolute
+        > heading is undefined at the pole.
 
     roll\_error
     :   The error, in degrees, between the vessels current and target roll.
@@ -457,7 +513,7 @@ class AutoPilot
         > **Note**
         >
         > Measured about the vessel’s nose axis, so it stays well-defined near the vertical
-        > singularity — unlike a subtraction of pitch/heading/roll angles, whose roll term is
+        > singularity. A subtraction of pitch, heading and roll angles has a roll term that is
         > ill-conditioned when the vessel points close to straight up or down.
 
     current\_error
@@ -479,7 +535,7 @@ class AutoPilot
 
     current\_attitude\_error
     :   The per-axis attitude error (pitch, yaw, roll), in degrees, between the vessel’s current
-        attitude and the target the auto-pilot is currently tracking (the slewed target — see
+        attitude and the target the auto-pilot is currently tracking (the slewed target, see
         [`AutoPilot.current_target_rotation`](#SpaceCenter.AutoPilot.current_target_rotation "SpaceCenter.AutoPilot.current_target_rotation")). Like [`AutoPilot.attitude_error`](#SpaceCenter.AutoPilot.attitude_error "SpaceCenter.AutoPilot.attitude_error") but relative to the
         current target, so it stays small while a smoothed change (see
         [`AutoPilot.target_smoothing_time`](#SpaceCenter.AutoPilot.target_smoothing_time "SpaceCenter.AutoPilot.target_smoothing_time")) is fed in; equal to [`AutoPilot.attitude_error`](#SpaceCenter.AutoPilot.attitude_error "SpaceCenter.AutoPilot.attitude_error") when
@@ -547,7 +603,7 @@ class AutoPilot
         > **Note**
         >
         > Measured about the vessel’s nose axis, so it stays well-defined near the vertical
-        > singularity — see [`AutoPilot.roll_error`](#SpaceCenter.AutoPilot.roll_error "SpaceCenter.AutoPilot.roll_error").
+        > singularity. See [`AutoPilot.roll_error`](#SpaceCenter.AutoPilot.roll_error "SpaceCenter.AutoPilot.roll_error").
 
     roll\_start\_angle
     :   The direction error, in degrees, above which roll blending is fully suppressed.
@@ -755,8 +811,8 @@ class AutoPilot
         [`RateFilterMode.automatic`](#SpaceCenter.RateFilterMode.automatic "SpaceCenter.RateFilterMode.automatic") (the default) the auto-pilot detects the
         oscillation at runtime, estimates its frequency and routes it to the appropriate tool
         (a notch filter for a low-frequency mode near the control band, a low-pass for a
-        high-frequency mode). [`RateFilterMode.off`](#SpaceCenter.RateFilterMode.off "SpaceCenter.RateFilterMode.off") disables rate filtering only —
-        the other oscillation mitigations are unaffected. [`RateFilterMode.notch`](#SpaceCenter.RateFilterMode.notch "SpaceCenter.RateFilterMode.notch")
+        high-frequency mode). [`RateFilterMode.off`](#SpaceCenter.RateFilterMode.off "SpaceCenter.RateFilterMode.off") disables rate filtering only,
+        leaving the other oscillation mitigations unaffected. [`RateFilterMode.notch`](#SpaceCenter.RateFilterMode.notch "SpaceCenter.RateFilterMode.notch")
         and [`RateFilterMode.low_pass`](#SpaceCenter.RateFilterMode.low_pass "SpaceCenter.RateFilterMode.low_pass") force the respective tool unconditionally at
         [`AutoPilot.pitch_yaw_oscillation_frequency`](#SpaceCenter.AutoPilot.pitch_yaw_oscillation_frequency "SpaceCenter.AutoPilot.pitch_yaw_oscillation_frequency"), for a vessel known in advance to be
         flexible.
@@ -830,7 +886,7 @@ class AutoPilot
 
     oscillation\_bandwidth\_floor\_mode
     :   Controls the bandwidth-floor mitigation: the reduction of the inner control loop
-        bandwidth on a structurally flexible axis — the primary oscillation stabilizer. When
+        bandwidth on a structurally flexible axis, the primary oscillation stabilizer. When
         [`MitigationMode.automatic`](#SpaceCenter.MitigationMode.automatic "SpaceCenter.MitigationMode.automatic") (the default) it engages on a latched axis
         while holding (and during a detected limit cycle). [`MitigationMode.off`](#SpaceCenter.MitigationMode.off "SpaceCenter.MitigationMode.off")
         never reduces the bandwidth; [`MitigationMode.forced`](#SpaceCenter.MitigationMode.forced "SpaceCenter.MitigationMode.forced") keeps it fully
@@ -1028,8 +1084,24 @@ class AutoPilot
         Game Scenes:
         :   Flight
 
+class AutoPilotUpdateMode
+:   When the auto-pilot’s control loop runs within a server update, relative to the calls
+    the update executes. See [`AutoPilot.update_mode`](#SpaceCenter.AutoPilot.update_mode "SpaceCenter.AutoPilot.update_mode").
+
+    after\_calls
+    :   The default. The control loop runs once the update has executed the calls it
+        received, so a target set during a tick is flown on that tick.
+
+    before\_calls
+    :   The control loop runs before the update executes any calls, so calls made during a
+        tick see the attitude error and control output it computed for that tick.
+
+    manual
+    :   The control loop runs only when [`AutoPilot.update()`](#SpaceCenter.AutoPilot.update "SpaceCenter.AutoPilot.update") is called, so a
+        program chooses where among its own calls it runs.
+
 class RateFilterMode
-:   Controls the auto-pilot’s rate-feedback filtering for an axis group — the mitigation that
+:   Controls the auto-pilot’s rate-feedback filtering for an axis group, the mitigation that
     removes a structural oscillation (wobble) from the measured angular velocity before the
     control loops consume it.
     See [`AutoPilot.pitch_yaw_rate_filter_mode`](#SpaceCenter.AutoPilot.pitch_yaw_rate_filter_mode "SpaceCenter.AutoPilot.pitch_yaw_rate_filter_mode") and [`AutoPilot.roll_rate_filter_mode`](#SpaceCenter.AutoPilot.roll_rate_filter_mode "SpaceCenter.AutoPilot.roll_rate_filter_mode").

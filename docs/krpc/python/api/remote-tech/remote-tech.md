@@ -1,7 +1,7 @@
 # RemoteTech
 
 This service provides functionality to interact with
-[RemoteTech](https://forum.kerbalspaceprogram.com/index.php?/topic/139167-13-remotetech-v188-2017-09-03/).
+[RemoteTech](https://forum.kerbalspaceprogram.com/topic/139167-111-remotetech-v199-2020-12-19/).
 
 available
 :   Whether RemoteTech is installed.

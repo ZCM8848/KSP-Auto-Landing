@@ -56,7 +56,7 @@ class Vessel
 
     physics\_range
     :   The distance from the active vessel, in meters, out to which this vessel keeps running
-        its physics simulation — and so stays controllable, able to burn its engines and
+        its physics simulation, and so stays controllable, able to burn its engines and
         respond to its autopilot. Setting this raises the vessel out of the stock physics
         bubble, so that it keeps flying while the active vessel is far away. Set to zero to
         restore the game’s default range.
@@ -73,7 +73,7 @@ class Vessel
         > **Note**
         >
         > This always reports the vessel’s live range, so reading it when no range has been set
-        > gives the game’s default for the vessel’s current [`Vessel.situation`](#SpaceCenter.Vessel.situation "SpaceCenter.Vessel.situation") — which is
+        > gives the game’s default for the vessel’s current [`Vessel.situation`](#SpaceCenter.Vessel.situation "SpaceCenter.Vessel.situation"), which is
         > much shorter than the distance at which the vessel unloads. In orbit a vessel is put
         > on rails just 350m away, long before it unloads at 2.5km, and a vessel on rails
         > produces no thrust and ignores control input even though it is still loaded.
@@ -84,7 +84,7 @@ class Vessel
         > between it keeps whichever state it is already in.
         >
         > The requested range applies in every situation. The game’s own defaults are not
-        > uniform — a vessel flying in atmosphere stays loaded out to 22.5km — so setting a
+        > uniform, and a vessel flying in atmosphere stays loaded out to 22.5km, so setting a
         > small range can shorten the range such a vessel would otherwise have had.
         >
         > A range lasts until it is set back to zero or the game is exited. Unlike most state a
@@ -106,7 +106,34 @@ class Vessel
         :   bool
 
     recover()
-    :   Recover the vessel.
+    :   Recover the vessel. The crew return to the astronaut complex, and the funds and
+        science the vessel is worth are awarded.
+
+        > **Note**
+        >
+        > Recovering the active vessel ends the flight and returns to the space center, as
+        > pressing recover in game does. When a non-active vessel is recovered the current scene
+        > is unaffected, and the mission completion dialog is not shown, so a script flying
+        > several vessels keeps control of the rest of them.
+        >
+        > Returns immediately, does not wait for the vessel to be recovered.
+
+    terminate()
+    :   Terminate the vessel. The vessel and its parts are removed from the game, and its
+        crew are lost, as when the vessel is terminated from the tracking station. Nothing
+        is recovered: no funds, no science and no crew.
+
+        > **Note**
+        >
+        > The crew are reported missing, and return to the astronaut complex once their
+        > respawn timer expires, or never if the game is set up so that missing crews do
+        > not respawn.
+        >
+        > The active vessel cannot be terminated, because the vessel being flown cannot be
+        > taken out of the scene it is being flown in. Switch to another vessel first, or
+        > use [`Vessel.recover()`](#SpaceCenter.Vessel.recover "SpaceCenter.Vessel.recover"), which ends the flight and returns to the space center.
+        >
+        > Returns immediately, does not wait for the vessel to be terminated.
 
     met
     :   The mission elapsed time in seconds.
@@ -131,7 +158,7 @@ class Vessel
         telemetry for the vessel, in the specified reference frame.
 
         Parameters:
-        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – Reference frame. Defaults to the vessel’s surface reference frame ([`Vessel.surface_reference_frame`](#SpaceCenter.Vessel.surface_reference_frame "SpaceCenter.Vessel.surface_reference_frame")).
+        :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame") *or* *None*) – Reference frame. Defaults to the vessel’s surface reference frame ([`Vessel.surface_reference_frame`](#SpaceCenter.Vessel.surface_reference_frame "SpaceCenter.Vessel.surface_reference_frame")).
 
         Return type:
         :   [`Flight`](./flight.md#SpaceCenter.Flight "SpaceCenter.Flight")
@@ -237,30 +264,6 @@ class Vessel
         Game Scenes:
         :   Flight
 
-    resources\_in\_decouple\_stage(*stage*[, *cumulative=True*])
-    :   > **Warning**
-        >
-        > Deprecated. Use [`Stage.resources()`](./stage.md#SpaceCenter.Stage.resources "SpaceCenter.Stage.resources") from the object returned by [`Vessel.decouple_stage_at()`](#SpaceCenter.Vessel.decouple_stage_at "SpaceCenter.Vessel.decouple_stage_at") instead.
-
-        Returns a [`Vessel.resources`](#SpaceCenter.Vessel.resources "SpaceCenter.Vessel.resources") object, that can used to get
-        information about resources stored in a given *stage*.
-
-        Parameters:
-        :   - **stage** (*int*) – Get resources for parts that are decoupled in this stage.
-            - **cumulative** (*bool*) – When `False`, returns the resources for parts decoupled in just the given stage. When `True` returns the resources decoupled in the given stage and all subsequent stages combined.
-
-        Return type:
-        :   [`Resources`](./resources.md#SpaceCenter.Resources "SpaceCenter.Resources")
-
-        Game Scenes:
-        :   Flight
-
-        > **Note**
-        >
-        > Deprecated. Use [`Vessel.decouple_stage_at()`](#SpaceCenter.Vessel.decouple_stage_at "SpaceCenter.Vessel.decouple_stage_at")
-        > and [`Stage.resources()`](./stage.md#SpaceCenter.Stage.resources "SpaceCenter.Stage.resources") instead. For details on
-        > stage numbering, see the discussion on [Staging](./parts.md#python-api-parts-staging).
-
     stages
     :   Activation (burn) stages for this vessel, in ascending stage order. This does
         not include the -1 stage (parts with no staging icon), as it carries no
@@ -320,6 +323,31 @@ class Vessel
 
         Return type:
         :   [`Stage`](./stage.md#SpaceCenter.Stage "SpaceCenter.Stage")
+
+        Game Scenes:
+        :   Flight
+
+    delta\_v\_ready
+    :   Whether the vessel’s delta-v figures are current.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   bool
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The game calculates delta-v for the active vessel alone, over the several ticks
+        > after the vessel changes. A delta-v member reports the figures from the last
+        > calculation, and waits only when the game has calculated none.
+
+    recalculate\_delta\_v()
+    :   Recalculates the vessel’s delta-v figures, and waits until they are current.
+        Throws an exception if the vessel is not the active vessel.
 
         Game Scenes:
         :   Flight
@@ -662,6 +690,9 @@ class Vessel
         Return type:
         :   list(float)
 
+        Game Scenes:
+        :   Flight
+
     available\_torque
     :   The maximum torque that the vessel generates. Includes contributions from
         reaction wheels, RCS, gimballed engines and aerodynamic control surfaces.
@@ -673,7 +704,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -688,7 +719,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -703,7 +734,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -718,7 +749,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -734,7 +765,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -749,7 +780,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -764,7 +795,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -780,7 +811,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -797,7 +828,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -814,7 +845,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -830,7 +861,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -847,7 +878,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -864,7 +895,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -881,7 +912,7 @@ class Vessel
         :   Read-only, cannot be set
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`AxisRange`](#SpaceCenter.AxisRange "SpaceCenter.AxisRange")
 
         Game Scenes:
         :   Flight
@@ -947,14 +978,14 @@ class Vessel
         - The origin is at the center of mass of the vessel.
         - The axes rotate with the north and up directions on the surface of the body.
         - The x-axis points in the [zenith](https://en.wikipedia.org/wiki/Zenith)
-          direction (upwards, normal to the body being orbited, from the center of the body towards the center of
-          mass of the vessel).
+            direction (upwards, normal to the body being orbited, from the center of the body towards the center of
+            mass of the vessel).
         - The y-axis points northwards towards the
-          [astronomical horizon](https://en.wikipedia.org/wiki/Horizon) (north, and tangential to the
-          surface of the body – the direction in which a compass would point when on the surface).
+            [astronomical horizon](https://en.wikipedia.org/wiki/Horizon) (north, and tangential to the
+            surface of the body – the direction in which a compass would point when on the surface).
         - The z-axis points eastwards towards the
-          [astronomical horizon](https://en.wikipedia.org/wiki/Horizon) (east, and tangential to the
-          surface of the body – east on a compass when on the surface).
+            [astronomical horizon](https://en.wikipedia.org/wiki/Horizon) (east, and tangential to the
+            surface of the body – east on a compass when on the surface).
 
         Attribute:
         :   Read-only, cannot be set
@@ -981,9 +1012,9 @@ class Vessel
         - The origin is at the center of mass of the vessel.
         - The axes rotate with the vessel’s velocity vector.
         - The y-axis points in the direction of the vessel’s velocity vector,
-          relative to the surface of the body being orbited.
+            relative to the surface of the body being orbited.
         - The z-axis is in the plane of the
-          [astronomical horizon](https://en.wikipedia.org/wiki/Horizon).
+            [astronomical horizon](https://en.wikipedia.org/wiki/Horizon).
         - The x-axis is orthogonal to the other two axes.
 
         Attribute:
@@ -998,6 +1029,94 @@ class Vessel
         ![../../../_images/vessel-surface-velocity.png](../../../_images/vessel-surface-velocity.png)
 
         Vessel surface velocity reference frame origin and axes
+
+    orbit\_speed\_reference\_frame
+    :   The reference frame that the navball measures speed against in ‘orbit’ mode.
+
+        - The origin is at the center of mass of the vessel.
+        - The axes are those of [`Vessel.orbital_reference_frame`](#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame"), which are
+            the directions the navball marks in this mode: the x-axis points in the orbital
+            anti-radial direction, the y-axis in the orbital prograde direction and the z-axis in
+            the orbital normal direction.
+        - The frame moves with the body being orbited, but does not rotate
+            with it.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The velocity of the vessel in this frame is the one the navball shows in ‘orbit’ mode:
+        > [`Flight.speed`](./flight.md#SpaceCenter.Flight.speed "SpaceCenter.Flight.speed") is the speed it displays, and [`Flight.velocity`](./flight.md#SpaceCenter.Flight.velocity "SpaceCenter.Flight.velocity")
+        > points along the y-axis, towards its prograde marker.
+
+    surface\_speed\_reference\_frame
+    :   The reference frame that the navball measures speed against in ‘surface’ mode.
+
+        - The origin is at the center of mass of the vessel.
+        - The axes are the directions the navball marks in this mode, in the
+            same arrangement as [`Vessel.orbital_reference_frame`](#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame"): the y-axis points in the
+            direction the vessel is moving relative to the surface, which is where the prograde
+            marker points; the z-axis is normal to the plane of that motion; and the x-axis is
+            anti-radial, pointing towards the body and perpendicular to the other
+            two.
+        - The frame moves with the surface of the body being orbited, so it
+            rotates with the body.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The velocity of the vessel in this frame is the one the navball shows in ‘surface’ mode:
+        > [`Flight.speed`](./flight.md#SpaceCenter.Flight.speed "SpaceCenter.Flight.speed") is the speed it displays, and [`Flight.velocity`](./flight.md#SpaceCenter.Flight.velocity "SpaceCenter.Flight.velocity")
+        > points along the y-axis, towards its prograde marker. The velocity gives the frame its
+        > orientation, so, as with [`Vessel.surface_velocity_reference_frame`](#SpaceCenter.Vessel.surface_velocity_reference_frame "SpaceCenter.Vessel.surface_velocity_reference_frame"), the frame is
+        > singular and raises an error when the vessel is stationary relative to the surface.
+
+    target\_speed\_reference\_frame
+    :   The reference frame that the navball measures speed against in ‘target’ mode.
+
+        - The origin is at the center of mass of the vessel.
+        - The axes are the directions the navball marks in this mode, in the
+            same arrangement as [`Vessel.orbital_reference_frame`](#SpaceCenter.Vessel.orbital_reference_frame "SpaceCenter.Vessel.orbital_reference_frame"): the y-axis points in the
+            direction the vessel is moving relative to the target, which is where the prograde
+            marker points; the z-axis is normal to the plane of that motion; and the x-axis is
+            anti-radial, pointing towards the body being orbited and perpendicular to the other
+            two.
+        - The frame moves with the vessels target.
+
+        Attribute:
+        :   Read-only, cannot be set
+
+        Return type:
+        :   [`ReferenceFrame`](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > The velocity of the vessel in this frame is the one the navball shows in ‘target’ mode:
+        > [`Flight.speed`](./flight.md#SpaceCenter.Flight.speed "SpaceCenter.Flight.speed") is the speed it displays, and [`Flight.velocity`](./flight.md#SpaceCenter.Flight.velocity "SpaceCenter.Flight.velocity")
+        > points along the y-axis, towards its prograde marker.
+        > The target is the one set for the active vessel, via for example
+        > [`target_vessel`](./space-center.md#SpaceCenter.target_vessel "SpaceCenter.target_vessel") or [`target_body`](./space-center.md#SpaceCenter.target_body "SpaceCenter.target_body").
+        > This is undefined when no target is set. The velocity gives the frame its orientation,
+        > so it is also singular, and raises an error, when the vessel matches the velocity of
+        > its target.
 
     position(*reference\_frame*)
     :   The position of the center of mass of the vessel, in the given reference frame.
@@ -1021,10 +1140,10 @@ class Vessel
         :   **reference\_frame** ([*ReferenceFrame*](./reference-frame.md#SpaceCenter.ReferenceFrame "SpaceCenter.ReferenceFrame")) – The reference frame that the returned position vectors are in.
 
         Returns:
-        :   The positions of the minimum and maximum vertices of the box, as position vectors.
+        :   The positions of the minimum and maximum vertices of the box.
 
         Return type:
-        :   tuple(tuple(float, float, float), tuple(float, float, float))
+        :   [`BoundingBox`](#SpaceCenter.BoundingBox "SpaceCenter.BoundingBox")
 
         Game Scenes:
         :   Flight
@@ -1088,6 +1207,37 @@ class Vessel
 
         Game Scenes:
         :   Flight
+
+class AxisRange(*positive*, *negative*)
+:   The largest value of a quantity, such as a torque or a force, in the positive and the
+    negative direction of each of three axes.
+
+    positive
+    :   The value in the positive direction of each axis.
+
+        Return type:
+        :   tuple(float, float, float)
+
+    negative
+    :   The value in the negative direction of each axis, which is zero or less.
+
+        Return type:
+        :   tuple(float, float, float)
+
+class BoundingBox(*min*, *max*)
+:   An axis-aligned bounding box, as the positions of its minimum and maximum vertices.
+
+    min
+    :   The position of the minimum vertex of the box.
+
+        Return type:
+        :   tuple(float, float, float)
+
+    max
+    :   The position of the maximum vertex of the box.
+
+        Return type:
+        :   tuple(float, float, float)
 
 class VesselType
 :   The type of a vessel.
@@ -1282,10 +1432,29 @@ class CrewMember
         :   Read-only, cannot be set
 
         Return type:
-        :   [`Part`](./parts.md#SpaceCenter.Part "SpaceCenter.Part")
+        :   [`Part`](./parts.md#SpaceCenter.Part "SpaceCenter.Part") or None
 
         Game Scenes:
         :   Flight
+
+    eva()
+    :   Send the crew member outside on EVA, through the hatch of the part it is in, and
+        return the vessel it becomes. The game switches to that vessel, which can then be
+        walked around and flown using its [`Vessel.control`](#SpaceCenter.Vessel.control "SpaceCenter.Vessel.control"), and brought back
+        in with [`Control.board()`](./control.md#SpaceCenter.Control.board "SpaceCenter.Control.board"). The kerbal climbs out onto the ladder by the
+        hatch, if there is one.
+
+        Return type:
+        :   [`Vessel`](#SpaceCenter.Vessel "SpaceCenter.Vessel")
+
+        Game Scenes:
+        :   Flight
+
+        > **Note**
+        >
+        > Throws an exception if EVA is disabled for the game, if the crew member is not in
+        > a loaded vessel, if it is already on EVA, or if every hatch out of the part it is
+        > in is obstructed.
 
     suit\_type
     :   The crew member’s suit type.
@@ -1296,32 +1465,39 @@ class CrewMember
         Return type:
         :   [`SuitType`](#SpaceCenter.SuitType "SpaceCenter.SuitType")
 
-    career\_log\_flights
-    :   The flight IDs for each entry in the career flight log.
+    career\_log
+    :   The entries in the crew member’s career flight log.
 
         Attribute:
         :   Read-only, cannot be set
 
         Return type:
-        :   list(int)
+        :   list([`FlightLogEntry`](#SpaceCenter.FlightLogEntry "SpaceCenter.FlightLogEntry"))
 
-    career\_log\_types
-    :   The type for each entry in the career flight log.
+class FlightLogEntry(*flight*, *type*, *target*)
+:   An entry in a crew member’s career flight log.
 
-        Attribute:
-        :   Read-only, cannot be set
+    > **Note**
+    >
+    > See [`CrewMember.career_log`](#SpaceCenter.CrewMember.career_log "SpaceCenter.CrewMember.career_log").
 
-        Return type:
-        :   list(str)
-
-    career\_log\_targets
-    :   The body name for each entry in the career flight log.
-
-        Attribute:
-        :   Read-only, cannot be set
+    flight
+    :   The flight identifier of the entry.
 
         Return type:
-        :   list(str)
+        :   int
+
+    type
+    :   The type of the entry, e.g. `Orbit` or `Land`.
+
+        Return type:
+        :   str
+
+    target
+    :   The name of the body the entry is for.
+
+        Return type:
+        :   str
 
 class CrewMemberType
 :   The type of a crew member.

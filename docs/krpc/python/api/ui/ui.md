@@ -6,7 +6,8 @@ Provides functionality for drawing and interacting with in-game user interface e
 >
 > For drawing 3D objects in the flight scene, see the Drawing service.
 > User interface elements created by a client are removed when that client
-> disconnects.
+> disconnects, and when the game scene changes. A client that needs its
+> interface in more than one scene must create it again in each of them.
 
 stock\_canvas
 :   The stock UI canvas.
@@ -27,14 +28,14 @@ static add\_canvas()
     >
     > If you want to add UI elements to KSPs stock UI canvas, use [`stock_canvas`](#UI.stock_canvas "UI.stock_canvas").
 
-static message(*content*[, *duration=1.0*][, *position=MessagePosition(1)*][, *color=(1.0*, *0.92*, *0.016)*][, *size=20.0*])
+static message(*content*[, *duration=1.0*][, *position=MessagePosition.top\_center*][, *color=StdLib.ColorRGBA(1.0*, *0.92*, *0.016*, *1.0)*][, *size=2e+01*])
 :   Display a message on the screen.
 
     Parameters:
     :   - **content** (*str*) – Message content.
         - **duration** (*float*) – Duration before the message disappears, in seconds.
         - **position** ([*MessagePosition*](#UI.MessagePosition "UI.MessagePosition")) – Position to display the message.
-        - **color** (*tuple*) – The color of the message.
+        - **color** ([*StdLib.ColorRGBA*](../stdlib.md#StdLib.ColorRGBA "StdLib.ColorRGBA")) – The color of the message.
         - **size** (*float*) – Size of the message, differs per position.
 
     > **Note**
