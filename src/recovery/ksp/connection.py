@@ -178,6 +178,12 @@ class KspConnection:
         with PROFILER.section("io.snapshot"):
             return telemetry.get()
 
+    @property
+    def telemetry_error(self) -> BaseException | None:
+        """The telemetry thread's fatal error, or ``None`` while healthy."""
+        telemetry = self._telemetry
+        return None if telemetry is None else telemetry.last_error
+
     def frame(self, name: str = "target") -> Any:
         """Return a kRPC reference frame handle.
 

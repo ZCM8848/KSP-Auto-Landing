@@ -38,8 +38,11 @@ from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import (
     AttitudeModel,
     EngineModel,
+    PolynomialConfig,
+    PolynomialTerminalGuidance,
     ScvxConfig,
     ScvxSolveService,
+    TerminalTarget,
     build_six_dof_problem,
 )
 from recovery.specs import BodySpec, DragSpec
@@ -65,7 +68,7 @@ LOOP_HZ = 50.0            # control-loop rate
 SCVX_N = 18               # transcription nodes
 SCVX_ITERS = 40           # SCP iterations per refresh
 SCVX_TF_HINT = 45.0       # initial time-of-flight seed (s)
-TERMINAL_ALT = 2000.0     # switch to the terminal hoverslam below this height (m)
+TERMINAL_ALT = 500.0      # hand off from SCvx to terminal guidance at this height (m)
 TERM_KP = 0.8             # terminal horizontal position gain (1/s²)
 TERM_KD = 1.8             # terminal horizontal velocity gain (1/s)
 TERM_MAX_HACC = 4.0       # terminal horizontal acceleration limit (m/s²)
@@ -295,6 +298,73 @@ def _terminal_command(
     )
 
 
+def _polynomial_terminal_command(
+    state: FlightState,
+    body_spec: BodySpec,
+    drag_spec: DragSpec,
+    target_height: float,
+    guidance: PolynomialTerminalGuidance,
+) -> tuple[float, tuple[float, float, float], np.ndarray, str]:
+    """Polynomial terminal guidance with drag feed-forward.
+
+    The cubic profile supplies the desired total acceleration; the engine
+    command is ``a_total - gravity - drag``.  If the polynomial returns a coast
+    command (or a degenerate acceleration), the caller falls back to the
+    hoverslam law.
+    """
+    position = np.asarray(state.position, dtype=float)
+    velocity = np.asarray(state.velocity, dtype=float)
+    center = np.asarray(body_spec.body_center, dtype=float)
+    radius = float(np.linalg.norm(position - center))
+    g_local = float(body_spec.mu) / max(radius * radius, 1.0)
+    command = guidance.command(
+        state,
+        target=TerminalTarget((0.0, 0.0, float(target_height)), (0.0, 0.0, 0.0)),
+        gravity=(0.0, 0.0, -g_local),
+        available_thrust=max(float(state.available_thrust), float(state.max_thrust)),
+    )
+    if command.status != "terminal":
+        return 0.0, (0.0, 0.0, 1.0), np.array([0.0, 0.0, target_height]), "poly-coast"
+
+    # Drag feed-forward: subtract the aerodynamic acceleration from the engine
+    # command so the total acceleration follows the polynomial profile.
+    altitude = radius - float(drag_spec.sea_level_radius)
+    alts = np.asarray(drag_spec.density_alts, dtype=float)
+    vals = np.asarray(drag_spec.density_vals, dtype=float)
+    if altitude <= 0.0:
+        density = float(vals[0])
+    elif altitude >= alts[-1]:
+        density = 0.0
+    else:
+        density = float(np.interp(altitude, alts, vals))
+    speed = float(np.linalg.norm(velocity))
+    drag_acc = np.zeros(3, dtype=float)
+    if speed > 1e-9:
+        drag_force = (
+            0.5
+            * density
+            * float(drag_spec.cd_area or 0.0)
+            * speed
+            * velocity
+        )
+        drag_acc = -drag_force / max(float(state.mass), 1e-6)
+    engine_acc = np.asarray(command.thrust, dtype=float) / max(float(state.mass), 1e-6)
+    engine_acc = engine_acc - drag_acc
+    magnitude = float(np.linalg.norm(engine_acc))
+    if not np.isfinite(magnitude) or magnitude < 1e-9:
+        return 0.0, (0.0, 0.0, 1.0), np.array([0.0, 0.0, target_height]), "poly-coast"
+    thrust_capability = max(float(state.available_thrust), float(state.max_thrust))
+    throttle = _clamp(
+        float(state.mass) * magnitude / max(thrust_capability, 1e-6),
+        MIN_THROTTLE,
+        1.0,
+    )
+    direction = engine_acc / magnitude
+    return throttle, (float(direction[0]), float(direction[1]), float(direction[2])), np.array(
+        [0.0, 0.0, target_height]
+    ), "poly"
+
+
 def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -390,8 +460,9 @@ def main() -> None:
         time.sleep(0.2)
         # Staging can reset the RCS/SAS state; the write-through cache would
         # otherwise keep suppressing a re-write because it believes RCS is
-        # already on.  Bypass it so the attitude loop has its full torque
-        # authority for the whole flight.
+        # already on.  Clear it, then re-assert through the gateway.
+        booster.controls.clear_cache()
+        booster.controls.apply(rcs=True, sas=False, legs=True)
         booster.controls.raw.rcs = True
         booster.controls.raw.sas = False
         check = booster.snapshot()
@@ -399,12 +470,15 @@ def main() -> None:
             print(f"Post-stage RCS torque: {check.available_rcs_torque}")
 
         attitude = LocalAttitudeController()
+        terminal_guidance = PolynomialTerminalGuidance(
+            PolynomialConfig(min_time_to_go=4.0, time_to_go_gain=2.0)
+        )
         pacer = FramePacer(hz=LOOP_HZ)
         log = open(LOG_PATH, "w", encoding="utf-8", newline="")
         log.write(
             "wall,ut,phase,z,vz,speed,mass,throttle,plan_elapsed,plan_duration,"
             "plan_iters,plan_converged,plan_age,err_x,err_y,err_z,"
-            "desired_x,desired_y,desired_z,solver_error\n"
+            "desired_x,desired_y,desired_z,solver_error,plan_source,terminal_source\n"
         )
         log.flush()
 
@@ -413,9 +487,13 @@ def main() -> None:
         latest_plan: object | None = None
         last_plan_time = time.monotonic()
         last_plan_id: int | None = None
+        last_plan_source = ""
+        terminal_source = "plan"
         last_log = time.monotonic()
         started = time.monotonic()
         touchdown_z = target_height
+        last_snapshot_ut: float | None = None
+        last_snapshot_change = time.monotonic()
 
         def log_row(
             *,
@@ -447,7 +525,8 @@ def main() -> None:
                 f"{plan_iters},{int(plan_converged)},{plan_age:.3f},"
                 f"{err[0]:.3f},{err[1]:.3f},{err[2]:.3f},"
                 f"{des[0]:.3f},{des[1]:.3f},{des[2]:.3f},"
-                f"{'' if solver_error is None else solver_error}\n"
+                f"{'' if solver_error is None else solver_error.replace(',', ';')},"
+                f"{last_plan_source},{terminal_source}\n"
             )
             log.flush()
 
@@ -458,6 +537,19 @@ def main() -> None:
                 if s is None:
                     continue
                 now = time.monotonic()
+
+                telemetry_error = booster.telemetry_error
+                if telemetry_error is not None:
+                    print(f"ABORT: telemetry thread failed: {telemetry_error!r}")
+                    raise RuntimeError(f"telemetry thread failed: {telemetry_error!r}")
+                if last_snapshot_ut is None or float(s.ut) != last_snapshot_ut:
+                    last_snapshot_ut = float(s.ut)
+                    last_snapshot_change = now
+                elif now - last_snapshot_change > 1.5:
+                    raise RuntimeError(
+                        f"telemetry stalled at ut={s.ut:.3f} for "
+                        f"{now - last_snapshot_change:.1f}s"
+                    )
 
                 if phase == "ascent":
                     throttle, nose = _ascent_command(
@@ -525,15 +617,41 @@ def main() -> None:
                     continue
 
                 # ---- powered descent -------------------------------------
+                terminal_source = "plan"
                 if s.position.z <= target_height + TERMINAL_ALT:
                     if s.position.z <= target_height + 50.0:
                         # Bypass the write-through cache: staging may have
                         # changed the real control state behind our back.
                         booster.controls.raw.legs = True
                         booster.controls.raw.rcs = True
-                    throttle, nose, desired_p = _terminal_command(
-                        s, body_spec, drag_spec, target_height
-                    )
+                    height = s.position.z - target_height
+                    if height > 5.0:
+                        try:
+                            throttle, nose, desired_p, terminal_source = (
+                                _polynomial_terminal_command(
+                                    s,
+                                    body_spec,
+                                    drag_spec,
+                                    target_height,
+                                    terminal_guidance,
+                                )
+                            )
+                        except Exception as exc:  # noqa: BLE001 - fall back
+                            print(f"[terminal] polynomial error: {exc!r}; using hoverslam")
+                            throttle, nose, desired_p = _terminal_command(
+                                s, body_spec, drag_spec, target_height
+                            )
+                            terminal_source = "hoverslam-fallback"
+                        if terminal_source == "poly-coast":
+                            throttle, nose, desired_p = _terminal_command(
+                                s, body_spec, drag_spec, target_height
+                            )
+                            terminal_source = "hoverslam-fallback"
+                    else:
+                        throttle, nose, desired_p = _terminal_command(
+                            s, body_spec, drag_spec, target_height
+                        )
+                        terminal_source = "hoverslam-low"
                     elapsed = 0.0
                     terminal_mode = True
                 else:
@@ -558,6 +676,12 @@ def main() -> None:
                     if id(latest_plan) != last_plan_id:
                         last_plan_id = id(latest_plan)
                         last_plan_time = time.monotonic()
+                        last_plan_source = plan_stats.plan_source
+                        if last_plan_source not in ("multishot", ""):
+                            print(
+                                f"[solver] plan source={last_plan_source!r} "
+                                f"(multishot expected)"
+                            )
 
                     # Use the current game clock for plan phase; a telemetry frame
                     # is up to one interval old, and the plan is a game-time plan.
@@ -583,14 +707,17 @@ def main() -> None:
                 if now - last_log >= 1.0:
                     stats = service.stats(BOOSTER_ID)
                     plan_text = (
-                        "terminal"
+                        f"terminal:{terminal_source}"
                         if terminal_mode
                         else f"{elapsed:5.1f}/{latest_plan.duration:5.1f}s"  # type: ignore[union-attr]
                     )
                     print(
                         f"[descent] t={now - started:5.1f}s z={s.position.z:8.1f} "
                         f"vz={s.velocity.z:7.2f} thr={throttle:.3f} "
-                        f"{plan_text} iters={stats.iterations} conv={stats.converged} "
+                        f"{plan_text} iters={stats.iterations} "
+                        f"conv={stats.converged} "
+                        f"solver={stats.solver_converged} "
+                        f"src={stats.plan_source or '-'} "
                         f"err={service.last_error(BOOSTER_ID)}"
                     )
                     last_log = now
@@ -638,6 +765,9 @@ def main() -> None:
                         f"vz={s.velocity.z:.3f} m/s, tilt={tilt:.2f} deg"
                     )
                     break
+        except Exception as exc:  # noqa: BLE001 - explicit flight abort
+            print(f"FLIGHT ABORTED: {type(exc).__name__}: {exc}")
+            raise
         finally:
             booster.controls.cut_thrust()
             service.stop()

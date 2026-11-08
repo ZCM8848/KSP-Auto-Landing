@@ -64,6 +64,16 @@ class VesselControls:
         write()
         self._written[key] = value
 
+    def clear_cache(self) -> None:
+        """Forget every remembered control write.
+
+        The cache only tracks values written *through this gateway*.  KSP can
+        change control state behind its back (staging, action groups, another
+        client, a scene reload).  Call this after any such event, or before
+        re-asserting safety-critical switches such as RCS/SAS/legs.
+        """
+        self._written.clear()
+
     @property
     def raw(self) -> Any:
         """Direct access to the underlying kRPC ``Control`` object.

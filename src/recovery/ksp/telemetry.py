@@ -60,9 +60,20 @@ class Telemetry:
         self._telemetry_interval = 1.0 / telemetry_hz
         self._streams: list[tuple[str, Any]] = []
         self._snapshot: FlightState | None = None
+        self._error: BaseException | None = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+
+    @property
+    def last_error(self) -> BaseException | None:
+        """The fatal stream/thread error, or ``None`` while healthy.
+
+        A dead telemetry thread would otherwise silently leave ``get()``
+        returning the last snapshot forever; callers can poll this and abort.
+        """
+        with self._lock:
+            return self._error
 
     def start(self) -> None:
         """Register kRPC streams and launch the background updater thread."""
@@ -147,7 +158,13 @@ class Telemetry:
 
     def _run(self) -> None:
         while not self._stop.is_set():
-            snapshot = self._build_snapshot()
+            try:
+                snapshot = self._build_snapshot()
+            except BaseException as exc:  # noqa: BLE001 - surface the failure
+                with self._lock:
+                    self._error = exc
+                self._stop.set()
+                return
             with self._lock:
                 self._snapshot = snapshot
             # Block until the next frame boundary.  ``time.sleep`` paces far

@@ -357,6 +357,7 @@ class DescentProblem:
         self._attitude_final = attitude_final
         self._engine: EngineModel | None = None
         self._slices: dict[str, slice] | None = None
+        self._last_plan_source: str = ""
 
     @property
     def dof(self) -> str:
@@ -389,6 +390,11 @@ class DescentProblem:
         if self._slices is None:
             self._slices = dict(self._problem.slices)
         return self._slices
+
+    @property
+    def last_plan_source(self) -> str:
+        """How the last :meth:`read_plan` was produced (diagnostics)."""
+        return self._last_plan_source
 
     def initialize(self) -> None:
         """Compile the problem (JAX lowering; one-time cost of a few seconds)."""
@@ -617,11 +623,15 @@ class DescentProblem:
         if self._config.multishot_plan:
             plan = self._read_multishot_plan(t0_ut, state, converged)
             if plan is not None:
+                self._last_plan_source = "multishot"
                 return plan
 
         # Fallback for an OpenSCvx build without multishot history (or when
         # the legacy nodal plan shape is requested): use the raw nodal iterate.
         # The caller should treat this as a coarse plan unless SCP converged.
+        self._last_plan_source = (
+            "nodal-fallback" if self._config.multishot_plan else "nodal"
+        )
         x = np.asarray(state.x, dtype=float)
         u = np.asarray(state.u, dtype=float)
         sl = self.slices
@@ -1301,6 +1311,8 @@ class _BoosterState:
     t0_ut: float = 0.0
     iterations: int = 0
     converged: bool = False
+    solver_converged: bool = False
+    plan_source: str = ""
     idle: bool = True
     last_error: str | None = None
     last_plan_time: float = 0.0
@@ -1329,6 +1341,16 @@ class SolveStats:
 
     queue_depth: int
     """Number of boosters waiting in the solve queue (including this one)."""
+
+    solver_converged: bool = False
+    """Whether the last SCP step reported actual solver convergence.
+
+    ``converged`` above becomes true when the iteration cap is reached; this
+    field distinguishes that from a genuine convergence flag.
+    """
+
+    plan_source: str = ""
+    """Source of the last published plan (``multishot`` / ``nodal`` / ...)."""
 
 
 class ScvxSolveService:
@@ -1535,6 +1557,8 @@ class ScvxSolveService:
                 last_error=state.last_error,
                 plan_age=age,
                 queue_depth=self._queue.qsize(),
+                solver_converged=state.solver_converged,
+                plan_source=state.plan_source,
             )
 
     @property
@@ -1610,6 +1634,7 @@ class ScvxSolveService:
             state.t0_ut = float(refresh.state.ut)
             state.iterations = 0
             state.converged = False
+            state.solver_converged = False
             state.idle = False
             state.last_error = None
 
@@ -1626,6 +1651,8 @@ class ScvxSolveService:
         requeue: tuple[int, float, int, str] | None = None
         with self._lock:
             state.plan = plan
+            state.plan_source = getattr(state.problem, "last_plan_source", "")
+            state.solver_converged = converged
             state.iterations += 1
             state.converged = converged or (
                 state.iterations >= state.config.max_iters_per_refresh
@@ -1652,6 +1679,7 @@ class ScvxSolveService:
         requeue: tuple[int, float, int, str] | None = None
         with self._lock:
             state.last_error = f"{type(exc).__name__}: {exc}"
+            state.solver_converged = False
             state.converged = True
             state.idle = True
             state.busy = False

@@ -117,6 +117,11 @@ class VesselHandle:
         """
         return self._connection.snapshot()
 
+    @property
+    def telemetry_error(self) -> BaseException | None:
+        """The telemetry thread's fatal error, or ``None`` while healthy."""
+        return self._connection.telemetry_error
+
     def current_ut(self) -> float:
         """Current game universal time (one RPC call).
 
