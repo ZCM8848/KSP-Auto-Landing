@@ -163,6 +163,16 @@ class ScvxConfig:
     ignition_guess: float = 15.0
     """Initial guess for the free ignition time (s after the horizon start)."""
 
+    max_ignition_time: float | None = None
+    """Optional upper bound on the free ignition time (s).
+
+    A fuel-optimal free-ignition plan can postpone the burn until the vehicle
+    is deep in the atmosphere.  On a vehicle whose RCS cannot hold attitude
+    against the aerodynamic weathervane torque, that is not flyable.  Bounding
+    the ignition time keeps the engine available before the dynamic pressure
+    grows; ``None`` leaves the horizon bound unchanged.
+    """
+
     max_descent_speed: float | None = None
     """Optional cap on downward speed (m/s, positive magnitude).
 
@@ -488,6 +498,10 @@ class DescentProblem:
             guess = float(self._config.ignition_guess)
             if tf_hint is not None and np.isfinite(tf_hint):
                 guess = min(max(0.25 * float(tf_hint), 1.0), self._horizon_max)
+            ignition_max = float(
+                np.min(np.asarray(self._ignition_time.max, dtype=float))
+            )
+            guess = min(max(guess, 0.0), ignition_max)
             self._ignition_time.guess = np.full((self._n, 1), guess)
         p0 = np.asarray(state.position, dtype=float)
         v0 = np.asarray(state.velocity, dtype=float)
@@ -1271,12 +1285,22 @@ def build_six_dof_problem(
     ignition_time: Any = None
     if config.free_ignition:
         width = max(float(config.ignition_gate_width), 1e-3)
+        ignition_max = (
+            horizon_max
+            if config.max_ignition_time is None
+            else min(horizon_max, float(config.max_ignition_time))
+        )
+        if ignition_max < 0.0:
+            raise ValueError(
+                f"max_ignition_time must be non-negative, got {ignition_max}"
+            )
+        ignition_guess = min(max(float(config.ignition_guess), 0.0), ignition_max)
         ignition_time = ox.State("ignition_time", shape=(1,))
         ignition_time.min = np.array([0.0])
-        ignition_time.max = np.array([horizon_max])
-        ignition_time.initial = [ox.Free(float(config.ignition_guess))]
-        ignition_time.final = [ox.Free(float(config.ignition_guess))]
-        ignition_time.guess = np.full((n, 1), config.ignition_guess)
+        ignition_time.max = np.array([ignition_max])
+        ignition_time.initial = [ox.Free(ignition_guess)]
+        ignition_time.final = [ox.Free(ignition_guess)]
+        ignition_time.guess = np.full((n, 1), ignition_guess)
         gate = 1.0 / (
             1.0
             + ox.Exp(

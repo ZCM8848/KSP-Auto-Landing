@@ -62,6 +62,7 @@ def _plan(
     final_z: float = 6.66,
     duration: float = 20.0,
     ignition_time: float | None = None,
+    iterations: int = 10,
 ) -> Plan:
     n = 5
     times = np.linspace(0.0, duration, n)
@@ -83,6 +84,7 @@ def _plan(
         thrusts=thrusts,
         attitudes=attitudes,
         ignition_time=ignition_time,
+        iterations=iterations,
     )
 
 
@@ -180,6 +182,9 @@ def test_tracker_waits_for_a_usable_plan_then_replans() -> None:
     state = _state(ut=100.0, z=8000.0)
     assert tracker.step(state, now=0.0) is None
     assert service.refreshes == 1
+
+    service.plan = _plan(t0=100.0, iterations=2)
+    assert tracker.step(state, now=1.0) is None
 
     service.plan = _plan(t0=100.0)
     first = tracker.step(state, now=1.0)

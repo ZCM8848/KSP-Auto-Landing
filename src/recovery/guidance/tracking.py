@@ -289,6 +289,7 @@ class PlanTracker:
         max_xy_error: float = 100.0,
         max_speed: float = 150.0,
         min_descent_speed: float = 5.0,
+        min_plan_iterations: int = 5,
     ) -> None:
         if mpc_period <= 0.0:
             raise ValueError(f"mpc_period must be positive, got {mpc_period}")
@@ -303,6 +304,7 @@ class PlanTracker:
         self._max_xy_error = float(max_xy_error)
         self._max_speed = float(max_speed)
         self._min_descent_speed = float(min_descent_speed)
+        self._min_plan_iterations = max(int(min_plan_iterations), 0)
         self._plan: Plan | None = None
         self._started = False
         self._started_ut = 0.0
@@ -418,6 +420,8 @@ class PlanTracker:
         return self._plan is None or float(plan.t0_ut) >= float(self._plan.t0_ut)
 
     def _usable(self, plan: Plan, state: FlightState) -> bool:
+        if int(plan.iterations) < self._min_plan_iterations:
+            return False
         age = float(state.ut) - float(plan.t0_ut)
         if age < -1.0 or age > self._max_plan_age:
             return False
