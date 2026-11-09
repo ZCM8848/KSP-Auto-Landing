@@ -109,6 +109,33 @@ def test_vertical_braking_has_priority_over_lateral() -> None:
     assert abs(cmd.nose[0]) < 1e-9
 
 
+def test_large_lateral_error_keeps_terminal_tilt_bounded() -> None:
+    """The cubic never commands a near-horizontal thrust near the ground."""
+    cmd = PolynomialTerminalGuidance().command(
+        _state(position=(100.0, 0.0, 20.0), velocity=(0.0, 0.0, -10.0)),
+        target=TerminalTarget((0.0, 0.0, 0.0)),
+        gravity=(0.0, 0.0, -9.81),
+        available_thrust=100000.0,
+        time_to_go=5.0,
+    )
+    assert np.linalg.norm(cmd.nose) == pytest.approx(1.0)
+    assert cmd.nose[2] >= np.cos(np.radians(30.0)) - 1e-9
+
+
+def test_downward_terminal_demand_coasts() -> None:
+    """A cubic that wants to dive does not point the engine downward."""
+    cmd = PolynomialTerminalGuidance().command(
+        _state(position=(0.0, 0.0, 100.0), velocity=(0.0, 0.0, 0.0)),
+        target=TerminalTarget((0.0, 0.0, 0.0)),
+        gravity=(0.0, 0.0, -9.81),
+        available_thrust=100000.0,
+        time_to_go=5.0,
+    )
+    # a_cmd = -24 m/s²; engine demand is -14.19 m/s² (downward): coast.
+    assert cmd.status == "coast"
+    assert cmd.throttle == 0.0
+
+
 def test_rejects_invalid_time_to_go() -> None:
     """A non-positive or non-finite time-to-go is a programming error."""
     with pytest.raises(ValueError, match="time_to_go"):
@@ -137,7 +164,7 @@ def test_engine_out_coasts() -> None:
 def test_throttle_is_clipped() -> None:
     """A command above the engine capability saturates at full throttle."""
     cmd = PolynomialTerminalGuidance().command(
-        _state(position=(0.0, 0.0, 1000.0)),
+        _state(position=(0.0, 0.0, 100.0), velocity=(0.0, 0.0, -50.0)),
         target=TerminalTarget((0.0, 0.0, 0.0)),
         gravity=(0.0, 0.0, -9.81),
         available_thrust=1000.0,

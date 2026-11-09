@@ -49,6 +49,15 @@ class PolynomialConfig:
     min_closing_speed: float = 1e-3
     """Speed floor (m/s) used when estimating the time-to-go at rest."""
 
+    max_tilt_deg: float = 30.0
+    """Hard limit on the commanded thrust tilt from local vertical (deg).
+
+    With a large lateral error the unconstrained cubic can demand a nearly
+    horizontal (or downward) thrust vector; near the ground that topples the
+    vehicle.  The terminal phase accepts the lateral miss instead: vertical
+    braking and an upright touchdown take priority.
+    """
+
 
 class PolynomialTerminalGuidance:
     """Cubic terminal guidance to a position/velocity target.
@@ -119,6 +128,23 @@ class PolynomialTerminalGuidance:
                 horizontal_norm = float(np.linalg.norm(horizontal))
                 if horizontal_norm > remaining > 0.0:
                     accel_thrust[:2] = horizontal * (remaining / horizontal_norm)
+
+            # Keep the engine inside the same tilt envelope as the SCvx plan.
+            # A downward or near-horizontal command is rejected; the vehicle
+            # takes the lateral miss rather than risking a tip-over.
+            vertical = float(accel_thrust[2])
+            if vertical <= 0.0:
+                accel_thrust[:] = 0.0
+            else:
+                max_horizontal = vertical * math.tan(
+                    math.radians(self._config.max_tilt_deg)
+                )
+                horizontal = accel_thrust[:2]
+                horizontal_norm = float(np.linalg.norm(horizontal))
+                if horizontal_norm > max_horizontal > 0.0:
+                    accel_thrust[:2] = horizontal * (
+                        max_horizontal / horizontal_norm
+                    )
         magnitude = float(np.linalg.norm(accel_thrust))
 
         if magnitude <= ACCEL_EPS or available_thrust <= 0.0 or mass <= 0.0:

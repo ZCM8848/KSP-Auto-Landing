@@ -1,9 +1,9 @@
-﻿"""Grasshopper hop: vertical ascent to 10 km, engine cutoff, 6-DOF SCvx landing.
+﻿"""Grasshopper hop: vertical ascent to 5 km, engine cutoff, 6-DOF SCvx landing.
 
 Mission profile
 ---------------
 1. Ignite on the pad and follow a vertical velocity profile to ``ASCENT_ALT``
-   (default 10 km).  The throttle is held inside the engine's allowed
+   (default 5 km).  The throttle is held inside the engine's allowed
    ``[MIN_THROTTLE, 1]`` band.
 2. Cut the engine at the top, coast at least ``COAST_S`` seconds down to
    ``DESCENT_VZ`` (attitude held vertical, RCS active).
@@ -58,7 +58,7 @@ VESSEL = "VTVL"
 BOOSTER_ID = "vtvl"
 TARGET = LAUNCHPAD_JNSQ
 
-ASCENT_ALT = 10_000.0     # cutoff altitude above the pad surface (m)
+ASCENT_ALT = 5_000.0      # cutoff altitude above the pad surface (m)
 VZ_MAX = 150.0            # maximum ascent vertical speed (m/s)
 A_BRAKE = 4.0             # ascent profile deceleration near cutoff (m/s虏)
 ASCENT_KP = 0.25          # vertical-speed loop gain (1/s)
@@ -72,6 +72,7 @@ SCVX_ITERS = 40           # SCP iterations per refresh
 SCVX_TF_HINT = 45.0       # time-of-flight seed (s)
 IGNITION_GUESS = 15.0     # initial guess for a free ignition time (s)
 TERMINAL_ALT = 500.0      # hand off from SCvx to terminal guidance at this height (m)
+HOVERSLAM_ALT = 50.0      # below this height, prioritise upright attitude over lateral correction
 MPC_PERIOD = 2.0          # re-seed the SCvx horizon from the current state (s)
 COAST_FRACTION = 1e-3     # plan thrust below this fraction of max is a coast
 TERM_KP = 0.8             # terminal horizontal position gain (1/s虏)
@@ -114,7 +115,7 @@ def _ascent_command(
 ) -> tuple[float, tuple[float, float, float]]:
     """Vertical profile plus a gentle lateral station-keeping term.
 
-    Holding x/y near the pad during the 10 km climb removes most of the wind
+    Holding x/y near the pad during the 5 km climb removes most of the wind
     drift before the terminal phase; without it the booster can be hundreds of
     metres downwind by cutoff.
     """
@@ -160,7 +161,7 @@ def _synthetic_descent_state(
     vertical_speed: float,
     ut: float,
 ) -> FlightState:
-    """A 10 km state used only to size/compile the OCP before launch."""
+    """A post-cutoff state used only to size/compile the OCP before launch."""
     return replace(
         state,
         ut=ut,
@@ -387,7 +388,7 @@ def main() -> None:
         synthetic = _synthetic_descent_state(
             state,
             mass=float(state.mass),
-            altitude=9_700.0,
+            altitude=ASCENT_ALT - 300.0,
             vertical_speed=-200.0,
             ut=float(state.ut) + 60.0,
         )
@@ -616,7 +617,7 @@ def main() -> None:
                         booster.controls.raw.legs = True
                         booster.controls.raw.rcs = True
                     height = s.position.z - target_height
-                    if height > 5.0:
+                    if height > HOVERSLAM_ALT:
                         try:
                             throttle, nose, desired_p, terminal_source = (
                                 _polynomial_terminal_command(

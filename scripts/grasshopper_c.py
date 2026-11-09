@@ -5,7 +5,7 @@ can be observed without changing the known-good fixed-ignition mission.
 
 Sequence
 --------
-1. Ascent to 10 km, cutoff.
+1. Ascent to 5 km, cutoff.
 2. Coast to ``-200 m/s``.  That state seeds the free-ignition 6-DOF OCP.
 3. The OCP has a free ``ignition_time`` state: it integrates the unpowered
    coast itself and decides when to relight.  The engine is off until the
@@ -46,6 +46,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from grasshopper import (  # noqa: E402
     ASCENT_ALT,
+    HOVERSLAM_ALT,
     IGNITION_GUESS,
     MIN_THROTTLE,
     TERMINAL_ALT,
@@ -147,7 +148,7 @@ def main() -> None:
         synthetic = _synthetic_descent_state(
             state,
             mass=float(state.mass),
-            altitude=9_700.0,
+            altitude=ASCENT_ALT - 300.0,
             vertical_speed=COAST_VZ,
             ut=float(state.ut) + 60.0,
         )
@@ -362,7 +363,7 @@ def main() -> None:
                 terminal_source = "plan"
                 if s.position.z <= target_height + TERMINAL_ALT:
                     height = s.position.z - target_height
-                    if height > 5.0:
+                    if height > HOVERSLAM_ALT:
                         try:
                             throttle, nose, desired_p, terminal_source = (
                                 _polynomial_terminal_command(
