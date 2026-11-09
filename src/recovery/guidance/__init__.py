@@ -31,6 +31,13 @@ from .scvx import (
 )
 from .terminal import PolynomialConfig, PolynomialTerminalGuidance
 from .tofnet import TofFeatureParams, TofPredictor, features_of
+from .tracking import (
+    PlanThrust,
+    PlanTracker,
+    TrackingConfig,
+    plan_is_usable,
+    plan_thrust,
+)
 
 __all__ = [
     "AttitudeModel",
@@ -49,6 +56,8 @@ __all__ = [
     "NoseRule",
     "Plan",
     "PlanExecutor",
+    "PlanThrust",
+    "PlanTracker",
     "PolynomialConfig",
     "PolynomialTerminalGuidance",
     "RetrogradeNose",
@@ -60,6 +69,7 @@ __all__ = [
     "TerminalTarget",
     "TofFeatureParams",
     "TofPredictor",
+    "TrackingConfig",
     "TowardTargetNose",
     "Trajectory",
     "ThrottleRule",
@@ -70,5 +80,7 @@ __all__ = [
     "build_descent_problem",
     "build_six_dof_problem",
     "features_of",
+    "plan_is_usable",
+    "plan_thrust",
     "plan_to_virtual_control",
 ]

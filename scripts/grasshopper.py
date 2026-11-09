@@ -5,12 +5,12 @@ Mission profile
 1. Ignite on the pad and follow a vertical velocity profile to ``ASCENT_ALT``
    (default 10 km).  The throttle is held inside the engine's allowed
    ``[MIN_THROTTLE, 1]`` band.
-2. Cut the engine at the top, coast for ``COAST_S`` seconds (attitude held
-   vertical, RCS active).
+2. Cut the engine at the top, coast at least ``COAST_S`` seconds down to
+   ``DESCENT_VZ`` (attitude held vertical, RCS active).
 3. Solve a 6-DOF OpenSCvx powered-descent problem from the post-coast state to
-   the launch-pad centre, with thrust bounded to ``[40 %, 100 %]``, and track
-   the published plan at 50 Hz.  The asynchronous ``ScvxSolveService`` keeps
-   refining the remaining horizon; the control loop never blocks on it.
+   the launch-pad centre, then re-seed it from the current measurement every
+   ``MPC_PERIOD`` seconds and track the latest usable plan at 50 Hz.  The
+   control loop never blocks on the asynchronous solver.
 4. Cut the engine at touchdown and report the landing error.
 
 The target frame is the landing-site frame built by ``recovery``: origin at
@@ -38,11 +38,13 @@ from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import (
     AttitudeModel,
     EngineModel,
+    PlanTracker,
     PolynomialConfig,
     PolynomialTerminalGuidance,
     ScvxConfig,
     ScvxSolveService,
     TerminalTarget,
+    TrackingConfig,
     build_six_dof_problem,
 )
 from recovery.specs import BodySpec, DragSpec
@@ -61,15 +63,17 @@ VZ_MAX = 150.0            # maximum ascent vertical speed (m/s)
 A_BRAKE = 4.0             # ascent profile deceleration near cutoff (m/s虏)
 ASCENT_KP = 0.25          # vertical-speed loop gain (1/s)
 
-COAST_S = 4.0             # minimum engine-off coast before the free-ignition solve (s)
-DESCENT_VZ = -200.0       # state that seeds the free-ignition OCP (m/s)
+COAST_S = 4.0             # minimum engine-off coast before the SCvx solve (s)
+DESCENT_VZ = -200.0       # state that seeds the SCvx descent (m/s)
 MIN_THROTTLE = 0.40       # engine lower throttle limit
 LOOP_HZ = 50.0            # control-loop rate
 SCVX_N = 18               # transcription nodes
-SCVX_ITERS = 40          # SCP iterations per refresh (free ignition needs more)
-SCVX_TF_HINT = 45.0       # free-final-time / free-ignition seed (s)
-IGNITION_GUESS = 15.0     # initial guess for the free ignition time (s)
+SCVX_ITERS = 40           # SCP iterations per refresh
+SCVX_TF_HINT = 45.0       # time-of-flight seed (s)
+IGNITION_GUESS = 15.0     # initial guess for a free ignition time (s)
 TERMINAL_ALT = 500.0      # hand off from SCvx to terminal guidance at this height (m)
+MPC_PERIOD = 2.0          # re-seed the SCvx horizon from the current state (s)
+COAST_FRACTION = 1e-3     # plan thrust below this fraction of max is a coast
 TERM_KP = 0.8             # terminal horizontal position gain (1/s虏)
 TERM_KD = 1.8             # terminal horizontal velocity gain (1/s)
 TERM_MAX_HACC = 4.0       # terminal horizontal acceleration limit (m/s虏)
@@ -85,13 +89,6 @@ LOG_PATH = "grasshopper_flight.csv"
 
 def _clamp(value: float, low: float, high: float) -> float:
     return min(max(value, low), high)
-
-
-def _unit(vector: np.ndarray) -> np.ndarray:
-    norm = float(np.linalg.norm(vector))
-    if norm < 1e-9:
-        return np.array([0.0, 0.0, 1.0])
-    return vector / norm
 
 
 def _vec3(vector: np.ndarray | tuple[float, float, float]) -> Vector3:
@@ -185,50 +182,6 @@ def _synthetic_descent_state(
     )
 
 
-def _plan_thrust(
-    plan: object,
-    state: FlightState,
-    elapsed: float,
-) -> tuple[float, tuple[float, float, float], np.ndarray]:
-    """Blend open-loop plan thrust with position/velocity feedback.
-
-    Returns ``(throttle, unit_direction, desired_position)``.
-    """
-    desired_p, desired_v, _ = plan.state_at(elapsed)  # type: ignore[attr-defined]
-    feedforward = np.asarray(plan.thrust_at(elapsed), dtype=float)  # type: ignore[attr-defined]
-    planned_magnitude = float(np.linalg.norm(feedforward))
-    if planned_magnitude <= 1e-6:
-        # A planned coast is exact: do not let position feedback light the
-        # engine early.  Keep the planned attitude (or vertical if absent).
-        axes = getattr(plan, "attitude_axes", None)
-        nose = (0.0, 0.0, 1.0)
-        if axes is not None:
-            result = axes(elapsed)
-            if result is not None:
-                nose = tuple(float(x) for x in result[0])
-        return 0.0, nose, np.asarray(desired_p, dtype=float)
-
-    error_p = np.asarray(desired_p, dtype=float) - np.asarray(state.position, dtype=float)
-    error_v = np.asarray(desired_v, dtype=float) - np.asarray(state.velocity, dtype=float)
-    feedback = KP_POS * error_p + KD_VEL * error_v
-    feedback_norm = float(np.linalg.norm(feedback))
-    if feedback_norm > MAX_FEEDBACK:
-        feedback *= MAX_FEEDBACK / feedback_norm
-
-    acceleration = feedforward / max(float(state.mass), 1e-3) + feedback
-    direction = _unit(acceleration)
-    thrust_capability = max(float(state.available_thrust), float(state.max_thrust))
-    if thrust_capability <= 0.0:
-        return 0.0, tuple(direction), np.asarray(desired_p, dtype=float)
-
-    # A true coast command stays a coast.  A positive command is pushed into
-    # the engine's admissible band; the OCP is allowed to choose zero thrust
-    # (engine cutoff is legal), but it must not ask the engine for 1鈥?9 %.
-    magnitude = float(state.mass) * float(np.linalg.norm(acceleration))
-    magnitude = _clamp(magnitude, MIN_THROTTLE * thrust_capability, thrust_capability)
-    return magnitude / thrust_capability, tuple(direction), np.asarray(desired_p, dtype=float)
-
-
 def _terminal_command(
     state: FlightState,
     body_spec: BodySpec,
@@ -246,23 +199,23 @@ def _terminal_command(
     """
     position = np.asarray(state.position, dtype=float)
     velocity = np.asarray(state.velocity, dtype=float)
-    center = np.asarray(body_spec.body_center, dtype=float)  # type: ignore[attr-defined]
+    center = np.asarray(body_spec.body_center, dtype=float)
     up = -center / max(float(np.linalg.norm(center)), 1e-9)
     radius = float(np.linalg.norm(position - center))
-    g_local = float(body_spec.mu) / max(radius * radius, 1.0)  # type: ignore[attr-defined]
+    g_local = float(body_spec.mu) / max(radius * radius, 1.0)
     height = float(position[2]) - float(target_height)
     vz = float(velocity[2])
 
     # Atmospheric drag along the velocity (positive upward for a descent).
-    sea_radius = float(drag_spec.sea_level_radius)  # type: ignore[attr-defined]
+    sea_radius = float(drag_spec.sea_level_radius)
     altitude = radius - sea_radius
-    alts = np.asarray(drag_spec.density_alts, dtype=float)  # type: ignore[attr-defined]
-    vals = np.asarray(drag_spec.density_vals, dtype=float)  # type: ignore[attr-defined]
+    alts = np.asarray(drag_spec.density_alts, dtype=float)
+    vals = np.asarray(drag_spec.density_vals, dtype=float)
     if altitude <= 0.0 or altitude >= alts[-1]:
         density = float(vals[0]) if altitude <= 0.0 else 0.0
     else:
         density = float(np.interp(altitude, alts, vals))
-    drag_force = 0.5 * density * float(drag_spec.cd_area or 0.0) * vz * abs(vz)  # type: ignore[attr-defined]
+    drag_force = 0.5 * density * float(drag_spec.cd_area or 0.0) * vz * abs(vz)
     drag_acc = drag_force / max(float(state.mass), 1e-6)
 
     if height <= 0.05:
@@ -464,6 +417,23 @@ def main() -> None:
         service.initialize()
         service.start()
 
+        tracker = PlanTracker(
+            booster_id=BOOSTER_ID,
+            service=service,
+            tracking=TrackingConfig(
+                min_throttle=MIN_THROTTLE,
+                kp_position=KP_POS,
+                kd_velocity=KD_VEL,
+                max_feedback=MAX_FEEDBACK,
+                max_tilt_deg=float(config.max_tilt_deg),
+                coast_fraction=COAST_FRACTION,
+            ),
+            target_height=target_height,
+            mpc_period=MPC_PERIOD,
+            terminal_alt=TERMINAL_ALT,
+            tf_hint=SCVX_TF_HINT,
+        )
+
         # Safety net: the user can always quickload this save.
         booster.client.space_center.quicksave()
         print("Saved quicksave.  Igniting...")
@@ -489,19 +459,17 @@ def main() -> None:
         pacer = FramePacer(hz=LOOP_HZ)
         log = open(LOG_PATH, "w", encoding="utf-8", newline="")
         log.write(
-            "wall,ut,phase,z,vz,speed,mass,throttle,plan_elapsed,plan_duration,"
-            "plan_iters,plan_converged,plan_age,err_x,err_y,err_z,"
+            "wall,ut,phase,z,vz,speed,mass,throttle,tilt_deg,nose_z,cmd_nose_z,"
+            "plan_frac,coast,tilt_limited,plan_elapsed,plan_duration,"
+            "plan_iters,plan_converged,plan_age,replans,err_x,err_y,err_z,"
             "desired_x,desired_y,desired_z,solver_error,plan_source,terminal_source\n"
         )
         log.flush()
 
         phase = "ascent"
         coast_ut = 0.0
-        descent_started_ut = 0.0
-        latest_plan: object | None = None
-        last_plan_time = time.monotonic()
-        last_plan_id: int | None = None
         last_plan_source = ""
+        last_replans = 0
         terminal_source = "plan"
         last_log = time.monotonic()
         started = time.monotonic()
@@ -516,13 +484,24 @@ def main() -> None:
             plan_elapsed: float,
             desired_p: np.ndarray | None,
             solver_error: str | None,
+            nose: tuple[float, float, float] = (0.0, 0.0, 1.0),
+            plan_fraction: float = float("nan"),
+            coast: bool = False,
+            tilt_limited: bool = False,
         ) -> None:
             now = time.monotonic()
-            plan = latest_plan
-            plan_duration = float(plan.duration) if plan is not None else float("nan")  # type: ignore[attr-defined]
-            plan_iters = int(plan.iterations) if plan is not None else 0  # type: ignore[attr-defined]
-            plan_converged = bool(plan.converged) if plan is not None else False  # type: ignore[attr-defined]
-            plan_age = max(0.0, now - last_plan_time) if plan is not None else float("nan")
+            plan = tracker.plan
+            plan_duration = float(plan.duration) if plan is not None else float("nan")
+            plan_iters = int(plan.iterations) if plan is not None else 0
+            plan_converged = bool(plan.converged) if plan is not None else False
+            plan_age = (
+                max(0.0, now - tracker.last_accept_wall)
+                if plan is not None
+                else float("nan")
+            )
+            tilt_deg = math.degrees(
+                math.acos(min(max(float(s.direction.z), -1.0), 1.0))
+            )
             if desired_p is None:
                 err = np.asarray(s.position, dtype=float) - np.array(
                     [0.0, 0.0, touchdown_z], dtype=float
@@ -535,8 +514,12 @@ def main() -> None:
                 f"{now - started:.3f},{s.ut:.3f},{phase},"
                 f"{s.position.z:.3f},{s.velocity.z:.3f},"
                 f"{math.hypot(s.velocity.x, s.velocity.y, s.velocity.z):.3f},"
-                f"{s.mass:.2f},{throttle:.4f},{plan_elapsed:.3f},{plan_duration:.3f},"
+                f"{s.mass:.2f},{throttle:.4f},{tilt_deg:.3f},"
+                f"{float(s.direction.z):.4f},{float(nose[2]):.4f},"
+                f"{plan_fraction:.6f},{int(coast)},{int(tilt_limited)},"
+                f"{plan_elapsed:.3f},{plan_duration:.3f},"
                 f"{plan_iters},{int(plan_converged)},{plan_age:.3f},"
+                f"{tracker.replans},"
                 f"{err[0]:.3f},{err[1]:.3f},{err[2]:.3f},"
                 f"{des[0]:.3f},{des[1]:.3f},{des[2]:.3f},"
                 f"{'' if solver_error is None else solver_error.replace(',', ';')},"
@@ -592,7 +575,7 @@ def main() -> None:
                         print(
                             f"Engine cutoff at z={s.position.z:.1f} m "
                             f"vz={s.velocity.z:.1f} m/s; coasting to "
-                            f"{DESCENT_VZ:.0f} m/s for free-ignition solve"
+                            f"{DESCENT_VZ:.0f} m/s for the SCvx solve"
                         )
                     continue
 
@@ -616,18 +599,11 @@ def main() -> None:
                         float(s.ut) - coast_ut >= COAST_S
                         and s.velocity.z <= DESCENT_VZ
                     ):
-                        service.refresh(
-                            BOOSTER_ID,
-                            s,
-                            engine=EngineModel.from_state(s),
-                            tf_hint=SCVX_TF_HINT,
-                            attitude=AttitudeModel.from_state(s),
-                        )
                         phase = "descent"
-                        descent_started_ut = float(s.ut)
                         print(
-                            f"Free-ignition SCvx seeded at z={s.position.z:.1f} m "
-                            f"vz={s.velocity.z:.1f} m/s mass={s.mass:.0f} kg"
+                            f"SCvx descent phase at z={s.position.z:.1f} m "
+                            f"vz={s.velocity.z:.1f} m/s mass={s.mass:.0f} kg; "
+                            f"MPC period {MPC_PERIOD:.1f}s"
                         )
                     continue
 
@@ -669,22 +645,17 @@ def main() -> None:
                         terminal_source = "hoverslam-low"
                     elapsed = 0.0
                     terminal_mode = True
+                    plan_fraction = float("nan")
+                    coast = False
+                    tilt_limited = False
                 else:
                     terminal_mode = False
-                    latest_plan = service.latest_plan(BOOSTER_ID)
-                    plan_stats = service.stats(BOOSTER_ID)
-                    plan_ready = latest_plan is not None and (
-                        last_plan_id is not None
-                        or (
-                            plan_stats.solver_converged
-                            if config.free_ignition
-                            else plan_stats.converged
-                        )
-                    )
-                    if not plan_ready:
-                        if float(s.ut) - descent_started_ut > 20.0:
+                    cmd = tracker.step(s)
+                    if cmd is None:
+                        plan_stats = service.stats(BOOSTER_ID)
+                        if float(s.ut) - tracker.started_ut > 20.0:
                             raise RuntimeError(
-                                "free-ignition SCvx plan not ready after 20 s "
+                                "SCvx plan not usable after 20 s "
                                 f"(iterations={plan_stats.iterations}, "
                                 f"converged={plan_stats.converged}, "
                                 f"solver={plan_stats.solver_converged}, "
@@ -701,28 +672,29 @@ def main() -> None:
                                 desired_p=None, solver_error=service.last_error(BOOSTER_ID))
                         continue
 
-                    if id(latest_plan) != last_plan_id:
-                        last_plan_id = id(latest_plan)
-                        last_plan_time = time.monotonic()
+                    if tracker.replans != last_replans:
+                        last_replans = tracker.replans
+                        plan_stats = service.stats(BOOSTER_ID)
                         last_plan_source = plan_stats.plan_source
-                        if last_plan_source not in ("multishot", ""):
+                        plan = tracker.plan
+                        if plan is not None:
                             print(
-                                f"[solver] plan source={last_plan_source!r} "
-                                f"(multishot expected)"
-                            )
-                        ignition = getattr(latest_plan, "ignition_time", None)
-                        if ignition is not None:
-                            print(
-                                f"[solver] free ignition at t_plan="
-                                f"{float(ignition):.2f}s, source={last_plan_source}"
+                                f"[mpc] plan #{tracker.replans} "
+                                f"t0_ut={plan.t0_ut:.1f} "
+                                f"duration={plan.duration:.1f}s "
+                                f"ignition={plan.ignition_time} "
+                                f"source={last_plan_source or '-'}"
                             )
 
-                    # Use the current game clock for plan phase; a telemetry frame
-                    # is up to one interval old, and the plan is a game-time plan.
-                    current_ut = booster.current_ut()
-                    elapsed = max(0.0, float(current_ut) - float(latest_plan.t0_ut))  # type: ignore[attr-defined]
-                    elapsed = min(elapsed, float(latest_plan.duration))  # type: ignore[attr-defined]
-                    throttle, nose, desired_p = _plan_thrust(latest_plan, s, elapsed)
+                    elapsed = tracker.elapsed
+                    throttle, nose, desired_p = (
+                        cmd.throttle,
+                        cmd.nose,
+                        cmd.desired_position,
+                    )
+                    plan_fraction = cmd.planned_fraction
+                    coast = cmd.coast
+                    tilt_limited = cmd.tilt_limited
 
                 sticks = attitude.step(s, nose)
                 booster.controls.apply(
@@ -737,20 +709,33 @@ def main() -> None:
                     plan_elapsed=elapsed,
                     desired_p=desired_p,
                     solver_error=service.last_error(BOOSTER_ID),
+                    nose=nose,
+                    plan_fraction=plan_fraction,
+                    coast=coast,
+                    tilt_limited=tilt_limited,
                 )
                 if now - last_log >= 1.0:
                     stats = service.stats(BOOSTER_ID)
+                    plan = tracker.plan
                     plan_text = (
                         f"terminal:{terminal_source}"
                         if terminal_mode
-                        else f"{elapsed:5.1f}/{latest_plan.duration:5.1f}s"  # type: ignore[union-attr]
+                        else (
+                            f"{elapsed:5.1f}/"
+                            f"{plan.duration if plan is not None else float('nan'):5.1f}s"
+                        )
+                    )
+                    tilt_deg = math.degrees(
+                        math.acos(min(max(float(s.direction.z), -1.0), 1.0))
                     )
                     print(
                         f"[descent] t={now - started:5.1f}s z={s.position.z:8.1f} "
                         f"vz={s.velocity.z:7.2f} thr={throttle:.3f} "
+                        f"tilt={tilt_deg:5.1f} "
+                        f"cmd_z={float(nose[2]):5.3f} frac={plan_fraction:7.5f} "
                         f"{plan_text} iters={stats.iterations} "
-                        f"conv={stats.converged} "
-                        f"solver={stats.solver_converged} "
+                        f"conv={stats.converged} solver={stats.solver_converged} "
+                        f"replans={tracker.replans} "
                         f"src={stats.plan_source or '-'} "
                         f"err={service.last_error(BOOSTER_ID)}"
                     )
