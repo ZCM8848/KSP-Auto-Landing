@@ -101,14 +101,33 @@ def test_gate_tail_is_a_coast_not_a_burn() -> None:
 
 def test_free_ignition_ramp_waits_for_the_executable_band() -> None:
     """A gate ramp below half the engine band is still a coast."""
+    config = TrackingConfig(light_fraction=0.4, cutoff_fraction=0.05)
     low = _plan(thrust=(0.0, 0.0, 2000.0), ignition_time=10.0)
-    assert plan_thrust(
-        low, _state(z=8001.0, vz=0.0), 10.0, config=TrackingConfig()
-    ).coast
+    assert plan_thrust(low, _state(z=8001.0, vz=0.0), 10.0, config=config).coast
 
     high = _plan(thrust=(0.0, 0.0, 10000.0), ignition_time=10.0)
-    cmd = plan_thrust(high, _state(z=8001.0, vz=0.0), 10.0, config=TrackingConfig())
+    cmd = plan_thrust(high, _state(z=8001.0, vz=0.0), 10.0, config=config)
     assert not cmd.coast
+
+
+def test_burn_hysteresis_prevents_zero_forty_chatter() -> None:
+    """Once lit, a low-thrust plan stays lit until it drops below cutoff."""
+    config = TrackingConfig(light_fraction=0.4, cutoff_fraction=0.05)
+    low = _plan(thrust=(0.0, 0.0, 2000.0), ignition_time=10.0)
+
+    assert plan_thrust(
+        low, _state(z=8001.0, vz=0.0), 10.0, config=config, burning=False
+    ).coast
+    lit = plan_thrust(
+        low, _state(z=8001.0, vz=0.0), 10.0, config=config, burning=True
+    )
+    assert not lit.coast
+    assert lit.throttle >= 0.4
+
+    cut = _plan(thrust=(0.0, 0.0, 200.0), ignition_time=10.0)
+    assert plan_thrust(
+        cut, _state(z=8001.0, vz=0.0), 10.0, config=config, burning=True
+    ).coast
 
 
 def test_feedback_cannot_invert_the_engine() -> None:
@@ -191,6 +210,11 @@ def test_tracker_waits_for_a_usable_plan_then_replans() -> None:
     assert first is not None
     assert tracker.replans == 1
     assert tracker.plan is not None
+
+    # A newer SCP iterate with the same t0 must not replace the plan.
+    service.plan = _plan(t0=100.0)
+    assert tracker.step(state, now=1.5) is not None
+    assert tracker.replans == 1
 
     state2 = _state(ut=102.5, z=7000.0)
     service.next_plan = _plan(t0=102.5)

@@ -269,6 +269,8 @@ def _polynomial_terminal_command(
     drag_spec: DragSpec,
     target_height: float,
     guidance: PolynomialTerminalGuidance,
+    *,
+    time_to_go: float | None = None,
 ) -> tuple[float, tuple[float, float, float], np.ndarray, str]:
     """Polynomial terminal guidance with drag feed-forward.
 
@@ -287,6 +289,7 @@ def _polynomial_terminal_command(
         target=TerminalTarget((0.0, 0.0, float(target_height)), (0.0, 0.0, 0.0)),
         gravity=(0.0, 0.0, -g_local),
         available_thrust=max(float(state.available_thrust), float(state.max_thrust)),
+        time_to_go=time_to_go,
     )
     if command.status != "terminal":
         return 0.0, (0.0, 0.0, 1.0), np.array([0.0, 0.0, target_height]), "poly-coast"
@@ -428,7 +431,8 @@ def main() -> None:
                 kd_velocity=KD_VEL,
                 max_feedback=MAX_FEEDBACK,
                 max_tilt_deg=float(config.max_tilt_deg),
-                coast_fraction=COAST_FRACTION,
+                light_fraction=COAST_FRACTION,
+                cutoff_fraction=0.0,
             ),
             target_height=target_height,
             mpc_period=MPC_PERIOD,

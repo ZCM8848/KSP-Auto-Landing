@@ -54,13 +54,20 @@ class TrackingConfig:
     flight-termination system.
     """
 
-    coast_fraction: float = 1e-3
-    """Plan thrust below this fraction of max thrust is treated as a coast.
+    light_fraction: float = 1e-3
+    """Plan thrust fraction needed to start a burn from a coast.
 
-    The free-ignition gate is a sigmoid and never exactly zero.  An absolute
-    newton threshold is therefore meaningless: a gate tail of a few newtons
-    can be above it while the planned burn is off.  This relative threshold is
-    far above the tail and far below any executable burn.
+    For a free-ignition plan this should be the executable engine band (about
+    0.4); otherwise a gate tail can make the controller toggle 0/40 % around
+    the threshold.  Fixed-ignition plans may use a tiny threshold.
+    """
+
+    cutoff_fraction: float = 0.0
+    """Plan thrust fraction below which an already-burning engine is cut.
+
+    Once lit, the engine stays lit until the plan drops below this value.
+    This hysteresis prevents the 0/40 % chattering seen when a plan's thrust
+    fraction hovers around the light threshold.
     """
 
 
@@ -131,6 +138,7 @@ def plan_thrust(
     elapsed: float,
     *,
     config: TrackingConfig,
+    burning: bool = False,
 ) -> PlanThrust:
     """Track *plan* at *elapsed* seconds with coast and tilt guards.
 
@@ -152,15 +160,15 @@ def plan_thrust(
         else np.array([0.0, 0.0, 1.0], dtype=float)
     )
 
-    burn_threshold = config.coast_fraction
-    if plan.ignition_time is not None:
-        # The free-ignition gate ramps continuously from zero, but the real
-        # engine cannot throttle below ``min_throttle``.  Wait until the plan
-        # has reached half of the executable band before lighting, instead of
-        # jumping to 40 % on the first few newtons of gate tail.
-        burn_threshold = max(burn_threshold, 0.5 * config.min_throttle)
+    # A relative threshold above the sigmoid gate tail, plus hysteresis once
+    # the engine is actually lit: do not fall back to a 0/40 % limit cycle
+    # when the plan's thrust fraction wanders around the light threshold.
+    if burning:
+        should_coast = planned_fraction <= config.cutoff_fraction
+    else:
+        should_coast = planned_fraction < config.light_fraction
 
-    if capability <= 0.0 or planned_fraction <= burn_threshold:
+    if capability <= 0.0 or should_coast:
         return PlanThrust(
             throttle=0.0,
             nose=_as_tuple(plan_nose),
@@ -338,6 +346,10 @@ class PlanTracker:
         """Wall-clock time when the current plan was accepted."""
         return self._last_accept_wall
 
+    def set_tf_hint(self, tf_hint: float | None) -> None:
+        """Update the time-of-flight seed used by the next refresh."""
+        self._tf_hint = None if tf_hint is None else float(tf_hint)
+
     def step(
         self,
         state: FlightState,
@@ -390,7 +402,13 @@ class PlanTracker:
             else:
                 raise RuntimeError("SCvx plan expired before the terminal hand-off")
         self._elapsed = elapsed
-        return plan_thrust(self._plan, state, elapsed, config=self._tracking)
+        return plan_thrust(
+            self._plan,
+            state,
+            elapsed,
+            config=self._tracking,
+            burning=float(state.throttle) > 0.01,
+        )
 
     def seed(self, state: FlightState, *, now: float | None = None) -> None:
         """Send the first solve request from *state* (idempotent)."""
@@ -417,7 +435,10 @@ class PlanTracker:
         )
 
     def _is_newer(self, plan: Plan) -> bool:
-        return self._plan is None or float(plan.t0_ut) >= float(self._plan.t0_ut)
+        # Only a new refresh (a strictly newer t0) should replace the tracked
+        # plan.  Intermediate SCP iterates share t0; accepting every one of
+        # them makes the command jump on every solver iteration.
+        return self._plan is None or float(plan.t0_ut) > float(self._plan.t0_ut)
 
     def _usable(self, plan: Plan, state: FlightState) -> bool:
         if int(plan.iterations) < self._min_plan_iterations:

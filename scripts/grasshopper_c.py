@@ -5,16 +5,15 @@ can be observed without changing the known-good fixed-ignition mission.
 
 Sequence
 --------
-1. Ascent to 5 km, cutoff.
-2. Coast to ``-200 m/s``.  That state seeds the free-ignition 6-DOF OCP.
-3. The OCP has a free ``ignition_time`` state: it integrates the unpowered
-   coast itself and decides when to relight.  The engine is off until the
-   plan's smooth ignition gate reaches the executable band.
-4. Re-seed the OCP from the current measurement every ``MPC_PERIOD`` seconds
-   and track the latest plan whose 500 m hand-off state is usable.  This is a
-   real receding-horizon loop, not a single fixed plan.
-5. Hand off to polynomial terminal guidance at 500 m; cut at contact and give
-   no stick commands on the ground.
+1. Ascent to 5 km, cutoff, coast to ``-100 m/s``.
+2. Controlled powered descent to a 2 km hover checkpoint using the
+   predictor-free terminal law (vertical braking plus lateral damping).
+3. Hold the 2 km hover for ``HOVER_HOLD_S`` seconds while pre-solving the
+   landing OCP from the hover state.
+4. Track the landing OCP with a free ``ignition_time`` state, re-seeding it
+   from the current measurement every ``MPC_PERIOD`` seconds, and hand off to
+   polynomial terminal guidance at 500 m.
+5. Cut at contact; no stick commands on the ground.
 
 The console and ``grasshopper_c_flight.csv`` expose:
   * the plan's chosen ignition time and altitude;
@@ -37,6 +36,7 @@ from __future__ import annotations
 import math
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -62,30 +62,104 @@ from recovery.control import LocalAttitudeController
 from recovery.data.targets import LAUNCHPAD_JNSQ
 from recovery.guidance import (
     AttitudeModel,
+    PlanThrust,
     PlanTracker,
     PolynomialConfig,
     PolynomialTerminalGuidance,
     ScvxConfig,
     ScvxSolveService,
+    TofFeatureParams,
+    TofPredictor,
     TrackingConfig,
     build_six_dof_problem,
+    features_of,
 )
+from recovery.specs import BodySpec
 from recovery.types import FlightState, Situation
 
 VESSEL = "VTVL"
 BOOSTER_ID = "vtvl_c"
 TARGET = LAUNCHPAD_JNSQ
 
-COAST_VZ = -100.0          # state that seeds the free-ignition OCP (m/s)
+COAST_VZ = -100.0          # state that ends the initial coast (m/s)
 COAST_MIN_S = 4.0          # minimum engine-off time before the seed
+HOVER_ALT = 2_000.0        # intermediate hover checkpoint above the pad (m)
+HOVER_HOLD_S = 3.0         # hover duration before starting the landing OCP (s)
+HOVER_BAND = 5.0           # altitude band for switching to hover (m)
+HOVER_VZ_TOL = 1.0         # vertical-speed band for switching to hover (m/s)
+HOVER_KP = 0.40            # hover altitude gain (1/s^2)
+HOVER_KD = 1.50            # hover vertical-speed gain (1/s)
+HOVER_MAX_HACC = 2.0       # hover lateral acceleration limit (m/s^2)
 SCVX_ITERS = 120           # root solve needs ~40; cap high enough to see it
 SCVX_TF_HINT = 60.0        # free final time / ignition seed (s)
 MAX_IGNITION_S = 2.0       # never coast below this delay from the solve seed (s)
 MPC_PERIOD = 2.0           # re-seed the horizon from the current state (s)
-COAST_FRACTION = 1e-3      # plan thrust below this fraction of max is a coast
 DRAW_PERIOD = 1.0          # update the planned/actual debug lines (s)
+TOF_PERIOD = 1.0           # refresh the TOF-Net prediction (s)
 LOOP_HZ = 50.0
 LOG_PATH = "grasshopper_c_flight.csv"
+
+
+def _hover_command(
+    state: FlightState,
+    body_spec: BodySpec,
+    *,
+    hover_alt: float,
+    up: np.ndarray,
+) -> tuple[float, tuple[float, float, float], np.ndarray]:
+    """Hold altitude and x/y near the launch-pad axis."""
+    position = np.asarray(state.position, dtype=float)
+    velocity = np.asarray(state.velocity, dtype=float)
+    center = np.asarray(body_spec.body_center, dtype=float)
+    radius = float(np.linalg.norm(position - center))
+    g_local = float(body_spec.mu) / max(radius * radius, 1.0)
+    height = float(position[2]) - float(hover_alt)
+    vertical_acc = max(
+        g_local + HOVER_KP * height - HOVER_KD * velocity[2],
+        0.0,
+    )
+
+    horizontal_acc = -0.5 * position[:2] - 1.0 * velocity[:2]
+    horizontal_norm = float(np.linalg.norm(horizontal_acc))
+    if horizontal_norm > HOVER_MAX_HACC:
+        horizontal_acc *= HOVER_MAX_HACC / horizontal_norm
+    horizontal_3d = np.array(
+        [horizontal_acc[0], horizontal_acc[1], 0.0], dtype=float
+    )
+    acceleration = horizontal_3d + vertical_acc * np.asarray(up, dtype=float)
+    magnitude = float(np.linalg.norm(acceleration))
+    thrust = max(float(state.available_thrust), float(state.max_thrust))
+    desired = np.array([0.0, 0.0, float(hover_alt)], dtype=float)
+    if magnitude <= 1e-9 or thrust <= 0.0:
+        return 0.0, (0.0, 0.0, 1.0), desired
+    throttle = min(max(float(state.mass) * magnitude / thrust, MIN_THROTTLE), 1.0)
+    direction = acceleration / magnitude
+    return (
+        throttle,
+        (float(direction[0]), float(direction[1]), float(direction[2])),
+        desired,
+    )
+
+
+def _tof_prediction(
+    predictor: TofPredictor | None,
+    params: TofFeatureParams,
+    state: FlightState,
+    *,
+    fallback_isp: float,
+) -> tuple[float, float] | None:
+    """TOF-Net ``(p_feasible, tf)`` or ``None`` if unavailable."""
+    if predictor is None:
+        return None
+    try:
+        if float(state.specific_impulse) <= 0.0:
+            state = replace(state, specific_impulse=float(fallback_isp))
+        p_feasible, tf = predictor.predict(features_of(state, params))
+    except Exception:  # noqa: BLE001 - optional diagnostic aid
+        return None
+    if not (math.isfinite(p_feasible) and math.isfinite(tf)) or tf <= 0.0:
+        return None
+    return p_feasible, tf
 
 
 def main() -> None:
@@ -174,6 +248,23 @@ def main() -> None:
             attitude=attitude_model,
             config=config,
         )
+
+        tof_params = TofFeatureParams(
+            min_throttle=MIN_THROTTLE,
+            max_throttle=1.0,
+            glide_slope_angle_deg=float(config.glide_slope_deg),
+            max_angle_deg=float(config.max_tilt_deg),
+        )
+        try:
+            tof = TofPredictor()
+            print(
+                f"TOF-Net loaded (threshold={tof.threshold:.3f}, "
+                f"features={len(tof.features)})"
+            )
+        except Exception as exc:  # noqa: BLE001 - optional diagnostic aid
+            tof = None
+            print(f"TOF-Net unavailable: {exc!r}")
+
         service = ScvxSolveService(workers=1)
         service.register(BOOSTER_ID, problem, config=config)
         print("Compiling free-ignition 6-DOF SCvx problem (~10 s)...")
@@ -189,7 +280,8 @@ def main() -> None:
                 kd_velocity=1.00,
                 max_feedback=2.0,
                 max_tilt_deg=float(config.max_tilt_deg),
-                coast_fraction=COAST_FRACTION,
+                light_fraction=MIN_THROTTLE,
+                cutoff_fraction=0.05,
             ),
             target_height=target_height,
             mpc_period=MPC_PERIOD,
@@ -217,13 +309,18 @@ def main() -> None:
             "plan_frac,coast,tilt_limited,plan_elapsed,plan_duration,plan_iters,"
             "plan_ignition,actual_ignition,err_x,err_y,terminal_source,"
             "solver_iterations,solver_converged,plan_source,plan_age,replans,"
-            "solver_error\n"
+            "tof_p,tof_tf,solver_error\n"
         )
         log.flush()
 
         phase = "ascent"
         coast_ut = 0.0
         actual_ignition: float | None = None
+        hover_started_ut = 0.0
+        hover_landing_cmd: PlanThrust | None = None
+        tof_p = float("nan")
+        tof_tf = float("nan")
+        last_tof_wall = 0.0
         terminal_source = "plan"
         last_log = time.monotonic()
         last_replans = 0
@@ -284,9 +381,26 @@ def main() -> None:
                 f"{'' if actual_ignition is None else f'{actual_ignition:.3f}'},"
                 f"{err[0]:.3f},{err[1]:.3f},{terminal_source},"
                 f"{solver_iterations},{solver_converged},{plan_source},"
-                f"{plan_age:.3f},{tracker.replans},{solver_error}\n"
+                f"{plan_age:.3f},{tracker.replans},{tof_p:.5f},{tof_tf:.3f},"
+                f"{solver_error}\n"
             )
             log.flush()
+
+        def update_tof(s: FlightState, now_wall: float) -> None:
+            nonlocal tof_p, tof_tf, last_tof_wall
+            if now_wall - last_tof_wall < TOF_PERIOD:
+                return
+            last_tof_wall = now_wall
+            prediction = _tof_prediction(
+                tof,
+                tof_params,
+                s,
+                fallback_isp=engine_model.isp,
+            )
+            if prediction is None:
+                return
+            tof_p, tof_tf = prediction
+            tracker.set_tf_hint(tof_tf)
 
         try:
             while True:
@@ -354,17 +468,102 @@ def main() -> None:
                         float(s.ut) - coast_ut >= COAST_MIN_S
                         and s.velocity.z <= COAST_VZ
                     ):
+                        phase = "approach"
+                        print(
+                            f"Powered approach to {HOVER_ALT:.0f} m at "
+                            f"z={s.position.z:.1f} m vz={s.velocity.z:.1f} m/s, "
+                            f"mass={s.mass:.0f} kg"
+                        )
+                    continue
+
+                # ---- controlled descent to the 2 km hover checkpoint ------
+                if phase == "approach":
+                    terminal_source = "approach"
+                    throttle, nose, desired_p = _terminal_command(
+                        s, body_spec, drag_spec, HOVER_ALT
+                    )
+                    sticks = attitude.step(s, nose)
+                    booster.controls.apply(
+                        throttle=throttle,
+                        pitch=sticks.pitch,
+                        yaw=sticks.yaw,
+                        roll=sticks.roll,
+                    )
+                    log_row(s, throttle, 0.0, desired_p, nose=nose)
+                    if now - last_log >= 1.0:
+                        print(
+                            f"[approach] t={now - started:5.1f}s "
+                            f"z={s.position.z:8.1f} vz={s.velocity.z:7.2f} "
+                            f"thr={throttle:.3f}"
+                        )
+                        last_log = now
+                    if (
+                        s.position.z <= HOVER_ALT + HOVER_BAND
+                        and abs(float(s.velocity.z)) <= HOVER_VZ_TOL
+                    ):
+                        phase = "hover"
+                        hover_started_ut = float(s.ut)
+                        hover_landing_cmd = None
+                        print(
+                            f"2 km hover reached at z={s.position.z:.1f} m, "
+                            f"vz={s.velocity.z:.2f} m/s; holding "
+                            f"{HOVER_HOLD_S:.1f}s"
+                        )
+                    continue
+
+                # ---- hover checkpoint; pre-solve the landing OCP ---------
+                if phase == "hover":
+                    terminal_source = "hover"
+                    update_tof(s, now)
+                    cmd = tracker.step(s)
+                    if cmd is None:
+                        if float(s.ut) - tracker.started_ut > 20.0:
+                            stats = service.stats(BOOSTER_ID)
+                            raise RuntimeError(
+                                "landing SCvx plan not usable after 20 s of hover "
+                                f"(iters={stats.iterations}, "
+                                f"converged={stats.converged}, "
+                                f"solver={stats.solver_converged}, "
+                                f"error={service.last_error(BOOSTER_ID)!r})"
+                            )
+                    else:
+                        hover_landing_cmd = cmd
+                    throttle, nose, desired_p = _hover_command(
+                        s,
+                        body_spec,
+                        hover_alt=HOVER_ALT,
+                        up=up_vector,
+                    )
+                    sticks = attitude.step(s, nose)
+                    booster.controls.apply(
+                        throttle=throttle,
+                        pitch=sticks.pitch,
+                        yaw=sticks.yaw,
+                        roll=sticks.roll,
+                    )
+                    log_row(s, throttle, 0.0, desired_p, nose=nose)
+                    if now - last_log >= 1.0:
+                        print(
+                            f"[hover ] t={now - started:5.1f}s "
+                            f"z={s.position.z:8.1f} vz={s.velocity.z:7.2f} "
+                            f"thr={throttle:.3f} plan_ready="
+                            f"{hover_landing_cmd is not None}"
+                        )
+                        last_log = now
+                    if (
+                        float(s.ut) - hover_started_ut >= HOVER_HOLD_S
+                        and hover_landing_cmd is not None
+                    ):
                         phase = "descent"
                         print(
-                            f"Free-ignition descent phase at z={s.position.z:.1f} m "
-                            f"vz={s.velocity.z:.1f} m/s, mass={s.mass:.0f} kg; "
-                            f"MPC period {MPC_PERIOD:.1f}s"
+                            f"Landing SCvx seeded from {s.position.z:.1f} m hover"
                         )
                     continue
 
                 # ---- free-ignition powered descent -----------------------
                 terminal_source = "plan"
                 if s.position.z <= target_height + TERMINAL_ALT:
+                    update_tof(s, now)
                     height = s.position.z - target_height
                     if height > HOVERSLAM_ALT:
                         try:
@@ -375,6 +574,9 @@ def main() -> None:
                                     drag_spec,
                                     target_height,
                                     terminal_guidance,
+                                    time_to_go=(
+                                        tof_tf if math.isfinite(tof_tf) else None
+                                    ),
                                 )
                             )
                         except Exception as exc:  # noqa: BLE001
@@ -409,6 +611,7 @@ def main() -> None:
                         )
                         last_log = now
                 else:
+                    update_tof(s, now)
                     cmd = tracker.step(s)
                     if cmd is None:
                         stats = service.stats(BOOSTER_ID)
