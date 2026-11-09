@@ -64,7 +64,7 @@ A_BRAKE = 4.0             # ascent profile deceleration near cutoff (m/s虏)
 ASCENT_KP = 0.25          # vertical-speed loop gain (1/s)
 
 COAST_S = 4.0             # minimum engine-off coast before the SCvx solve (s)
-DESCENT_VZ = -200.0       # state that seeds the SCvx descent (m/s)
+DESCENT_VZ = -100.0       # state that seeds the SCvx descent (m/s)
 MIN_THROTTLE = 0.40       # engine lower throttle limit
 LOOP_HZ = 50.0            # control-loop rate
 SCVX_N = 18               # transcription nodes
@@ -231,10 +231,11 @@ def _terminal_command(
     #   < 20 m  : vertical attitude; the legs must take any residual drift
     if height > 200.0:
         horizontal_acc = -TERM_KP * position[:2] - TERM_KD * velocity[:2]
-    elif height > 20.0:
-        horizontal_acc = -2.0 * velocity[:2]
     else:
-        horizontal_acc = np.zeros(2, dtype=float)
+        # Below 200 m do not chase position, but always kill lateral velocity.
+        # Leaving lateral speed at touchdown tips the booster even when the
+        # vertical speed and tilt look perfect.
+        horizontal_acc = -2.0 * velocity[:2]
     horizontal_norm = float(np.linalg.norm(horizontal_acc))
     if horizontal_norm > TERM_MAX_HACC:
         horizontal_acc *= TERM_MAX_HACC / horizontal_norm

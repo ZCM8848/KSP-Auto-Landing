@@ -76,11 +76,11 @@ VESSEL = "VTVL"
 BOOSTER_ID = "vtvl_c"
 TARGET = LAUNCHPAD_JNSQ
 
-COAST_VZ = -200.0          # state that seeds the free-ignition OCP (m/s)
+COAST_VZ = -100.0          # state that seeds the free-ignition OCP (m/s)
 COAST_MIN_S = 4.0          # minimum engine-off time before the seed
 SCVX_ITERS = 120           # root solve needs ~40; cap high enough to see it
 SCVX_TF_HINT = 60.0        # free final time / ignition seed (s)
-MAX_IGNITION_S = 3.0       # never coast below this delay from the solve seed (s)
+MAX_IGNITION_S = 2.0       # never coast below this delay from the solve seed (s)
 MPC_PERIOD = 2.0           # re-seed the horizon from the current state (s)
 COAST_FRACTION = 1e-3      # plan thrust below this fraction of max is a coast
 DRAW_PERIOD = 1.0          # update the planned/actual debug lines (s)
