@@ -173,6 +173,15 @@ class ScvxConfig:
     grows; ``None`` leaves the horizon bound unchanged.
     """
 
+    monotonic_altitude: bool = False
+    """Enforce downward-only vertical motion (``vz <= 0``) throughout.
+
+    The OCP may otherwise trade altitude for later braking or use a small
+    climb to satisfy the terminal state.  Enabling this makes the planned
+    altitude non-increasing.  The initial state must have ``vz <= 0`` (the
+    hop scripts seed the solve after the coast, so this holds).
+    """
+
     max_descent_speed: float | None = None
     """Optional cap on downward speed (m/s, positive magnitude).
 
@@ -505,6 +514,11 @@ class DescentProblem:
             self._ignition_time.guess = np.full((self._n, 1), guess)
         p0 = np.asarray(state.position, dtype=float)
         v0 = np.asarray(state.velocity, dtype=float)
+        if self._config.monotonic_altitude and float(v0[2]) > 0.0:
+            raise ValueError(
+                "monotonic_altitude requires an initial vertical velocity <= 0, "
+                f"got {float(v0[2]):.3f} m/s"
+            )
         m0 = float(state.mass)
 
         self._position.initial = p0
@@ -967,7 +981,7 @@ def build_descent_problem(
     t_max = float(engine.available_thrust)
 
     position = ox.State("position", shape=(3,))
-    position.min = np.array([-xy_limit, -xy_limit, 0.0])
+    position.min = np.array([-xy_limit, -xy_limit, max(float(target_height), 0.0)])
     position.max = np.array([xy_limit, xy_limit, z_max])
     position.initial = p0
     position.final = np.array([0.0, 0.0, float(target_height)])
@@ -976,6 +990,13 @@ def build_descent_problem(
     velocity = ox.State("velocity", shape=(3,))
     velocity.min = np.array([-v_limit, -v_limit, -v_limit])
     velocity.max = np.array([v_limit, v_limit, v_limit])
+    if config.monotonic_altitude:
+        if float(v0[2]) > 0.0:
+            raise ValueError(
+                "monotonic_altitude requires an initial vertical velocity <= 0, "
+                f"got {float(v0[2]):.3f} m/s"
+            )
+        velocity.max[2] = 0.0
     velocity.initial = v0
     velocity.final = np.zeros(3)
     velocity.guess = np.linspace(v0, velocity.final, n)
@@ -1205,7 +1226,7 @@ def build_six_dof_problem(
     ) * (1.0 + config.bounds_margin)
 
     position = ox.State("position", shape=(3,))
-    position.min = np.array([-xy_limit, -xy_limit, 0.0])
+    position.min = np.array([-xy_limit, -xy_limit, max(float(target_height), 0.0)])
     position.max = np.array([xy_limit, xy_limit, z_max])
     position.initial = p0
     position.final = np.array([0.0, 0.0, float(target_height)])
@@ -1214,6 +1235,13 @@ def build_six_dof_problem(
     velocity = ox.State("velocity", shape=(3,))
     velocity.min = np.array([-v_limit, -v_limit, -v_limit])
     velocity.max = np.array([v_limit, v_limit, v_limit])
+    if config.monotonic_altitude:
+        if float(v0[2]) > 0.0:
+            raise ValueError(
+                "monotonic_altitude requires an initial vertical velocity <= 0, "
+                f"got {float(v0[2]):.3f} m/s"
+            )
+        velocity.max[2] = 0.0
     if config.max_descent_speed is not None:
         velocity.min = np.array(
             [-v_limit, -v_limit, -float(config.max_descent_speed)]

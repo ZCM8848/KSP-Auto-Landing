@@ -163,6 +163,7 @@ def main() -> None:
             free_ignition=True,
             ignition_guess=IGNITION_GUESS,
             max_ignition_time=MAX_IGNITION_S,
+            monotonic_altitude=True,
         )
         problem = build_six_dof_problem(
             body_spec,

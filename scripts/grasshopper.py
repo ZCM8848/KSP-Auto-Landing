@@ -390,7 +390,7 @@ def main() -> None:
             state,
             mass=float(state.mass),
             altitude=ASCENT_ALT - 300.0,
-            vertical_speed=-200.0,
+            vertical_speed=DESCENT_VZ,
             ut=float(state.ut) + 60.0,
         )
         config = ScvxConfig(
@@ -402,7 +402,7 @@ def main() -> None:
             multishot_plan=True,
             free_ignition=False,
             ignition_guess=IGNITION_GUESS,
-
+            monotonic_altitude=True,
         )
         problem = build_six_dof_problem(
             body_spec,

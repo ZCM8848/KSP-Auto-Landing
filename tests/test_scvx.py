@@ -168,6 +168,37 @@ def test_attitude_model_from_state() -> None:
     assert model.max_torque == pytest.approx((101000.0, 1000.0, 101000.0))
 
 
+def test_monotonic_altitude_rejects_an_upward_seed() -> None:
+    """A monotonic-altitude horizon cannot start with a climb."""
+    state = _state(vz=50.0)
+    with pytest.raises(ValueError, match="monotonic_altitude"):
+        build_six_dof_problem(
+            BODY,
+            DRAG,
+            state=state,
+            target_height=10.0,
+            engine=EngineModel.from_state(state),
+            attitude=AttitudeModel.from_state(state),
+            config=ScvxConfig(n=6, monotonic_altitude=True),
+        )
+
+
+def test_monotonic_altitude_sets_bounds() -> None:
+    """The plan is capped at vz <= 0 and cannot go below the landing height."""
+    state = _state(vz=-50.0)
+    built = build_six_dof_problem(
+        BODY,
+        DRAG,
+        state=state,
+        target_height=10.0,
+        engine=EngineModel.from_state(state),
+        attitude=AttitudeModel.from_state(state),
+        config=ScvxConfig(n=6, monotonic_altitude=True),
+    )
+    assert built._velocity.max[2] == pytest.approx(0.0)
+    assert built._position.min[2] == pytest.approx(10.0)
+
+
 def test_six_dof_problem_builds_and_steps() -> None:
     """The 6-DOF OCP constructs, initializes and publishes attitude in the plan."""
     state = _state(px=50.0)
