@@ -11,9 +11,9 @@ Sequence
    coast itself and decides when to relight.  The engine is off until the
    plan's smooth ignition gate reaches the executable band.
 4. Re-seed the OCP from the current measurement every ``MPC_PERIOD`` seconds
-   and track the latest plan whose 500 m hand-off state is usable.  This is a
+   and track the latest plan whose 2 km hand-off state is usable.  This is a
    real receding-horizon loop, not a single fixed plan.
-5. Hand off to polynomial terminal guidance at 500 m; cut at contact and give
+5. Hand off to polynomial terminal guidance at 2 km; cut at contact and give
    no stick commands on the ground.
 
 The console and ``grasshopper_c_flight.csv`` expose:
